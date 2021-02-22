@@ -27,13 +27,13 @@ target_include_directories(SAM_tb PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 # )
 target_sources(SAM_tb
     PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Connector.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/GlobalControl.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/AddressGenerator.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Memory.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Memory_Channel.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/SAM.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/SAM_tb.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Connector.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/GlobalControl.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/AddressGenerator.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Memory.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Memory_Channel.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/SAM.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/SAM_tb.cc"
 )
 
 target_link_libraries(SAM_tb PkgConfig::SYSTEMC PkgConfig::TLM2)
