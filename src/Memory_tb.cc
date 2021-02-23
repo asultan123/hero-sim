@@ -1,8 +1,7 @@
 #include <systemc.h>
-#include "Memory.cpp"
+#include "Memory.hh"
 
 // #define DEBUG
-
 using std::cout;
 using std::endl;
 
@@ -192,10 +191,9 @@ struct Memory_TB : public sc_module
 			rchannel.set_addr(i);
 			sc_start(1, SC_NS);
 
-			const sc_vector<sc_signal<DataType>> &payload = rchannel.channel_read_data();
 			for (unsigned int j = 0; j < ram_width; j++)
 			{
-				if (payload[j] != DataType(expected_data++))
+				if (rchannel.channel_read_data()[j] != DataType(expected_data++))
 				{
 					return false;
 				}
