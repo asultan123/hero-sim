@@ -68,7 +68,7 @@ void Sock2Sig<BUSWIDTH>::updateOutput() {
 
     // Read all the data in currentData, replace with next packet in queue or
     // clear, and reset location state
-    if (byteOffset >= currentData->size()) {
+    if ((long unsigned int)byteOffset >= currentData->size()) {
       if (buffer.empty()) {
         currentData.reset();
       } else {

@@ -1,5 +1,5 @@
-#if !defined(__CONNECTION_CPP__)
-#define __CONNECTION_CPP__
+#if !defined(__CONNECTOR_HH__)
+#define __CONNECTOR_HH__
 
 #include <iostream>
 #include <map>

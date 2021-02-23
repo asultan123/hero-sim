@@ -7,7 +7,6 @@
 #include <assert.h>
 #include <iostream>
 #include <string>
-#include "Connector.hh"
 
 using std::cout;
 using std::endl;
