@@ -134,7 +134,8 @@ struct AddressGenerator_TB : public sc_module
         sc_start(1, SC_NS);
         control.set_program(false);
         control.set_enable(true);
-        // run descriptors
+        // first cycle
+        sc_start(1, SC_NS);
 
         cout << "validate initial condition at first cycle" << endl;
         if (!(dut.current_ram_index == 0))
@@ -149,9 +150,6 @@ struct AddressGenerator_TB : public sc_module
             return false;
         }
         cout << "validate success!" << endl;
-
-        // load cycle
-        sc_start(1, SC_NS);
 
         cout << "validate first wait descriptor execution" << endl;
         for (unsigned int i = 2; i <= 4; i += 2)
@@ -168,8 +166,11 @@ struct AddressGenerator_TB : public sc_module
         //load cycle
         sc_start(1, SC_NS);
 
+        //first cycle
+        sc_start(1, SC_NS);
+
         cout << "validate second wait descriptor execution" << endl;
-        for (unsigned int i = 0; i <= 9; i += 3)
+        for (unsigned int i = 3; i <= 9; i += 3)
         {
             sc_start(1, SC_NS);
             if (!(dut.current_ram_index == i))
@@ -220,8 +221,8 @@ struct AddressGenerator_TB : public sc_module
         sc_start(1, SC_NS);
         control.set_program(false);
         control.set_enable(true);
-        // run descriptors
-
+        //first cycle (channel enable cycle)
+        sc_start(1, SC_NS);
         if (!(mem_channel.addr() == 10))
         {
             cout << "mem_channel.addr() == 10 FAILED!" << endl;
@@ -251,6 +252,11 @@ struct AddressGenerator_TB : public sc_module
         cout << "validate transition from first generate descriptor to second "
                 "generate descriptor"
              << endl;
+
+        // load cycle
+        sc_start(1, SC_NS);
+
+        // channel enable cycle
         sc_start(1, SC_NS);
         if (!(mem_channel.addr() == 20))
         {
@@ -313,6 +319,10 @@ struct AddressGenerator_TB : public sc_module
 
         control.set_program(false);
         control.set_enable(true);
+
+        // enable channel
+        sc_start(1, SC_NS);
+
         bool first_cycle = true;
         // run descriptors
         cout << "validate address 2D generation with positive xModify and positive "
@@ -353,6 +363,9 @@ struct AddressGenerator_TB : public sc_module
         }
 
         cout << "validate success!" << endl;
+
+        // enable channel
+        sc_start(1, SC_NS);
 
         cout << "validate address 2D generation with negative xModify and negative "
                 "yModify"
@@ -420,17 +433,17 @@ struct AddressGenerator_TB : public sc_module
             return -1;
         }
 
-        // if (!(validate_generation_1D()))
-        // {
-        //     cout << "validate_generation_1D() FAILED!" << endl;
-        //     return -1;
-        // }
+        if (!(validate_generation_1D()))
+        {
+            cout << "validate_generation_1D() FAILED!" << endl;
+            return -1;
+        }
 
-        // if (!(validate_generation_2D()))
-        // {
-        //     cout << "validate_generation_2D() FAILED!" << endl;
-        //     return -1;
-        // }
+        if (!(validate_generation_2D()))
+        {
+            cout << "validate_generation_2D() FAILED!" << endl;
+            return -1;
+        }
 
         return 0;
     }

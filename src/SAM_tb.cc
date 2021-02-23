@@ -488,7 +488,7 @@ struct SAM_TB : public sc_module
         // need wait, otherwise will read before write
         // wait execution minimum is 1 cycle
         // loading next descriptor is another cycle
-        // executing next descriptor (enabling channel in case of generate) is another cycle
+        // decoding next descriptor (enabling channel in case of generate) is another cycle
         Descriptor_2D generator_1_wait_descriptor(1, 20, DescriptorState::WAIT, 0,
                                                   0, 0, 0);
 
