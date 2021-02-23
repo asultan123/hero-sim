@@ -15,8 +15,8 @@ using std::string;
 
 enum MemoryChannelMode
 {
-    READ,
-    WRITE
+    READ = 0,
+    WRITE = 1
 };
 
 template <typename DataType>
@@ -30,7 +30,7 @@ public:
     virtual void set_mode(MemoryChannelMode mode) = 0;
 
     //Data
-    virtual const MemoryChannelMode& mode() = 0;
+    virtual MemoryChannelMode mode() = 0;
     virtual const sc_vector<sc_signal<DataType, SC_MANY_WRITERS>>& mem_read_data() = 0;
     virtual void mem_write_data(const sc_vector<sc_signal<DataType>>& _data) = 0;
     virtual const sc_vector<sc_signal<DataType, SC_MANY_WRITERS>>& channel_read_data() = 0;
@@ -51,7 +51,7 @@ struct MemoryChannel : public sc_module, public MemoryChannel_IF<DataType>
     sc_vector<sc_signal<DataType, SC_MANY_WRITERS>> write_channel_data;
     sc_signal<unsigned int> channel_addr;
     sc_signal<bool> channel_enabled;
-    sc_signal<MemoryChannelMode> channel_mode;
+    sc_signal<unsigned int> channel_mode;
     const unsigned int channel_width;
 
     MemoryChannel(sc_module_name name, unsigned int width, sc_trace_file* tf);
@@ -82,7 +82,7 @@ struct MemoryChannel : public sc_module, public MemoryChannel_IF<DataType>
 
     void set_mode(MemoryChannelMode mode);
 
-    const MemoryChannelMode& mode();
+    MemoryChannelMode mode();
 
     void reset();
 

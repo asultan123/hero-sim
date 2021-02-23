@@ -111,13 +111,13 @@ bool MemoryChannel<DataType>::enabled()
 template <typename DataType>
 void MemoryChannel<DataType>::set_mode(MemoryChannelMode mode)
 {
-    channel_mode = mode;
+    channel_mode = (mode == MemoryChannelMode::READ)? 0 : 1;
 }
 
 template <typename DataType>
-const MemoryChannelMode& MemoryChannel<DataType>::mode()
+MemoryChannelMode MemoryChannel<DataType>::mode()
 {
-    return channel_mode.read();
+    return (channel_mode.read() == 0)? MemoryChannelMode::READ : MemoryChannelMode::WRITE;
 }
 
 template <typename DataType>

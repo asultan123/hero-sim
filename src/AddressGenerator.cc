@@ -135,7 +135,7 @@ void AddressGenerator<DataType>::update()
     }
     else if (control->enable() && programmed)
     {
-        // Update internal logic
+        // Update internal address counters, ignore for first cycle due to channel enable delay
         if (!first_cycle && (currentDescriptor().state == DescriptorState::GENERATE ||
             currentDescriptor().state == DescriptorState::WAIT))
         {

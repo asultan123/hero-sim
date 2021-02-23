@@ -20,31 +20,31 @@ struct SAM_TB : public sc_module
     GlobalControlChannel control;
     SAM<DataType> dut;
 
-    sc_vector<sc_signal<DataType>> channel_0_read_bus;
-    sc_vector<sc_signal<DataType>> channel_0_write_bus;
-    sc_vector<sc_signal<DataType>> channel_1_read_bus;
-    sc_vector<sc_signal<DataType>> channel_1_write_bus;
+    sc_vector<sc_signal<DataType>> external_channel_0_read_bus;
+    sc_vector<sc_signal<DataType>> external_channel_0_write_bus;
+    sc_vector<sc_signal<DataType>> external_channel_1_read_bus;
+    sc_vector<sc_signal<DataType>> external_channel_1_write_bus;
 
     SAM_TB(sc_module_name name) : sc_module(name),
                                   tf(sc_create_vcd_trace_file("ProgTrace")),
                                   control("global_control_channel", sc_time(1, SC_NS), tf),
                                   dut("dut", control, dut_mem_channel_count, dut_mem_length, dut_mem_width, tf),
-                                  channel_0_read_bus("channel_0_read_bus", dut_mem_width),
-                                  channel_0_write_bus("channel_0_write_bus", dut_mem_width),
-                                  channel_1_read_bus("channel_1_read_bus", dut_mem_width),
-                                  channel_1_write_bus("channel_1_write_bus", dut_mem_width)
+                                  external_channel_0_read_bus("external_channel_0_read_bus", dut_mem_width),
+                                  external_channel_0_write_bus("external_channel_0_write_bus", dut_mem_width),
+                                  external_channel_1_read_bus("external_channel_1_read_bus", dut_mem_width),
+                                  external_channel_1_write_bus("external_channel_1_write_bus", dut_mem_width)
     {
         for (unsigned int i = 0; i < dut_mem_width; i++)
         {
-            dut.read_channel_data[0][i](channel_0_read_bus[i]);
-            dut.write_channel_data[0][i](channel_0_write_bus[i]);
-            dut.read_channel_data[1][i](channel_1_read_bus[i]);
-            dut.write_channel_data[1][i](channel_1_write_bus[i]);
+            dut.read_channel_data[0][i](external_channel_0_read_bus[i]);
+            dut.write_channel_data[0][i](external_channel_0_write_bus[i]);
+            dut.read_channel_data[1][i](external_channel_1_read_bus[i]);
+            dut.write_channel_data[1][i](external_channel_1_write_bus[i]);
 
-            sc_trace(tf, channel_0_read_bus[i], channel_0_read_bus[i].name());
-            sc_trace(tf, channel_0_write_bus[i], channel_0_write_bus[i].name());
-            sc_trace(tf, channel_1_read_bus[i], channel_1_read_bus[i].name());
-            sc_trace(tf, channel_1_write_bus[i], channel_1_write_bus[i].name());
+            sc_trace(tf, external_channel_0_read_bus[i], external_channel_0_read_bus[i].name());
+            sc_trace(tf, external_channel_0_write_bus[i], external_channel_0_write_bus[i].name());
+            sc_trace(tf, external_channel_1_read_bus[i], external_channel_1_read_bus[i].name());
+            sc_trace(tf, external_channel_1_write_bus[i], external_channel_1_write_bus[i].name());
         }
         tf->set_time_unit(1, SC_PS);
         cout << "Instantiated SAM TB with name " << this->name() << endl;
@@ -129,7 +129,7 @@ struct SAM_TB : public sc_module
         control.set_program(false);
         control.set_enable(false);
 
-        sc_start(1.5, SC_NS);
+        sc_start(1, SC_NS);
 
         control.set_reset(false);
 
@@ -153,16 +153,28 @@ struct SAM_TB : public sc_module
         control.set_enable(true);
         control.set_program(false);
 
-        channel_0_write_bus[0] = DataType(1);
-        sc_start(1.5, SC_NS); //set data one half cycle before clock pulse
+        external_channel_0_write_bus[0] = DataType(1);
+        sc_start(1, SC_NS); 
 
         for (unsigned int i = 2; i <= 10; i++)
         {
-            // dut.write_channel_data[0][0]->write(i);
-            channel_0_write_bus[0] = DataType(i);
+            external_channel_0_write_bus[0] = DataType(i);
             sc_start(1, SC_NS);
         }
-        sc_start(10, SC_NS);
+        // write to ram always happens 1 cycles after external data is set so one last
+        // clk pulse is needed to validate change 
+        sc_start(1, SC_NS); 
+
+        int expected_val = 1;
+        for(int i = 10; i<20; i++)
+        {
+            if(dut.mem.ram[i][0] != DataType(expected_val))
+            {
+                cout << "dut.mem.ram[i][0] != expected_val: " << expected_val << "FAILED!" << endl;
+                return -1;
+            }
+            expected_val++;
+        }
 
         cout << "validate_write_to_sam_1D SUCCESS" << endl;
         return true;
@@ -202,7 +214,7 @@ struct SAM_TB : public sc_module
         dut.channels[0].set_mode(MemoryChannelMode::WRITE);
         dut.channels[1].set_mode(MemoryChannelMode::READ);
 
-        unsigned int index = 0;
+        unsigned int index = 1;
         for (unsigned int row = 0; row < dut_mem_length; row++)
         {
             for (unsigned int col = 0; col < dut_mem_width; col++)
@@ -218,15 +230,25 @@ struct SAM_TB : public sc_module
         control.set_enable(true);
         control.set_program(false);
 
-        sc_start(1.01, SC_NS);
+        // after the cycle so that wire can update. update happens after an
+        // infinitesimally small amount of time beyond rising edge but for
+        // simplicity I'm jumping half a cycle so that other testcases can
+        // adjust
+        
+        sc_start(1.5, SC_NS); 
 
-        for (unsigned int i = 0; i <= 10; i++)
+        for (unsigned int i = 41; i <= 10; i++)
         {
-            std::cout << "@ " << sc_time_stamp() << " " << channel_1_read_bus[0] << std::endl;
+            // std::cout << "@ " << sc_time_stamp() << " " << external_channel_1_read_bus[0] << std::endl;
+            
+            if(external_channel_1_read_bus[0])
+            {
+                cout << "external_channel_1_read_bus[0] FAILED!" << endl;
+                return -1;
+            }
 
             sc_start(1, SC_NS);
         }
-        sc_start(10, SC_NS);
 
         cout << "validate_read_from_sam_1D SUCCESS" << endl;
         return true;
@@ -272,13 +294,13 @@ struct SAM_TB : public sc_module
         control.set_enable(true);
         control.set_program(false);
 
-        channel_0_write_bus[0] = DataType(1);
+        external_channel_0_write_bus[0] = DataType(1);
         sc_start(1.5, SC_NS);
 
         for (unsigned int i = 2; i <= 11; i++)
         {
             // dut.write_channel_data[0][0]->write(i);
-            channel_0_write_bus[0] = DataType(i);
+            external_channel_0_write_bus[0] = DataType(i);
             if (!(dut.channels[0].enabled() == false))
             {
                 cout << "dut.channels[0].enabled() == false FAILED!" << endl;
@@ -354,12 +376,12 @@ struct SAM_TB : public sc_module
         control.set_enable(true);
         control.set_program(false);
 
-        channel_0_write_bus[0] = DataType(1);
+        external_channel_0_write_bus[0] = DataType(1);
         sc_start(1.5, SC_NS);
 
         for (unsigned int i = 2; i <= 11; i++)
         {
-            channel_0_write_bus[0] = DataType(i);
+            external_channel_0_write_bus[0] = DataType(i);
             sc_start(1, SC_NS);
         }
 
@@ -428,21 +450,21 @@ struct SAM_TB : public sc_module
         control.set_enable(true);
         control.set_program(false);
 
-        channel_0_write_bus[0] = DataType(1);
+        external_channel_0_write_bus[0] = DataType(1);
         sc_start(1.5, SC_NS);
 
         for (unsigned int i = 2; i <= 11; i++)
         {
-            channel_0_write_bus[0] = DataType(i);
+            external_channel_0_write_bus[0] = DataType(i);
             sc_start(1, SC_NS);
         }
 
-        channel_0_write_bus[0] = DataType(1);
+        external_channel_0_write_bus[0] = DataType(1);
         sc_start(1.5, SC_NS);
 
         for (unsigned int i = 2; i <= 11; i++)
         {
-            channel_0_write_bus[0] = DataType(i);
+            external_channel_0_write_bus[0] = DataType(i);
             sc_start(1, SC_NS);
         }
 
@@ -473,11 +495,11 @@ struct SAM_TB : public sc_module
             cout << "validate_write_to_sam_1D() FAILED!" << endl;
             return false;
         }
-        // if (!(validate_read_from_sam_1D()))
-        // {
-        //     cout << "validate_read_from_sam_1D() FAILED!" << endl;
-        //     return -1;
-        // }
+        if (!(validate_read_from_sam_1D()))
+        {
+            cout << "validate_read_from_sam_1D() FAILED!" << endl;
+            return -1;
+        }
 
         // if(!(validate_wait_with_data_write()))
         // {
