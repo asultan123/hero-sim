@@ -67,6 +67,7 @@ public:
     sc_signal<unsigned int> y_count_remaining;
     sc_signal<bool> programmed;
     sc_signal<bool> first_cycle;
+    sc_signal<bool> last_cycle;
 
     void resetIndexingCounters();
 

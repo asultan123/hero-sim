@@ -143,6 +143,8 @@ void AddressGenerator<DataType>::update()
             if (descriptorComplete())
             {
                 loadNextDescriptor();
+                channel->set_enable(false);
+                first_cycle = true;
             }
         }
         else
@@ -150,7 +152,6 @@ void AddressGenerator<DataType>::update()
             first_cycle = false;
         }
         
-        // update external signals NOTE SEE HACK WITH CHANNEL->SET_ADDR
         if(!descriptorComplete())
         {
             switch (currentDescriptor().state)
@@ -174,30 +175,33 @@ void AddressGenerator<DataType>::update()
             }
             }
         }
-        else
-        {
-            // pre enable for next descriptors first cycle
-            switch (nextDescriptor().state)
-            {
-            case DescriptorState::GENERATE:
-            {
-                channel->set_enable(true);
-                break;
-            }
-            case DescriptorState::WAIT:
-            case DescriptorState::SUSPENDED:
-            {
-                channel->set_enable(false);
-                break;
-            }
-            default:
-            {
-                std::cout << "@ " << sc_time_stamp() << " " << this->name()
-                        << ": Is in an invalid state! ... exitting" << std::endl;
-                exit(-1);
-            }
-            }
-        }
+        
+
+
+        // else
+        // {
+        //     // pre enable for next descriptors first cycle
+        //     switch (nextDescriptor().state)
+        //     {
+        //     case DescriptorState::GENERATE:
+        //     {
+        //         channel->set_enable(true);
+        //         break;
+        //     }
+        //     case DescriptorState::WAIT:
+        //     case DescriptorState::SUSPENDED:
+        //     {
+        //         channel->set_enable(false);
+        //         break;
+        //     }
+        //     default:
+        //     {
+        //         std::cout << "@ " << sc_time_stamp() << " " << this->name()
+        //                 << ": Is in an invalid state! ... exitting" << std::endl;
+        //         exit(-1);
+        //     }
+        //     }
+        // }
         
 
     }

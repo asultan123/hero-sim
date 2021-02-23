@@ -33,6 +33,7 @@ struct SAM_TB : public sc_module
                                   external_channel_0_write_bus("external_channel_0_write_bus", dut_mem_width),
                                   external_channel_1_read_bus("external_channel_1_read_bus", dut_mem_width),
                                   external_channel_1_write_bus("external_channel_1_write_bus", dut_mem_width)
+                                  
     {
         for (unsigned int i = 0; i < dut_mem_width; i++)
         {
@@ -118,6 +119,8 @@ struct SAM_TB : public sc_module
             }
         }
 
+        sc_start(20, SC_NS);
+
         return true;
     }
 
@@ -171,12 +174,15 @@ struct SAM_TB : public sc_module
             if(dut.mem.ram[i][0] != DataType(expected_val))
             {
                 cout << "dut.mem.ram[i][0] != expected_val: " << expected_val << "FAILED!" << endl;
-                return -1;
+                return false;
             }
             expected_val++;
         }
 
         cout << "validate_write_to_sam_1D SUCCESS" << endl;
+
+        sc_start(20, SC_NS);
+    
         return true;
     }
 
@@ -234,7 +240,6 @@ struct SAM_TB : public sc_module
         // infinitesimally small amount of time beyond rising edge but for
         // simplicity I'm jumping half a cycle so that other testcases can
         // adjust
-        
         sc_start(1.5, SC_NS); 
 
         // generate descriptor reads 10 rows of size 4 and outputs them to read.
@@ -244,25 +249,27 @@ struct SAM_TB : public sc_module
             if(external_channel_1_read_bus[0] != DataType(i+1))
             {
                 cout << "external_channel_1_read_bus[0] != " << i+1 << " FAILED!" << endl;
-                return -1;
+                return false;
             }
             if(external_channel_1_read_bus[1] != DataType(i+2))
             {
                 cout << "external_channel_1_read_bus[1] != " << i+2 << " FAILED!" << endl;
-                return -1;
+                return false;
             }
             if(external_channel_1_read_bus[2] != DataType(i+3))
             {
                 cout << "external_channel_1_read_bus[2] != " << i+3 << " FAILED!" << endl;
-                return -1;
+                return false;
             }
             if(external_channel_1_read_bus[3] != DataType(i+4))
             {
                 cout << "external_channel_1_read_bus[3] != " << i+4 << " FAILED!" << endl;
-                return -1;
+                return false;
             }                        
             sc_start(1, SC_NS);
         }
+
+        sc_start(20, SC_NS);
 
         cout << "validate_read_from_sam_1D SUCCESS" << endl;
         return true;
@@ -284,7 +291,7 @@ struct SAM_TB : public sc_module
         control.set_program(false);
         control.set_enable(false);
 
-        sc_start(1.5, SC_NS);
+        sc_start(1, SC_NS);
 
         control.set_reset(false);
 
@@ -308,17 +315,14 @@ struct SAM_TB : public sc_module
         control.set_enable(true);
         control.set_program(false);
 
-        external_channel_0_write_bus[0] = DataType(1);
-        sc_start(1.5, SC_NS);
-
-        for (unsigned int i = 2; i <= 11; i++)
+        for (unsigned int i = 1; i <= 10; i++)
         {
             // dut.write_channel_data[0][0]->write(i);
             external_channel_0_write_bus[0] = DataType(i);
             if (!(dut.channels[0].enabled() == false))
             {
                 cout << "dut.channels[0].enabled() == false FAILED!" << endl;
-                return -1;
+                return false;
             }
             sc_start(1, SC_NS);
         }
@@ -331,23 +335,25 @@ struct SAM_TB : public sc_module
                 if (!(dut.mem.ram[row][col] == DataType(0)))
                 {
                     cout << "dut.mem.ram[row][col] == 0 FAILED!" << endl;
-                    return -1;
+                    return false;
                 }
             }
         }
         cout << "validate_wait_with_data_write SUCCESS" << endl;
+        sc_start(20, SC_NS);
+
         return true;
     }
 
-    bool validate_concurrent_read_write_1D()
+    bool validate_write_then_read_after_wait_1D()
     {
-        cout << "Validating validate_concurrent_read_write_1D" << endl;
+        cout << "Validating validate_write_then_read_after_wait_1D" << endl;
 
         control.set_reset(true);
         control.set_program(false);
         control.set_enable(false);
 
-        sc_start(1.5, SC_NS);
+        sc_start(1, SC_NS);
 
         control.set_reset(false);
 
@@ -389,67 +395,109 @@ struct SAM_TB : public sc_module
         sc_start(1, SC_NS);
         control.set_enable(true);
         control.set_program(false);
+        sc_start(0.5, SC_NS); // time offset
 
-        external_channel_0_write_bus[0] = DataType(1);
-        sc_start(1.5, SC_NS);
-
-        for (unsigned int i = 2; i <= 11; i++)
+        int expected_value = 1;
+        for (unsigned int i = 1; i <= 15; i++)
         {
-            external_channel_0_write_bus[0] = DataType(i);
-            sc_start(1, SC_NS);
+            if(i <= 10)
+            {
+                // stimulus
+                external_channel_0_write_bus[0] = DataType(i);
+                sc_start(1, SC_NS);
+
+                // monitor
+                // ignore 5th iteration because channeled is enabled there
+                if(i < 5) 
+                {
+                    if(dut.channels[1].enabled() != false)
+                    {
+                        cout << "read channel enabled during wait! FAILED!" << endl;
+                        return false;
+                    }
+                }
+                // bus updated "after" 5th iteration (falling edge of current
+                // cycle, see vcd output)
+                else if(i > 5)
+                {
+                    if(external_channel_1_read_bus[0] != DataType(expected_value))
+                    {
+                        cout << "external_channel_1_read_bus != " << expected_value << " FAILED!" << endl;
+                        return false;
+                    }
+                    expected_value++;
+                }
+            }
+            else
+            {
+                sc_start(1, SC_NS);
+                // no stimulus after 10 cycles because write address generator is now idle
+                if(dut.channels[0].enabled() != false)
+                {
+                    cout << "Write generator failed to disable write channel upon being suspended" << endl;
+                    return false;
+                }
+                if(external_channel_1_read_bus[0] != DataType(expected_value))
+                {
+                    cout << "read bus expected value validation FAILED!" << endl;
+                    return false;
+                }
+                expected_value++;
+            }
         }
 
-        sc_start(10, SC_NS);
 
-        cout << "validate_concurrent_read_write_1D SUCCESS" << endl;
+
+        sc_start(20, SC_NS);
+
+        cout << "validate_write_then_read_after_wait_1D SUCCESS" << endl;
         return true;
     }
 
-    bool validate_concurrent_read_write_1D_ASAP()
+    bool validate_concurrent_read_write_1D()
     {
-        cout << "Validating validate_concurrent_read_write_1D_ASAP" << endl;
+        cout << "Validating validate_concurrent_read_write_1D" << endl;
 
         control.set_reset(true);
         control.set_program(false);
         control.set_enable(false);
 
+        // clear bus for gtk
+        external_channel_1_read_bus[0].write(0);
+
         sc_start(1.5, SC_NS);
 
         control.set_reset(false);
 
-        Descriptor_2D generator_0_write_1D_descriptor_1(1, 10, DescriptorState::GENERATE, 10,
+        Descriptor_2D generator_0_write_1D_descriptor_1(1, 10, DescriptorState::GENERATE, 9,
                                                         1, 0, 0);
 
-        Descriptor_2D generator_0_write_1D_descriptor_2(2, 100, DescriptorState::GENERATE, 5,
-                                                        2, 0, 0);
-
-        Descriptor_2D generator_0_write_suspend_descriptor(2, 0, DescriptorState::SUSPENDED, 0, 0, 0,
+        Descriptor_2D generator_0_write_suspend_descriptor(1, 0, DescriptorState::SUSPENDED, 0, 0, 0,
                                                            0);
 
         vector<Descriptor_2D> temp_program;
         temp_program.push_back(generator_0_write_1D_descriptor_1);
-        temp_program.push_back(generator_0_write_1D_descriptor_2);
         temp_program.push_back(generator_0_write_suspend_descriptor);
 
         dut.generators[0].loadProgram(temp_program);
 
         temp_program.clear();
 
-        Descriptor_2D generator_1_wait_descriptor(1, 10, DescriptorState::WAIT, 0,
+        // need wait, otherwise will read before write
+        // wait execution minimum is 1 cycle
+        // loading next descriptor is another cycle
+        // executing next descriptor (enabling channel in case of generate) is another cycle
+        Descriptor_2D generator_1_wait_descriptor(1, 20, DescriptorState::WAIT, 0,
                                                   0, 0, 0);
 
-        Descriptor_2D generator_1_read_1D_descriptor_1(2, 10, DescriptorState::GENERATE, 10,
+        Descriptor_2D generator_1_read_1D_descriptor_1(2, 10, DescriptorState::GENERATE, 9,
                                                        1, 0, 0);
 
-        Descriptor_2D generator_1_read_1D_descriptor_2(3, 100, DescriptorState::GENERATE, 5,
-                                                       2, 0, 0);
-
-        Descriptor_2D generator_1_read_suspend_descriptor(3, 0, DescriptorState::SUSPENDED, 0, 0, 0,
+        Descriptor_2D generator_1_read_suspend_descriptor(2, 0, DescriptorState::SUSPENDED, 0, 0, 0,
                                                           0);
 
         temp_program.push_back(generator_1_wait_descriptor);
         temp_program.push_back(generator_1_read_1D_descriptor_1);
-        temp_program.push_back(generator_1_read_1D_descriptor_2);
         temp_program.push_back(generator_1_read_suspend_descriptor);
 
         dut.generators[1].loadProgram(temp_program);
@@ -464,27 +512,57 @@ struct SAM_TB : public sc_module
         control.set_enable(true);
         control.set_program(false);
 
-        external_channel_0_write_bus[0] = DataType(1);
-        sc_start(1.5, SC_NS);
-
-        for (unsigned int i = 2; i <= 11; i++)
+        int expected_val = 1;
+        for (unsigned int i = 1; i <= 12; i++)
         {
             external_channel_0_write_bus[0] = DataType(i);
-            sc_start(1, SC_NS);
-        }
+            sc_start((i==1)? 1.5: 1, SC_NS); //offset bump for clarity
 
-        external_channel_0_write_bus[0] = DataType(1);
-        sc_start(1.5, SC_NS);
-
-        for (unsigned int i = 2; i <= 11; i++)
-        {
-            external_channel_0_write_bus[0] = DataType(i);
-            sc_start(1, SC_NS);
+            // For read channel, 1 cycle for wait + 1 cycle for loading generate
+            // @ 3rd cycle (i == 2) generator must begin executing generate descriptor
+            // and enabled channel
+            if(i < 2)
+            {
+                if(dut.channels[1].enabled() != false)
+                {
+                    cout << "read channel must be disabled during read generator wait" << endl;
+                    cout << i << endl;
+                    return false;
+                }                
+            }
+            // at cycle 3 (i == 2) read channel has just been enabled, read values will only appear on bus @ cycle 4 (i == 3)
+            else if(i>=3) 
+            {
+                if(external_channel_1_read_bus[0] != DataType(expected_val))
+                {
+                    cout << "read bus readback wrong value, expected: " << expected_val << endl;
+                    return false;
+                }
+                if(i <= 11)
+                {
+                    if(dut.channels[1].enabled() != true)
+                    {
+                        cout << "read channel must enabled during generator address generation" << endl;
+                        cout << i << endl;
+                        return false;
+                    }
+                }
+                // @ i = 12, read generator should have finished the generator descriptor and disabled channel
+                else
+                {
+                    if(dut.channels[1].enabled() != false)
+                    {
+                        cout << "read channel must not be enabled during read generator suspend" << endl;
+                        return false;
+                    }
+                }
+                expected_val++;
+            }
         }
 
         sc_start(20, SC_NS);
 
-        cout << "validate_concurrent_read_write_1D_ASAP SUCCESS" << endl;
+        cout << "validate_concurrent_read_write_1D SUCCESS" << endl;
         return true;
     }
 
@@ -502,7 +580,7 @@ struct SAM_TB : public sc_module
         if (!validate_reset())
         {
             cout << "Reset Failed" << endl;
-            return -1;
+            return false;
         }
         if (!(validate_write_to_sam_1D()))
         {
@@ -512,26 +590,24 @@ struct SAM_TB : public sc_module
         if (!(validate_read_from_sam_1D()))
         {
             cout << "validate_read_from_sam_1D() FAILED!" << endl;
-            return -1;
+            return false;
         }
-
-        // if(!(validate_wait_with_data_write()))
+        if(!(validate_wait_with_data_write()))
+        {
+            cout << "validate_wait_with_data_write() FAILED!" << endl;
+            return false;
+        }
+        if (!(validate_concurrent_read_write_1D()))
+        {
+            cout << "validate_concurrent_read_write_1D() FAILED!" << endl;
+            return false;
+        }
+        // if (!(validate_write_then_read_after_wait_1D()))
         // {
-        //     cout << "validate_wait_with_data_write() FAILED!" << endl;
-        //     return -1;
+        //     cout << "validate_write_then_read_after_wait_1D() FAILED!" << endl;
+        //     return false;
         // }
 
-        // if (!(validate_concurrent_read_write_1D()))
-        // {
-        //     cout << "validate_concurrent_read_write_1D() FAILED!" << endl;
-        //     return -1;
-        // }
-
-        // if (!(validate_concurrent_read_write_1D_ASAP()))
-        // {
-        //     cout << "validate_concurrent_read_write_1D_ASAP() FAILED!" << endl;
-        //     return -1;
-        // }
 
         cout << "Reset Success" << endl;
         cout << "TEST BENCH SUCCESS " << endl;
