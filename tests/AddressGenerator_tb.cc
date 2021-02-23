@@ -445,6 +445,8 @@ struct AddressGenerator_TB : public sc_module
             return -1;
         }
 
+        cout << "ALL TESTS PASS" << endl;
+
         return 0;
     }
     ~AddressGenerator_TB() { sc_close_vcd_trace_file(tf); }
@@ -452,26 +454,5 @@ struct AddressGenerator_TB : public sc_module
 int sc_main(int argc, char* argv[])
 {
     AddressGenerator_TB<sc_int<32>> tb("AddressGenerator_tb");
-    if (tb.run_tb() == 0)
-    {
-        cout << "TEST BENCH SUCCESS " << endl
-             << endl;
-
-        cout << "       aOOOOOOOOOOa" << endl;
-        cout << "     aOOOOOOOOOOOOOOa" << endl;
-        cout << "   aOO    OOOOOO    OOa" << endl;
-        cout << "  aOOOOOOOOOOOOOOOOOOOa" << endl;
-        cout << " aOOOOO   OOOOOO   OOOOOa" << endl;
-        cout << "aOOOOO     OOOO     OOOOOa" << endl;
-        cout << "aOOOOOOOOOOOOOOOOOOOOOOOOa" << endl;
-        cout << "aOOOOOOOOOOOOOOOOOOOOOOOOa" << endl;
-        cout << "aOOOOO   OOOOOOOO   OOOOOa" << endl;
-        cout << " aOOOOO    OOOO    OOOOOa" << endl;
-        cout << "  aOOOOO          OOOOOa" << endl;
-        cout << "   aOOOOOOOOOOOOOOOOOOa" << endl;
-        cout << "     aOOOOOOOOOOOOOOa" << endl;
-        cout << "       aOOOOOOOOOOa" << endl;
-    }
-
-    return 0;
+    return tb.run_tb();
 }

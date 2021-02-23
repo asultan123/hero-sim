@@ -1,3 +1,19 @@
+add_executable(sock2sig_tb "")
+target_include_directories(sock2sig_tb PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")
+target_sources(sock2sig_tb
+    PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/bytePrinter.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/sock2sig.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/stringProducer.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/sock2sig_tb.cc"
+)
+
+target_link_libraries(sock2sig_tb PkgConfig::SYSTEMC PkgConfig::TLM2)
+
+target_compile_options(sock2sig_tb
+    PUBLIC -Wall
+)
+
 add_executable(SAM_tb "")
 target_include_directories(SAM_tb PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")
 target_sources(SAM_tb
@@ -67,3 +83,16 @@ target_link_libraries(Connector_tb PkgConfig::SYSTEMC PkgConfig::TLM2)
 target_compile_options(Connector_tb
     PUBLIC -Wall
 )
+
+function(do_test target result)
+  add_test(NAME ${target} COMMAND ${target})
+  set_tests_properties(${target}
+    PROPERTIES PASS_REGULAR_EXPRESSION ${result}
+    )
+endfunction(do_test)
+
+do_test(SAM_tb "ALL TESTS PASS")
+do_test(AddressGenerator_tb "ALL TESTS PASS")
+do_test(Connector_tb "ALL TESTS PASS")
+do_test(Memory_tb "ALL TESTS PASS")
+do_test(sock2sig_tb "ALL TESTS PASS")

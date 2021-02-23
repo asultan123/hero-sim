@@ -25,6 +25,8 @@ int sc_main(int argc, char* argv[]) {
   sc_start(100, SC_NS);
 
   std::cout << std::endl;
-
+  
+  std::cout << "ALL TESTS PASS" << std::endl;
+  
   return 0;
 }

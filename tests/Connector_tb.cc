@@ -179,21 +179,9 @@ struct Connector_TB : public sc_module
             cout << "validate_connector_write() FAILED!" << endl;
             return -1;
         }
-        cout << "TEST BENCH SUCCESS " << endl;
-        cout << "       aOOOOOOOOOOa" << endl;
-        cout << "     aOOOOOOOOOOOOOOa" << endl;
-        cout << "   aOO    OOOOOO    OOa" << endl;
-        cout << "  aOOOOOOOOOOOOOOOOOOOa" << endl;
-        cout << " aOOOOO   OOOOOO   OOOOOa" << endl;
-        cout << "aOOOOO     OOOO     OOOOOa" << endl;
-        cout << "aOOOOOOOOOOOOOOOOOOOOOOOOa" << endl;
-        cout << "aOOOOOOOOOOOOOOOOOOOOOOOOa" << endl;
-        cout << "aOOOOO   OOOOOOOO   OOOOOa" << endl;
-        cout << " aOOOOO    OOOO    OOOOOa" << endl;
-        cout << "  aOOOOO          OOOOOa" << endl;
-        cout << "   aOOOOOOOOOOOOOOOOOOa" << endl;
-        cout << "     aOOOOOOOOOOOOOOa" << endl;
-        cout << "       aOOOOOOOOOOa" << endl;
+        cout << "ALL TESTS PASS" << endl;
+
+
         return 0;
     }
     ~Connector_TB()
