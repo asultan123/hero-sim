@@ -371,7 +371,8 @@ struct SAM_TB : public sc_module
 
         temp_program.clear();
 
-        Descriptor_2D generator_1_wait_descriptor(1, 10, DescriptorState::WAIT, 4,
+        // execution adds 1 cycle by default, loading consumes 1 cycle as well
+        Descriptor_2D generator_1_wait_descriptor(1, 10, DescriptorState::WAIT, 2,
                                                   5, 0, 0);
 
         Descriptor_2D generator_1_read_1D_descriptor(2, 10, DescriptorState::GENERATE, 9,
@@ -422,7 +423,8 @@ struct SAM_TB : public sc_module
                 {
                     if(external_channel_1_read_bus[0] != DataType(expected_value))
                     {
-                        cout << "external_channel_1_read_bus != " << expected_value << " FAILED!" << endl;
+                        cout << "@" << sc_time_stamp() << " external_channel_1_read_bus != " << expected_value << " FAILED!" << endl;
+                        cout << "@" << sc_time_stamp() << " " << i << endl;
                         return false;
                     }
                     expected_value++;
@@ -602,11 +604,11 @@ struct SAM_TB : public sc_module
             cout << "validate_concurrent_read_write_1D() FAILED!" << endl;
             return false;
         }
-        // if (!(validate_write_then_read_after_wait_1D()))
-        // {
-        //     cout << "validate_write_then_read_after_wait_1D() FAILED!" << endl;
-        //     return false;
-        // }
+        if (!(validate_write_then_read_after_wait_1D()))
+        {
+            cout << "validate_write_then_read_after_wait_1D() FAILED!" << endl;
+            return false;
+        }
 
 
         cout << "Reset Success" << endl;
