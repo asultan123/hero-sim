@@ -1,4 +1,4 @@
-#include "Connector.cpp"
+#include "Connector.hh"
 #include <systemc.h>
 
 // #define DEBUG
