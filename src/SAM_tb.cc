@@ -237,16 +237,30 @@ struct SAM_TB : public sc_module
         
         sc_start(1.5, SC_NS); 
 
-        for (unsigned int i = 41; i <= 10; i++)
+        // generate descriptor reads 10 rows of size 4 and outputs them to read.
+        // Bus width always matches memory width (otherwise you'd something to marshal)
+        for (unsigned int i = 40; i <= 80; i+=4)
         {
-            // std::cout << "@ " << sc_time_stamp() << " " << external_channel_1_read_bus[0] << std::endl;
-            
-            if(external_channel_1_read_bus[0])
+            if(external_channel_1_read_bus[0] != DataType(i+1))
             {
-                cout << "external_channel_1_read_bus[0] FAILED!" << endl;
+                cout << "external_channel_1_read_bus[0] != " << i+1 << " FAILED!" << endl;
                 return -1;
             }
-
+            if(external_channel_1_read_bus[1] != DataType(i+2))
+            {
+                cout << "external_channel_1_read_bus[1] != " << i+2 << " FAILED!" << endl;
+                return -1;
+            }
+            if(external_channel_1_read_bus[2] != DataType(i+3))
+            {
+                cout << "external_channel_1_read_bus[2] != " << i+3 << " FAILED!" << endl;
+                return -1;
+            }
+            if(external_channel_1_read_bus[3] != DataType(i+4))
+            {
+                cout << "external_channel_1_read_bus[3] != " << i+4 << " FAILED!" << endl;
+                return -1;
+            }                        
             sc_start(1, SC_NS);
         }
 
