@@ -26,12 +26,16 @@ void Sock2Sig<BUSWIDTH>::inputSock_b_transport(tlm::tlm_generic_payload& trans,
     return;
   }
 
-  // Cache received data for later (may be wider than the bus)
-  auto data = std::make_unique<std::vector<uint8_t>>(trans.get_data_length());
-  memcpy(data->data(), trans.get_data_ptr(), data->size());
+  if (currentData)
+    throw std::runtime_error("Previous transaction data still present");
 
-  buffer.push(std::move(data));
+  // Cache received data for later (may be wider than the bus)
+  currentData = std::make_unique<std::vector<uint8_t>>(trans.get_data_length());
+  memcpy(currentData->data(), trans.get_data_ptr(), currentData->size());
+
   dataAvailable.notify();
+  wait(transComplete);
+  trans.set_response_status(tlm::TLM_OK_RESPONSE);
 }
 
 template <unsigned int BUSWIDTH>
@@ -43,9 +47,8 @@ void Sock2Sig<BUSWIDTH>::updateOutput() {
     if (!currentData) {
       // No new data is available to update output, wait until more is sent
       wait(dataAvailable);
-      if (buffer.empty()) throw std::runtime_error("Buffer is empty");
-      currentData = std::move(buffer.front());
-      buffer.pop();
+      if (!currentData)
+        throw std::runtime_error("No transaction data available");
     }
 
     // Copy the smaller of either the closest number of bytes that fits bus
@@ -71,18 +74,12 @@ void Sock2Sig<BUSWIDTH>::updateOutput() {
 
     byteOffset += (bitOffset + BUSWIDTH) / 8;
 
-    // Read all the data in currentData, replace with next packet in queue or
-    // clear, and reset location state
+    // currentData consumed, reset state and finish transaction
     if (byteOffset >= currentData->size()) {
-      if (buffer.empty()) {
-        currentData.reset();
-      } else {
-        currentData = std::move(buffer.front());
-        buffer.pop();
-      }
-
+      currentData.reset();
       byteOffset = 0;
       bitOffset = 0;
+      transComplete.notify();
     }
 
     // Wait readyDelay cycles before asserting data is ready for reading

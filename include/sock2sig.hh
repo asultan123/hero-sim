@@ -13,7 +13,6 @@
 #include <tlm_utils/simple_target_socket.h>
 
 #include <memory>
-#include <queue>
 #include <systemc>
 
 using namespace sc_core;
@@ -35,11 +34,11 @@ class Sock2Sig : public sc_module {
   void inputSock_b_transport(tlm::tlm_generic_payload& trans, sc_time& delay);
   void updateOutput();
 
-  std::queue<std::unique_ptr<std::vector<uint8_t>>> buffer;
   std::unique_ptr<std::vector<uint8_t>> currentData;
   size_t bitOffset;
   size_t byteOffset;
   sc_event dataAvailable;
+  sc_event transComplete;
   int readyDelay;
 };
 
