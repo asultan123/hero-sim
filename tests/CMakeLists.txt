@@ -84,6 +84,18 @@ target_compile_options(Connector_tb
     PUBLIC -Wall
 )
 
+add_executable(axidma_mem_tb "")
+target_sources(axidma_mem_tb
+    PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/axidma_mem_tb.cc"
+)
+
+target_link_libraries(axidma_mem_tb xilinx-modules PkgConfig::SYSTEMC PkgConfig::TLM2)
+
+target_compile_options(axidma_mem_tb
+    PUBLIC -Wall
+)
+
 function(do_test target result)
   add_test(NAME ${target} COMMAND ${target})
   set_tests_properties(${target}

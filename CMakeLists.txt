@@ -16,5 +16,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(SYSTEMC REQUIRED IMPORTED_TARGET systemc)
 pkg_check_modules(TLM2 REQUIRED IMPORTED_TARGET tlm)
 
+add_subdirectory(xilinx)
+
 enable_testing()
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/tests")
