@@ -6,10 +6,10 @@ project(Processor
     LANGUAGES CXX
 )
 
-set(cmake_cxx_standard 20)
-set(cmake_cxx_standard_required on)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(cmake_build_type debug)
+set(CMAKE_BUILD_TYPE DEBUG)
 
 find_package(PkgConfig REQUIRED)
 
