@@ -1,5 +1,6 @@
-#include <algorithm>
 #include "sock2sig.hh"
+
+#include <algorithm>
 
 template <unsigned int BUSWIDTH>
 Sock2Sig<BUSWIDTH>::Sock2Sig(int readyDelay, sc_module_name moduleName)
@@ -7,14 +8,17 @@ Sock2Sig<BUSWIDTH>::Sock2Sig(int readyDelay, sc_module_name moduleName)
       bitOffset(0),
       byteOffset(0),
       readyDelay(readyDelay) {
+  if (BUSWIDTH % 8 != 0)
+    throw std::runtime_error(
+        "Adapter does not currently support non-byte aligned widths");
   inputSock.register_b_transport(this,
                                  &Sock2Sig<BUSWIDTH>::inputSock_b_transport);
   SC_THREAD(updateOutput);
 }
 
 template <unsigned int BUSWIDTH>
-void Sock2Sig<BUSWIDTH>::inputSock_b_transport(
-    tlm::tlm_generic_payload& trans, sc_time& delay) {
+void Sock2Sig<BUSWIDTH>::inputSock_b_transport(tlm::tlm_generic_payload& trans,
+                                               sc_time& delay) {
   // Should only propagate writes
   if (trans.get_command() != tlm::tlm_command::TLM_WRITE_COMMAND ||
       trans.get_data_length() <= 0) {
@@ -54,21 +58,22 @@ void Sock2Sig<BUSWIDTH>::updateOutput() {
 
     memcpy(&value, &(*currentData)[byteOffset], bytesToCopy);
 
-    // Trim bits already read
-    value <<= bitOffset;
+    // TODO: Non-byte aligned widths, revisit when needed
+    // // Trim bits already read
+    // value <<= bitOffset;
 
-    // Trim trailing bits
-    value >>= (64 - BUSWIDTH);
-    value <<= (64 - BUSWIDTH);
+    // // Trim trailing bits
+    // value >>= (64 - BUSWIDTH);
+    // value <<= (64 - BUSWIDTH);
+    // bitOffset = (bitOffset + BUSWIDTH) % 8;
 
     outputSig = sc_int<BUSWIDTH>(value);
 
     byteOffset += (bitOffset + BUSWIDTH) / 8;
-    bitOffset = (bitOffset + BUSWIDTH) % 8;
 
     // Read all the data in currentData, replace with next packet in queue or
     // clear, and reset location state
-    if ((long unsigned int)byteOffset >= currentData->size()) {
+    if (byteOffset >= currentData->size()) {
       if (buffer.empty()) {
         currentData.reset();
       } else {

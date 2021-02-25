@@ -22,11 +22,11 @@ int sc_main(int argc, char* argv[]) {
 
   std::cout << "START" << std::endl;
 
-  sc_start(100, SC_NS);
+  sc_start();
 
   std::cout << std::endl;
-  
+
   std::cout << "ALL TESTS PASS" << std::endl;
-  
+
   return 0;
 }

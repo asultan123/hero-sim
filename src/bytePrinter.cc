@@ -10,10 +10,12 @@ void BytePrinter::printData() {
   while (true) {
     wait(dataReady.posedge_event());
 
-    int value = inputSig.read();
+    char value = inputSig.read();
 
-    std::cout << value << std::endl;
+    std::cout << value;
 
     assertRead = true;
+    wait(1, SC_NS);
+    assertRead = false;
   }
 }

@@ -37,8 +37,8 @@ class Sock2Sig : public sc_module {
 
   std::queue<std::unique_ptr<std::vector<uint8_t>>> buffer;
   std::unique_ptr<std::vector<uint8_t>> currentData;
-  ssize_t bitOffset;
-  ssize_t byteOffset;
+  size_t bitOffset;
+  size_t byteOffset;
   sc_event dataAvailable;
   int readyDelay;
 };
