@@ -18,5 +18,22 @@ pkg_check_modules(TLM2 REQUIRED IMPORTED_TARGET tlm)
 
 add_subdirectory(xilinx)
 
+add_library(cnn_processor "")
+target_include_directories(cnn_processor PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+target_sources(cnn_processor PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/AddressGenerator.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/bytePrinter.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/GlobalControl.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Memory_Channel.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Memory.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/SAM.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/sock2sig.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/stringProducer.cc"
+)
+
+target_link_libraries(cnn_processor PkgConfig::SYSTEMC PkgConfig::TLM2)
+
 enable_testing()
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/tests")
