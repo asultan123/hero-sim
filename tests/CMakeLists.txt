@@ -1,5 +1,4 @@
 add_executable(sock2sig_tb "")
-target_include_directories(sock2sig_tb PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")
 target_sources(sock2sig_tb
     PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/sock2sig_tb.cc"
@@ -12,7 +11,6 @@ target_compile_options(sock2sig_tb
 )
 
 add_executable(SAM_tb "")
-target_include_directories(SAM_tb PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")
 target_sources(SAM_tb
     PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/SAM_tb.cc"
@@ -25,7 +23,6 @@ target_compile_options(SAM_tb
 )
 
 add_executable(AddressGenerator_tb "")
-target_include_directories(AddressGenerator_tb PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")
 target_sources(AddressGenerator_tb
     PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/AddressGenerator_tb.cc"
@@ -40,7 +37,6 @@ target_compile_options(AddressGenerator_tb
 
 
 add_executable(Memory_tb "")
-target_include_directories(Memory_tb PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")
 target_sources(Memory_tb
     PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/Memory_tb.cc"
@@ -55,7 +51,6 @@ target_compile_options(Memory_tb
 
 
 add_executable(Connector_tb "")
-target_include_directories(Connector_tb PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")
 target_sources(Connector_tb
     PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/Connector_tb.cc"
