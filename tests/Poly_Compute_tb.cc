@@ -1,7 +1,7 @@
 #ifndef ComputeBlob_CPP
 #define ComputeBlob_CPP
 
-#include <GlobalControl.cpp>
+#include "GlobalControl.hh"
 #include <assert.h>
 #include <iostream>
 #include <string>
@@ -328,21 +328,7 @@ struct ComputeBlob_TB : public sc_module
             return -1;
         }
 
-        cout << "TEST BENCH SUCCESS " << endl;
-        cout << "       aOOOOOOOOOOa" << endl;
-        cout << "     aOOOOOOOOOOOOOOa" << endl;
-        cout << "   aOO    OOOOOO    OOa" << endl;
-        cout << "  aOOOOOOOOOOOOOOOOOOOa" << endl;
-        cout << " aOOOOO   OOOOOO   OOOOOa" << endl;
-        cout << "aOOOOO     OOOO     OOOOOa" << endl;
-        cout << "aOOOOOOOOOOOOOOOOOOOOOOOOa" << endl;
-        cout << "aOOOOOOOOOOOOOOOOOOOOOOOOa" << endl;
-        cout << "aOOOOO   OOOOOOOO   OOOOOa" << endl;
-        cout << " aOOOOO    OOOO    OOOOOa" << endl;
-        cout << "  aOOOOO          OOOOOa" << endl;
-        cout << "   aOOOOOOOOOOOOOOOOOOa" << endl;
-        cout << "     aOOOOOOOOOOOOOOa" << endl;
-        cout << "       aOOOOOOOOOOa" << endl;
+        cout << "ALL TESTS PASS" << endl;
         return 0;
     }
     ~ComputeBlob_TB()

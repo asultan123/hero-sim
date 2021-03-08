@@ -32,7 +32,6 @@ target_sources(cnn_processor PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/sock2sig.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/stringProducer.cc"
 )
-
 target_link_libraries(cnn_processor PkgConfig::SYSTEMC PkgConfig::TLM2)
 
 enable_testing()
