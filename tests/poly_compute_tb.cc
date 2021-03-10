@@ -23,7 +23,7 @@ public:
     sc_vector<sc_signal<DataType>> psums{"psums", 28};
     sc_vector<sc_in<DataType>> pe_group_in{"pe_group_in", 9};
     sc_out<DataType> psum_out{"psum_out"};
-    sc_trace_file* tf;
+    sc_trace_file *tf;
 
     void update()
     {
@@ -49,7 +49,7 @@ public:
         }
     }
 
-    void loadWeights(const std::vector<DataType>& values)
+    void loadWeights(const std::vector<DataType> &values)
     {
         for (int i = 0; i < 27; i++)
         {
@@ -60,9 +60,9 @@ public:
     // Constructor
     ComputeBlob(
         sc_module_name name,
-        GlobalControlChannel& _control,
-        sc_vector<sc_signal<DataType>>& _pe_group_in,
-        sc_trace_file* _tf) : sc_module(name)
+        GlobalControlChannel &_control,
+        sc_vector<sc_signal<DataType>> &_pe_group_in,
+        sc_trace_file *_tf) : sc_module(name)
     {
         control(_control);
         _clk(control->clk());
@@ -121,28 +121,38 @@ public:
             if (control->enable())
             {
                 std::vector<std::vector<int>> slice(3, std::vector<int>(3, -1));
-                for(int filter = 0; filter < 3; filter++)
+                const int bytesTransferred = 80;
+                const int epilogTime = 3 * 8;
+                for (int i1 = 0; i1 < 4; i1++) // 3 filters but 4 prolog/main/epilog periods, last period only has epilog before termination
                 {
-                    for(int ifmapIdx = 0; ifmapIdx <= /*numbers sent to each input*/80+/*max of startup delay for all inputs*/3*8; ifmapIdx++)
+                    for (int i2 = 0; i2 < bytesTransferred; i2++)
                     {
-                        cout << "ifmapIdx: " << ifmapIdx << endl;
                         for (int chIdx = 0; chIdx < 3; chIdx++)
                         {
                             for (int grpIdx = 0; grpIdx < 3; grpIdx++)
                             {
-                                int groupStartTime = (chIdx * 9 + grpIdx*3);
-                                int bytesToRead = 80;
-                                if (ifmapIdx >= groupStartTime && ifmapIdx < (bytesToRead + groupStartTime))
+                                int inputId = chIdx * 3 + grpIdx;
+                                // epilog
+                                if (i1 > 0 && i2 < epilogTime && i2 < (inputId * 3))
                                 {
-                                    int grp_ifmap_idx = (ifmapIdx - (chIdx * 9 + grpIdx*3)) + grpIdx * 10 + chIdx * 100;
-                                    pe_group_sig[chIdx * 3 + grpIdx].write(ifmap[grp_ifmap_idx]);
-                                    slice[chIdx][grpIdx] = grp_ifmap_idx;
+                                    int groupStartTime = (inputId * 3);
+                                    int grpIfmapIdx = (i2 + bytesTransferred - groupStartTime) + grpIdx * 10 + chIdx * 100;
+                                    pe_group_sig[inputId].write(ifmap[grpIfmapIdx]);
+                                    slice[chIdx][grpIdx] = grpIfmapIdx;
+                                }
+                                // prolog/main
+                                if (i1 < 3 && i2 >= (inputId * 3)) // both prolog/main can overlap with epilog, there's an epilog after first i1 but no prolog/main in last 2 i1s
+                                {
+                                    int groupStartTime = (inputId * 3);
+                                    int grpIfmapIdx = (i2 - groupStartTime) + grpIdx * 10 + chIdx * 100;
+                                    pe_group_sig[inputId].write(ifmap[grpIfmapIdx]);
+                                    slice[chIdx][grpIdx] = grpIfmapIdx;
                                 }
                             }
                         }
-                        for (auto& row : slice)
+                        for (auto &row : slice)
                         {
-                            for (auto& col : row)
+                            for (auto &col : row)
                             {
                                 cout << col << ", ";
                             }
@@ -151,7 +161,6 @@ public:
                         wait();
                     }
                 }
-                // timeval++;
             }
             wait();
         }
@@ -173,8 +182,8 @@ public:
     // Constructor
     ComputeBlobInjector(
         sc_module_name name,
-        GlobalControlChannel& _control,
-        sc_trace_file* tf) : sc_module(name),
+        GlobalControlChannel &_control,
+        sc_trace_file *tf) : sc_module(name),
                              pe_group_sig("pe_group_sig", 9),
                              blob("blob", _control, pe_group_sig, tf)
     {
@@ -192,7 +201,7 @@ public:
 template <typename DataType>
 struct ComputeBlob_TB : public sc_module
 {
-    sc_trace_file* tf{sc_create_vcd_trace_file("computeblob")};
+    sc_trace_file *tf{sc_create_vcd_trace_file("computeblob")};
     GlobalControlChannel control{"global_control_channel", sc_time(1, SC_NS), tf};
     ComputeBlobInjector<DataType> dut{"Injector", control, tf};
 
@@ -240,7 +249,7 @@ struct ComputeBlob_TB : public sc_module
         control.set_enable(true);
         float expected_output[64] = {15678, 15813, 15948, 16083, 16218, 16353, 16488, 16623, 17028, 17163, 17298, 17433, 17568, 17703, 17838, 17973, 18378, 18513, 18648, 18783, 18918, 19053, 19188, 19323, 19728, 19863, 19998, 20133, 20268, 20403, 20538, 20673, 21078, 21213, 21348, 21483, 21618, 21753, 21888, 22023, 22428, 22563, 22698, 22833, 22968, 23103, 23238, 23373, 23778, 23913, 24048, 24183, 24318, 24453, 24588, 24723, 25128, 25263, 25398, 25533, 25668, 25803, 25938, 26073};
         int success_count = 0;
-        for(int filter = 0; filter < 3; filter++)
+        for (int filter = 0; filter < 3; filter++)
         {
             bool startValidation = false;
             int expected_output_index = 0;
@@ -260,7 +269,7 @@ struct ComputeBlob_TB : public sc_module
                     if (validCounter > 0)
                     {
                         std::cout << "@" << sc_time_stamp() << " dut.blob.psum_out: " << dut.blob.psum_out
-                                << " expected_output: " << expected_output[expected_output_index];
+                                  << " expected_output: " << expected_output[expected_output_index];
 
                         if (DataType(expected_output[expected_output_index]) == dut.blob.psum_out.read())
                         {
@@ -277,13 +286,13 @@ struct ComputeBlob_TB : public sc_module
                     else if (invalidCounter > 0)
                     {
                         std::cout << "@" << sc_time_stamp() << " dut.blob.psum_out: " << dut.blob.psum_out
-                                << " ....ignoring invalid output " << std::endl;
+                                  << " ....ignoring invalid output " << std::endl;
                         invalidCounter--;
                     }
                     else
                     {
                         std::cout << "@" << sc_time_stamp() << " dut.blob.psum_out: " << dut.blob.psum_out
-                                << " ....ignoring invalid output " << std::endl;
+                                  << " ....ignoring invalid output " << std::endl;
                         validCounter = 8;
                         invalidCounter = 1;
                     }
@@ -297,12 +306,12 @@ struct ComputeBlob_TB : public sc_module
             }
             else
             {
-                cout << "filter " << filter << " SUCCESS" << endl;
+                cout << "filter " << filter << " FAIL" << endl;
                 return false;
             }
         }
 
-        if(success_count == 3)
+        if (success_count == 3)
         {
             return true;
         }
@@ -310,7 +319,6 @@ struct ComputeBlob_TB : public sc_module
         {
             return false;
         }
-        
     }
 
     int run_tb()
@@ -336,7 +344,7 @@ struct ComputeBlob_TB : public sc_module
         sc_close_vcd_trace_file(tf);
     }
 };
-int sc_main(int argc, char* argv[])
+int sc_main(int argc, char *argv[])
 {
     ComputeBlob_TB<sc_int<32>> tb("ComputeBlob_tb");
     return tb.run_tb();
