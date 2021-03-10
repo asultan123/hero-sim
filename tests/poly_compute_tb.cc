@@ -132,22 +132,22 @@ public:
                             for (int grpIdx = 0; grpIdx < 3; grpIdx++)
                             {
                                 int inputId = chIdx * 3 + grpIdx;
+                                int groupStartTime = (inputId * 3);
+                                int grpIfmapIdx = (i2 - groupStartTime) + grpIdx * 10 + chIdx * 100;
                                 // epilog
                                 if (i1 > 0 && i2 < epilogTime && i2 < (inputId * 3))
                                 {
-                                    int groupStartTime = (inputId * 3);
-                                    int grpIfmapIdx = (i2 + bytesTransferred - groupStartTime) + grpIdx * 10 + chIdx * 100;
+                                    grpIfmapIdx += bytesTransferred;
                                     pe_group_sig[inputId].write(ifmap[grpIfmapIdx]);
                                     slice[chIdx][grpIdx] = grpIfmapIdx;
                                 }
                                 // prolog/main
                                 if (i1 < 3 && i2 >= (inputId * 3)) // both prolog/main can overlap with epilog, there's an epilog after first i1 but no prolog/main in last 2 i1s
                                 {
-                                    int groupStartTime = (inputId * 3);
-                                    int grpIfmapIdx = (i2 - groupStartTime) + grpIdx * 10 + chIdx * 100;
                                     pe_group_sig[inputId].write(ifmap[grpIfmapIdx]);
                                     slice[chIdx][grpIdx] = grpIfmapIdx;
                                 }
+                                // implied do nothing to stagger start
                             }
                         }
                         for (auto &row : slice)
