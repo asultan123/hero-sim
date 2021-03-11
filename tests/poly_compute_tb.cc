@@ -148,6 +148,10 @@ public:
                                     slice[chIdx][grpIdx] = grpIfmapIdx;
                                 }
                                 // implied do nothing to stagger start
+
+                                /*bonus, push garbage but get data to come at the right time for main loop, will likely mess up code generation*/
+                                // pe_group_sig[inputId].write(ifmap[grpIfmapIdx]);
+                                // slice[chIdx][grpIdx] = grpIfmapIdx;                            
                             }
                         }
                         for (auto &row : slice)
