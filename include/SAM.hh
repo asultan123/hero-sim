@@ -1,3 +1,5 @@
+#include <sysc/communication/sc_signal.h>
+#include <sysc/utils/sc_vector.h>
 #if !defined(__SAM_CPP__)
 #define __SAM_CPP__
 
@@ -42,8 +44,7 @@ struct SAM : public sc_module {
   sc_vector<AddressGenerator<DataType>> generators;
   sc_vector<MemoryChannel<DataType>> channels;
   sc_vector<sc_vector<sc_out<DataType>>> read_channel_data;
-  sc_vector<sc_vector<sc_in<bool>>> write_channel_dma_data_ready;
-  sc_vector<sc_vector<sc_out<bool>>> write_channel_dma_assert_read;
+  sc_vector<sc_signal<bool>> write_channel_dma_periph_ready;
   sc_vector<sc_vector<sc_in<DataType>>> write_channel_data;
   const unsigned int length, width, channel_count;
 
@@ -52,8 +53,6 @@ struct SAM : public sc_module {
   void in_port_propogate();
 
   void out_port_propogate();
-
-  void in_port_deassert_read();
 
   SAM(sc_module_name name, GlobalControlChannel& _control,
       unsigned int _channel_count, unsigned int _length, unsigned int _width,

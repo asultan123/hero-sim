@@ -15,6 +15,7 @@ template <typename DataType>
 void SAM<DataType>::update() {
   if (control->reset()) {
   } else if (control->enable()) {
+    in_port_propogate();
   }
 }
 
@@ -24,11 +25,8 @@ void SAM<DataType>::in_port_propogate() {
     for (unsigned int channel_index = 0; channel_index < channel_count;
          channel_index++) {
       for (unsigned int bus_index = 0; bus_index < width; bus_index++) {
-        if (write_channel_dma_data_ready[channel_index][bus_index]->read()) {
-          channels[channel_index].channel_write_data_element(
-              write_channel_data[channel_index][bus_index].read(), bus_index);
-          write_channel_dma_assert_read[channel_index][bus_index] = true;
-        }
+        channels[channel_index].channel_write_data_element(
+            write_channel_data[channel_index][bus_index].read(), bus_index);
       }
     }
   }
@@ -47,19 +45,6 @@ void SAM<DataType>::out_port_propogate() {
   }
 }
 
-template <typename DataType>
-void SAM<DataType>::in_port_deassert_read() {
-  if (control->enable()) {
-    for (unsigned int channel_index = 0; channel_index < channel_count;
-         channel_index++) {
-      for (unsigned int bus_index = 0; bus_index < width; bus_index++) {
-        if (!write_channel_dma_data_ready[channel_index][bus_index]->read())
-          write_channel_dma_assert_read[channel_index][bus_index] = false;
-      }
-    }
-  }
-}
-
 // Constructor
 template <typename DataType>
 SAM<DataType>::SAM(sc_module_name name, GlobalControlChannel& _control,
@@ -73,12 +58,8 @@ SAM<DataType>::SAM(sc_module_name name, GlobalControlChannel& _control,
                MemoryChannelCreator<DataType>(_width, tf)),
       read_channel_data("read_channel_data", _channel_count,
                         OutDataPortCreator<DataType>(_width, tf)),
-      write_channel_dma_data_ready("read_channel_dma_data_ready",
-                                   _channel_count,
-                                   InDataPortCreator<bool>(_width, tf)),
-      write_channel_dma_assert_read("read_channel_dma_assert_read",
-                                    _channel_count,
-                                    OutDataPortCreator<bool>(_width, tf)),
+      write_channel_dma_periph_ready("write_channel_dma_periph_ready",
+                                     _channel_count),
       write_channel_data("write_channel_data", _channel_count,
                          InDataPortCreator<DataType>(_width, tf)),
       length(_length),
@@ -96,8 +77,7 @@ SAM<DataType>::SAM(sc_module_name name, GlobalControlChannel& _control,
   for (unsigned int channel_index = 0; channel_index < channel_count;
        channel_index++) {
     for (unsigned int data_index = 0; data_index < width; data_index++) {
-      sensitive
-          << write_channel_dma_data_ready[channel_index][data_index].pos();
+      sensitive << write_channel_data[channel_index][data_index];
       sc_trace(tf, write_channel_data[channel_index][data_index],
                write_channel_data[channel_index][data_index].name());
     }
@@ -115,20 +95,12 @@ SAM<DataType>::SAM(sc_module_name name, GlobalControlChannel& _control,
     }
   }
 
-  SC_METHOD(in_port_deassert_read);
-
-  for (unsigned int channel_index = 0; channel_index < channel_count;
-       channel_index++) {
-    for (unsigned int data_index = 0; data_index < width; data_index++) {
-      sensitive
-          << write_channel_dma_data_ready[channel_index][data_index].neg();
-    }
-  }
-
   for (unsigned int channel_index = 0; channel_index < channel_count;
        channel_index++) {
     generators[channel_index].channel(channels.at(channel_index));
     mem.channels[channel_index](channels.at(channel_index));
+    generators[channel_index].ready(
+        write_channel_dma_periph_ready.at(channel_index));
   }
 
   cout << " SAM MODULE: " << name << " has been instantiated " << endl;

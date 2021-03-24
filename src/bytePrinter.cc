@@ -1,21 +1,19 @@
 #include "bytePrinter.hh"
 
+#include <sysc/communication/sc_clock.h>
+
 #include <iostream>
 
-BytePrinter::BytePrinter(sc_module_name moduleName) : sc_module(moduleName) {
-  SC_THREAD(printData);
+BytePrinter::BytePrinter(sc_clock& clk, sc_module_name moduleName)
+    : sc_module(moduleName), clk(clk) {
+  SC_METHOD(printData);
+  sensitive << clk.posedge_event();
 }
 
 void BytePrinter::printData() {
-  while (true) {
-    wait(dataReady.posedge_event());
-
+  peripheralReady = true;
+  if (outputValid->read()) {
     char value = inputSig.read();
-
     std::cout << value;
-
-    assertRead = true;
-    wait(1, SC_NS);
-    assertRead = false;
   }
 }

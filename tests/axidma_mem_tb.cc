@@ -1,5 +1,7 @@
 #include "axidma_mem_tb.hh"
 
+#include <sysc/communication/sc_signal.h>
+#include <sysc/communication/sc_writer_policy.h>
 #include <sysc/kernel/sc_time.h>
 
 #include "dmaTestRegisterMap.hh"
@@ -15,13 +17,14 @@ DMA_TB::DMA_TB(sc_module_name moduleName)
       tf(sc_create_vcd_trace_file("ProgTrace")),
       control("global-control-channel", sc_time(1, SC_NS), tf),
       sam("sam", control, dutMemChannelCount, dutMemLength, dutMemWidth, tf),
+      sock2sig(control.clk()),
       mm2s("axidma-mm2s"),
       bus("bus"),
       mem("memory", SC_ZERO_TIME, MEM_SIZE),
       externalChannelReadBus("ext-channel-read-bus", dutMemWidth),
       externalChannelWriteBus("ext-channel-write-bus", dutMemWidth),
-      dmaDataReadyBus("dma-data-ready-bus", dutMemWidth),
-      dmaAssertReadBus("dma-assert-read-bus", dutMemWidth) {
+      dmaOutputValidBus("dma-data-ready-bus", dutMemWidth),
+      dmaPeriphReadyBus("dma-assert-read-bus", dutMemWidth) {
   // Bindings
 
   bus.memmap(MEM_BASE_ADDR, MEM_SIZE, ADDRMODE_RELATIVE, -1, mem.socket);
@@ -39,14 +42,13 @@ DMA_TB::DMA_TB(sc_module_name moduleName)
 
   sock2sig.inputSock(mm2s.stream_socket);
   sock2sig.outputSig(externalChannelWriteBus[0]);
-  sock2sig.dataReady(dmaDataReadyBus[0]);
-  sock2sig.assertRead(dmaAssertReadBus[0]);
+  sock2sig.outputValid.bind(
+      const_cast<sc_signal<bool, SC_MANY_WRITERS>&>(sam.control->enable()));
+  sock2sig.peripheralReady(sam.write_channel_dma_periph_ready[0]);
 
   for (size_t ii = 0; ii < sam.read_channel_data[0].size(); ii++) {
     sam.read_channel_data[0][ii](externalChannelReadBus[ii]);
     sam.write_channel_data[0][ii](externalChannelWriteBus[ii]);
-    sam.write_channel_dma_data_ready[0][ii](dmaDataReadyBus[ii]);
-    sam.write_channel_dma_assert_read[0][ii](dmaAssertReadBus[ii]);
   }
 }
 
@@ -82,7 +84,7 @@ bool DMA_TB::validateWriteToSAM1D() {
   control.set_enable(true);
   control.set_program(false);
 
-  sc_start();
+  sc_start(1000, SC_US);
 
   return true;
 }

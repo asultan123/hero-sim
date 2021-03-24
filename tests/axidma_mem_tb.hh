@@ -1,5 +1,7 @@
 #include <bits/stdint-uintn.h>
+#include <sysc/communication/sc_writer_policy.h>
 #include <sysc/utils/sc_vector.h>
+
 #include <vector>
 #if !defined(__AXIDMA_MEM_TB_H__)
 #define __AXIDMA_MEM_TB_H__
@@ -14,10 +16,10 @@
 #include "xilinx-axidma.h"
 
 class DMA_TB : public sc_module {
-public:
+ public:
   DMA_TB(sc_module_name moduleName = "dma-tb");
 
-  sc_trace_file *tf;
+  sc_trace_file* tf;
   GlobalControlChannel control;
   SAM<sc_int<32>> sam;
   Sock2Sig<32> sock2sig;
@@ -27,14 +29,14 @@ public:
   memory mem;
   DMAProducer producer;
   sc_vector<sc_signal<sc_int<32>>> externalChannelReadBus;
-  sc_vector<sc_signal<sc_int<32>>> externalChannelWriteBus;
-  sc_vector<sc_signal<bool>> dmaDataReadyBus;
-  sc_vector<sc_signal<bool>> dmaAssertReadBus;
+  sc_vector<sc_signal<sc_int<32>, SC_MANY_WRITERS>> externalChannelWriteBus;
+  sc_vector<sc_signal<bool>> dmaOutputValidBus;
+  sc_vector<sc_signal<bool>> dmaPeriphReadyBus;
 
   int runTB();
 
-private:
+ private:
   bool validateWriteToSAM1D();
 };
 
-#endif // __AXIDMA_MEM_TB_H__
+#endif  // __AXIDMA_MEM_TB_H__
