@@ -11,6 +11,8 @@
 #include <sysc/tracing/sc_trace.h>
 
 #include <cstddef>
+
+#include "GlobalControl.hh"
 #if !defined(__SOCK2SIG_H__)
 #define __SOCK2SIG_H__
 
@@ -30,15 +32,15 @@ class Sock2Sig : public sc_module {
   SC_HAS_PROCESS(Sock2Sig<BUSWIDTH>);
 
  public:
-  Sock2Sig(sc_clock& clk, size_t maxWords = 256,
-           sc_module_name moduleName = "sock-2-sig",
+  Sock2Sig(sc_clock& clk, size_t maxWords = 256, sc_module_name moduleName = "sock-2-sig",
            sc_trace_file* tf = nullptr);
+  Sock2Sig(GlobalControlChannel_IF& control, size_t maxWords = 256,
+           sc_module_name moduleName = "sock-2-sig", sc_trace_file* tf = nullptr);
 
   tlm_utils::simple_target_socket<Sock2Sig, BUSWIDTH> inputSock;
   sc_out<sc_int<BUSWIDTH>> outputSig;
-  sc_out<bool> outputValid;  // Data is fresh, has not already been read
-  sc_in<bool>
-      peripheralReady;  // High if the peripheral is reading data every cycle
+  sc_out<bool> outputValid;     // Data is fresh, has not already been read
+  sc_in<bool> peripheralReady;  // High if the peripheral is reading data every cycle
 
  private:
   void inputSock_b_transport(tlm::tlm_generic_payload& trans, sc_time& delay);

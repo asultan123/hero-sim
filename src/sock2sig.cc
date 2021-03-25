@@ -1,7 +1,9 @@
 #include "sock2sig.hh"
 
 #include <bits/stdint-uintn.h>
+#include <sysc/communication/sc_signal.h>
 #include <sysc/communication/sc_signal_ports.h>
+#include <sysc/communication/sc_writer_policy.h>
 #include <sysc/datatypes/int/sc_int.h>
 #include <sysc/tracing/sc_trace.h>
 #include <tlm_core/tlm_2/tlm_generic_payload/tlm_gp.h>
@@ -20,8 +22,8 @@ inline uint64_t bitsToBytes(unsigned int bits) {
 }  // namespace
 
 template <unsigned int BUSWIDTH>
-Sock2Sig<BUSWIDTH>::Sock2Sig(sc_clock& clk, size_t maxWords,
-                             sc_module_name moduleName, sc_trace_file* tf)
+Sock2Sig<BUSWIDTH>::Sock2Sig(sc_clock& clk, size_t maxWords, sc_module_name moduleName,
+                             sc_trace_file* tf)
     : sc_module(moduleName),
       outputSig("output-sig"),
       outputValid("output-valid"),
@@ -33,10 +35,8 @@ Sock2Sig<BUSWIDTH>::Sock2Sig(sc_clock& clk, size_t maxWords,
       isInit(false),
       clk(clk) {
   if (BUSWIDTH % 8 != 0)
-    throw std::runtime_error(
-        "Adapter does not currently support non-byte aligned widths");
-  inputSock.register_b_transport(this,
-                                 &Sock2Sig<BUSWIDTH>::inputSock_b_transport);
+    throw std::runtime_error("Adapter does not currently support non-byte aligned widths");
+  inputSock.register_b_transport(this, &Sock2Sig<BUSWIDTH>::inputSock_b_transport);
   SC_METHOD(updateOutput);
   sensitive << clk.posedge_event();
 
@@ -48,11 +48,16 @@ Sock2Sig<BUSWIDTH>::Sock2Sig(sc_clock& clk, size_t maxWords,
 }
 
 template <unsigned int BUSWIDTH>
-void Sock2Sig<BUSWIDTH>::inputSock_b_transport(tlm::tlm_generic_payload& trans,
-                                               sc_time& delay) {
+Sock2Sig<BUSWIDTH>::Sock2Sig(GlobalControlChannel_IF& control, size_t maxWords,
+                             sc_module_name moduleName, sc_trace_file* tf)
+    : Sock2Sig<BUSWIDTH>(control.clk(), maxWords, moduleName, tf) {
+  outputValid.bind(const_cast<sc_signal<bool, SC_MANY_WRITERS>&>(control.enable()));
+}
+
+template <unsigned int BUSWIDTH>
+void Sock2Sig<BUSWIDTH>::inputSock_b_transport(tlm::tlm_generic_payload& trans, sc_time& delay) {
   // Should only propagate writes
-  if (trans.get_command() != tlm::tlm_command::TLM_WRITE_COMMAND ||
-      trans.get_data_length() <= 0) {
+  if (trans.get_command() != tlm::tlm_command::TLM_WRITE_COMMAND || trans.get_data_length() <= 0) {
     std::cout << "Transaction is invalid, discarding..." << std::endl;
     return;
   }
@@ -67,8 +72,7 @@ void Sock2Sig<BUSWIDTH>::inputSock_b_transport(tlm::tlm_generic_payload& trans,
   }
 
   // Cache received data for later (may be wider than the bus)
-  auto receivedData =
-      std::make_unique<std::vector<uint8_t>>(trans.get_data_length());
+  auto receivedData = std::make_unique<std::vector<uint8_t>>(trans.get_data_length());
   memcpy(receivedData->data(), trans.get_data_ptr(), receivedData->size());
 
   // Wait if no space in buffer
@@ -105,8 +109,7 @@ void Sock2Sig<BUSWIDTH>::updateOutput() {
 
   // Copy the smaller of either the closest number of bytes that fits bus
   // width or bytes left in packet
-  size_t bytesToCopy =
-      std::min(bitsToBytes(BUSWIDTH), currentData->size() - byteOffset);
+  size_t bytesToCopy = std::min(bitsToBytes(BUSWIDTH), currentData->size() - byteOffset);
 
   uint64_t value = 0;
 

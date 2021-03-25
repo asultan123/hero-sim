@@ -22,7 +22,7 @@ DMA_TB::DMA_TB(sc_module_name moduleName)
       tf(sc_create_vcd_trace_file("ProgTrace")),
       control("global-control-channel", sc_time(1, SC_NS), tf),
       sam("sam", control, dutMemChannelCount, dutMemLength, dutMemWidth, tf),
-      sock2sig(control.clk(), 256, "sock-2-sig", tf),
+      sock2sig(control, 256, "sock-2-sig", tf),
       mm2s("axidma-mm2s"),
       bus("bus"),
       mem("memory", SC_ZERO_TIME, MEM_SIZE),
@@ -47,7 +47,6 @@ DMA_TB::DMA_TB(sc_module_name moduleName)
 
   sock2sig.inputSock(mm2s.stream_socket);
   sock2sig.outputSig(externalChannelWriteBus[0]);
-  sock2sig.outputValid.bind(const_cast<sc_signal<bool, SC_MANY_WRITERS>&>(sam.control->enable()));
   sock2sig.peripheralReady(sam.write_channel_dma_periph_ready[0]);
 
   for (size_t ii = 0; ii < sam.read_channel_data[0].size(); ii++) {
