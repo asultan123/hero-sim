@@ -10,7 +10,8 @@
 
 #include "dmaTestRegisterMap.hh"
 
-DMAProducer::DMAProducer(sc_module_name moduleName) : sc_module(moduleName) {
+DMAProducer::DMAProducer(sc_module_name moduleName, bool burstMode)
+    : sc_module(moduleName), burstMode(burstMode) {
   SC_THREAD(testRun);
 }
 
@@ -38,6 +39,7 @@ void DMAProducer::sendDMAReq() {
   uint32_t addrLsb = ((dataAddress << 32) >> 32);
   uint32_t addrMsb = (dataAddress >> 32);
   uint32_t dataSize = sizeof(float);
+  if (burstMode) dataSize *= testData.size();
   trans.reset();
   trans.set_write();
   trans.set_address(MM2S_ADDR_REG(0));
@@ -62,10 +64,11 @@ void DMAProducer::sendDMAReq() {
 }
 
 void DMAProducer::testRun() {
-  wait(100, sc_core::SC_US);  // Wait for reset sequence to run
+  wait(20, SC_NS);  // Wait for reset sequence to run
   loadData();
 
-  sc_time transportTime = SC_ZERO_TIME;
+  sc_time transportTime =
+      SC_ZERO_TIME;  // The b_transports don't use this anyways
 
   // Enable Interrupt on Complete on DMA
   uint32_t crRegVal;
@@ -88,7 +91,7 @@ void DMAProducer::testRun() {
       sendDMAReq();
     else
       break;
-    wait(dmaIRQOnComp->posedge_event());
+    wait(dmaIRQOnComp.posedge_event());
 
     // Get current status register value
     uint32_t srRegVal;
@@ -100,11 +103,15 @@ void DMAProducer::testRun() {
     trans.set_streaming_width(sizeof(srRegVal));
     outputSock->b_transport(trans, transportTime);
 
+    wait(50, SC_PS);  // So that we see something on the interrupt line
+
     // Clear complete interrupt (clears on write, just write the same thing
     // back)
     trans.set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
     trans.set_write();
     outputSock->b_transport(trans, transportTime);
+
+    wait(50, SC_PS);  // Give time for IOC to be deasserted
   }
 
   std::cout << "Test data consumed!" << std::endl;

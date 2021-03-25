@@ -12,20 +12,22 @@ using namespace sc_dt;
 class DMAProducer : public sc_module {
   SC_HAS_PROCESS(DMAProducer);
 
-public:
-  DMAProducer(sc_module_name moduleName = "dma-producer");
+ public:
+  DMAProducer(sc_module_name moduleName = "dma-producer",
+              bool burstMode = false);
 
   tlm_utils::simple_initiator_socket<DMAProducer> outputSock;
-  sc_in<bool> dmaIRQOnComp; // Interrupt on complete
+  sc_in<bool> dmaIRQOnComp;  // Interrupt on complete
+  std::vector<float> testData;
 
-private:
+ private:
   void loadData();
   void sendDMAReq();
   void testRun();
-  std::vector<float> testData;
   size_t currentTestData;
+  bool burstMode;
 
   tlm::tlm_generic_payload trans;
 };
 
-#endif // __DMAPRODUCER_H__
+#endif  // __DMAPRODUCER_H__

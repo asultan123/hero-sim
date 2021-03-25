@@ -1,7 +1,9 @@
 #include "sock2sig.hh"
 
 #include <bits/stdint-uintn.h>
+#include <sysc/communication/sc_signal_ports.h>
 #include <sysc/datatypes/int/sc_int.h>
+#include <sysc/tracing/sc_trace.h>
 #include <tlm_core/tlm_2/tlm_generic_payload/tlm_gp.h>
 
 #include <algorithm>
@@ -19,8 +21,11 @@ inline uint64_t bitsToBytes(unsigned int bits) {
 
 template <unsigned int BUSWIDTH>
 Sock2Sig<BUSWIDTH>::Sock2Sig(sc_clock& clk, size_t maxWords,
-                             sc_module_name moduleName)
+                             sc_module_name moduleName, sc_trace_file* tf)
     : sc_module(moduleName),
+      outputSig("output-sig"),
+      outputValid("output-valid"),
+      peripheralReady("periperhal-ready"),
       bitOffset(0),
       byteOffset(0),
       currentWords(0),
@@ -34,6 +39,12 @@ Sock2Sig<BUSWIDTH>::Sock2Sig(sc_clock& clk, size_t maxWords,
                                  &Sock2Sig<BUSWIDTH>::inputSock_b_transport);
   SC_METHOD(updateOutput);
   sensitive << clk.posedge_event();
+
+  if (tf) {
+    sc_trace(tf, outputSig, outputSig.name());
+    sc_trace(tf, outputValid, outputValid.name());
+    sc_trace(tf, peripheralReady, peripheralReady.name());
+  }
 }
 
 template <unsigned int BUSWIDTH>
@@ -60,22 +71,6 @@ void Sock2Sig<BUSWIDTH>::inputSock_b_transport(tlm::tlm_generic_payload& trans,
       std::make_unique<std::vector<uint8_t>>(trans.get_data_length());
   memcpy(receivedData->data(), trans.get_data_ptr(), receivedData->size());
 
-  if (!isInit) {
-    size_t bytesUsed = std::min(receivedData->size(), bitsToBytes(BUSWIDTH));
-    uint64_t value = 0;
-    memcpy(&value, receivedData->data(), bytesUsed);
-    outputSig = sc_int<BUSWIDTH>(value);
-    if (wordsReceived == 1) {
-      // Don't bother queueing this packet, already consumed
-      trans.set_response_status(tlm::TLM_OK_RESPONSE);
-      return;
-    } else {
-      wordsReceived--;
-      byteOffset = bytesUsed;
-    }
-    isInit = true;
-  }
-
   // Wait if no space in buffer
   while (currentWords + wordsReceived > maxWords) wait(wordRead);
 
@@ -88,9 +83,6 @@ void Sock2Sig<BUSWIDTH>::inputSock_b_transport(tlm::tlm_generic_payload& trans,
 
 template <unsigned int BUSWIDTH>
 void Sock2Sig<BUSWIDTH>::updateOutput() {
-  // We only bother updating the output if a peripheral is available to read it
-  if (!peripheralReady->read()) return;
-
   if (!currentData) {
     if (buffer.empty()) {
       outputValid = false;
@@ -102,6 +94,13 @@ void Sock2Sig<BUSWIDTH>::updateOutput() {
 
     byteOffset = 0;
     bitOffset = 0;
+  }
+
+  // We only bother updating the output if a peripheral is available to read it
+  if (isInit) {
+    if (!peripheralReady->read()) return;
+  } else {
+    isInit = true;
   }
 
   // Copy the smaller of either the closest number of bytes that fits bus
@@ -123,6 +122,7 @@ void Sock2Sig<BUSWIDTH>::updateOutput() {
   // bitOffset = (bitOffset + BUSWIDTH) % 8;
 
   outputSig = sc_int<BUSWIDTH>(value);
+  outputValid = true;
   wordRead.notify();
   currentWords--;
 
@@ -130,8 +130,6 @@ void Sock2Sig<BUSWIDTH>::updateOutput() {
 
   // currentData consumed, discard
   if (byteOffset >= currentData->size()) currentData.reset();
-
-  outputValid = true;
 }
 
 template class Sock2Sig<8>;
