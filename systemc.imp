@@ -1,0 +1,18 @@
+[
+  {
+    "include": [
+      "@<sysc/.*>",
+      "private",
+      "<systemc>",
+      "public"
+    ]
+  },
+  {
+    "include": [
+      "@<tlm_core/.*>",
+      "private",
+      "<systemc>",
+      "public"
+    ]
+  }
+]

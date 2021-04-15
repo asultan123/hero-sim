@@ -1,11 +1,7 @@
-#include <sysc/communication/sc_signal_ports.h>
 #if !defined(__ADDRESS_GENERATOR_CPP__)
 #define __ADDRESS_GENERATOR_CPP__
 
-#include <assert.h>
-
 #include <iostream>
-#include <map>
 #include <string>
 #include <systemc>
 #include <vector>
@@ -37,8 +33,7 @@ struct Descriptor_2D {
   int y_modify;           // number of floats between each transfer/wait
 
   Descriptor_2D(unsigned int _next, unsigned int _start, DescriptorState _state,
-                unsigned int _x_count, int _x_modify, unsigned int _y_count,
-                int _y_modify);
+                unsigned int _x_count, int _x_modify, unsigned int _y_count, int _y_modify);
 
   bool operator==(const Descriptor_2D& rhs);
 
@@ -88,8 +83,7 @@ struct AddressGenerator : public sc_module {
   void update();
 
   // Constructor
-  AddressGenerator(sc_module_name name, GlobalControlChannel& _control,
-                   sc_trace_file* _tf);
+  AddressGenerator(sc_module_name name, GlobalControlChannel& _control, sc_trace_file* _tf);
 
   SC_HAS_PROCESS(AddressGenerator);
 };

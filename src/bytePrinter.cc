@@ -1,7 +1,5 @@
 #include "bytePrinter.hh"
 
-#include <sysc/communication/sc_clock.h>
-
 #include <iostream>
 
 BytePrinter::BytePrinter(sc_clock& clk, sc_module_name moduleName)

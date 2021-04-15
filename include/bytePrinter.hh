@@ -1,4 +1,3 @@
-#include <sysc/communication/sc_signal_ports.h>
 #if !defined(__BYTEPRINTER_H__)
 #define __BYTEPRINTER_H__
 

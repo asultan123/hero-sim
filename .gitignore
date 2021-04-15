@@ -2,3 +2,4 @@
 build/
 ProgTrace.vcd
 .cache/
+*.log

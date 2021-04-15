@@ -1,4 +1,3 @@
-#include <sysc/communication/sc_writer_policy.h>
 #if !defined(__GLOBAL_CONTROL_CPP__)
 #define __GLOBAL_CONTROL_CPP__
 
@@ -23,8 +22,7 @@ struct GlobalControlChannel : public sc_module, public GlobalControlChannel_IF {
   sc_signal<bool> global_reset;
   sc_signal<bool, SC_MANY_WRITERS> global_enable;
   sc_signal<bool> global_program;
-  GlobalControlChannel(sc_module_name name, sc_time time_val,
-                       sc_trace_file* tf);
+  GlobalControlChannel(sc_module_name name, sc_time time_val, sc_trace_file* tf);
 
   sc_clock& clk();
 

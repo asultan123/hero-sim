@@ -1,11 +1,8 @@
 #include "GlobalControl.hh"
 
-#include <sysc/communication/sc_writer_policy.h>
-
 #include <systemc>
 
-GlobalControlChannel::GlobalControlChannel(sc_module_name name,
-                                           sc_time time_val, sc_trace_file* tf)
+GlobalControlChannel::GlobalControlChannel(sc_module_name name, sc_time time_val, sc_trace_file* tf)
     : sc_module(name),
       global_clock("clock", time_val),
       global_reset("reset"),
@@ -22,9 +19,7 @@ sc_clock& GlobalControlChannel::clk() { return global_clock; }
 sc_signal<bool>& GlobalControlChannel::reset() { return global_reset; }
 
 sc_signal<bool>& GlobalControlChannel::program() { return global_program; }
-sc_signal<bool, SC_MANY_WRITERS>& GlobalControlChannel::enable() {
-  return global_enable;
-}
+sc_signal<bool, SC_MANY_WRITERS>& GlobalControlChannel::enable() { return global_enable; }
 
 void GlobalControlChannel::set_program(bool val) { global_program = val; }
 void GlobalControlChannel::set_reset(bool val) { global_reset = val; }
