@@ -59,6 +59,7 @@ class axidma : public sc_core::sc_module {
   tlm_utils::simple_target_socket<axidma> tgt_socket;
 
   sc_out<bool> irq;
+  sc_signal<uint32_t, SC_MANY_WRITERS> packet_length;
   axidma(sc_core::sc_module_name name, bool use_memcpy = false);
   SC_HAS_PROCESS(axidma);
 
@@ -82,9 +83,11 @@ class axidma : public sc_core::sc_module {
 
   sc_event ev_update_irqs;
   sc_event ev_dma_copy;
+  sc_out<uint32_t> packet_length_out;
+
   virtual void do_dma_copy(void){};
-  void do_dma_trans(tlm::tlm_command cmd, unsigned char* buf,
-                    sc_dt::uint64 addr, sc_dt::uint64 len, sc_time& delay);
+  void do_dma_trans(tlm::tlm_command cmd, unsigned char* buf, sc_dt::uint64 addr, sc_dt::uint64 len,
+                    sc_time& delay);
   void update_irqs(void);
 
  private:
@@ -100,9 +103,8 @@ class axidma_mm2s : public axidma {
   virtual void do_dma_copy(void);
 
  private:
-  void do_stream_trans(tlm::tlm_command cmd, unsigned char* buf,
-                       sc_dt::uint64 addr, sc_dt::uint64 len, bool eop,
-                       sc_time& delay);
+  void do_stream_trans(tlm::tlm_command cmd, unsigned char* buf, sc_dt::uint64 addr,
+                       sc_dt::uint64 len, bool eop, sc_time& delay);
 };
 
 class axidma_s2mm : public axidma {

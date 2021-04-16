@@ -1,18 +1,13 @@
 #include "sock2sig.hh"
 
-#include <bits/stdint-uintn.h>
-#include <sysc/communication/sc_signal.h>
-#include <sysc/communication/sc_signal_ports.h>
-#include <sysc/communication/sc_writer_policy.h>
-#include <sysc/datatypes/int/sc_int.h>
-#include <sysc/tracing/sc_trace.h>
-#include <tlm_core/tlm_2/tlm_generic_payload/tlm_gp.h>
-
-#include <algorithm>
 #include <cstddef>
 #include <cstring>
 #include <iostream>
+#include <map>
+#include <stdexcept>
 #include <utility>
+
+#include "GlobalControl.hh"
 
 namespace {
 inline uint64_t bitsToBytes(unsigned int bits) {
@@ -22,18 +17,19 @@ inline uint64_t bitsToBytes(unsigned int bits) {
 }  // namespace
 
 template <unsigned int BUSWIDTH>
-Sock2Sig<BUSWIDTH>::Sock2Sig(sc_clock& clk, size_t maxWords, sc_module_name moduleName,
-                             sc_trace_file* tf)
+Sock2Sig<BUSWIDTH>::Sock2Sig(sc_clock& clk, size_t maxWords, sc_trace_file* tf,
+                             sc_module_name moduleName)
     : sc_module(moduleName),
       outputSig("output-sig"),
       outputValid("output-valid"),
-      peripheralReady("periperhal-ready"),
+      peripheralReady("peripherhal-ready"),
       bitOffset(0),
       byteOffset(0),
       currentWords(0),
       maxWords(maxWords),
       isInit(false),
-      clk(clk) {
+      clk(clk),
+      setupTime(1) {
   if (BUSWIDTH % 8 != 0)
     throw std::runtime_error("Adapter does not currently support non-byte aligned widths");
   inputSock.register_b_transport(this, &Sock2Sig<BUSWIDTH>::inputSock_b_transport);
@@ -48,11 +44,9 @@ Sock2Sig<BUSWIDTH>::Sock2Sig(sc_clock& clk, size_t maxWords, sc_module_name modu
 }
 
 template <unsigned int BUSWIDTH>
-Sock2Sig<BUSWIDTH>::Sock2Sig(GlobalControlChannel_IF& control, size_t maxWords,
-                             sc_module_name moduleName, sc_trace_file* tf)
-    : Sock2Sig<BUSWIDTH>(control.clk(), maxWords, moduleName, tf) {
-  outputValid.bind(const_cast<sc_signal<bool, SC_MANY_WRITERS>&>(control.enable()));
-}
+Sock2Sig<BUSWIDTH>::Sock2Sig(GlobalControlChannel_IF& control, size_t maxWords, sc_trace_file* tf,
+                             sc_module_name moduleName)
+    : Sock2Sig<BUSWIDTH>(control.clk(), maxWords, tf, moduleName) {}
 
 template <unsigned int BUSWIDTH>
 void Sock2Sig<BUSWIDTH>::inputSock_b_transport(tlm::tlm_generic_payload& trans, sc_time& delay) {
@@ -89,6 +83,10 @@ template <unsigned int BUSWIDTH>
 void Sock2Sig<BUSWIDTH>::updateOutput() {
   if (!currentData) {
     if (buffer.empty()) {
+      if (holdTime) {
+        holdTime--;
+        return;
+      }
       outputValid = false;
       return;
     }
@@ -102,9 +100,14 @@ void Sock2Sig<BUSWIDTH>::updateOutput() {
 
   // We only bother updating the output if a peripheral is available to read it
   if (isInit) {
+    if (setupTime) {
+      setupTime--;
+      return;
+    }
     if (!peripheralReady->read()) return;
   } else {
     isInit = true;
+    holdTime = 2;
   }
 
   // Copy the smaller of either the closest number of bytes that fits bus

@@ -1,21 +1,20 @@
-#include "dmaProducer.hh"
+#include "dmaTester.hh"
 
-#include <bits/stdint-uintn.h>
-#include <sys/types.h>
-#include <sysc/kernel/sc_time.h>
-#include <tlm_core/tlm_2/tlm_generic_payload/tlm_gp.h>
-
+#include <algorithm>
 #include <cstddef>
+#include <cstdint>
+#include <iostream>
 #include <stdexcept>
 
 #include "dmaTestRegisterMap.hh"
 
-DMAProducer::DMAProducer(sc_module_name moduleName, bool burstMode)
-    : sc_module(moduleName), burstMode(burstMode) {
+DMATester::DMATester(bool burstMode, sc_module_name moduleName)
+    : sc_module(moduleName), burstMode(burstMode), mm2sOffset(0), s2mmOffset(0) {
   SC_THREAD(testRun);
+  SC_THREAD(verifyMemWriteback);
 }
 
-void DMAProducer::loadData() {
+void DMATester::loadData() {
   for (size_t ii = 0; ii < 10; ii++) {
     testData.push_back(ii);
   }
@@ -28,53 +27,111 @@ void DMAProducer::loadData() {
   trans.set_data_ptr(reinterpret_cast<uint8_t*>(testData.data()));
   trans.set_data_length(testData.size() * sizeof(float));
   outputSock->b_transport(trans, transportTime);
-  if (!trans.is_response_ok())
-    throw std::runtime_error("Failed to write test data to memory");
+  if (!trans.is_response_ok()) throw std::runtime_error("Failed to write test data to memory");
+  dataLoaded.notify();
 }
 
-void DMAProducer::sendDMAReq() {
+void DMATester::sendDMAReq(bool s2mm) {
   // Set address to pull from
   sc_time transportTime = SC_ZERO_TIME;
-  uint64_t dataAddress = MEM_BASE_ADDR + currentTestData * sizeof(float);
+  uint64_t dataAddress =
+      MEM_BASE_ADDR + (s2mm ? (testData.size() + s2mmOffset) : mm2sOffset) * sizeof(float);
   uint32_t addrLsb = ((dataAddress << 32) >> 32);
   uint32_t addrMsb = (dataAddress >> 32);
   uint32_t dataSize = sizeof(float);
   if (burstMode) dataSize *= testData.size();
   trans.reset();
   trans.set_write();
-  trans.set_address(MM2S_ADDR_REG(0));
+  trans.set_address(s2mm ? S2MM_ADDR_REG(0) : MM2S_ADDR_REG(0));
   trans.set_data_ptr(reinterpret_cast<uint8_t*>(&addrLsb));
   trans.set_data_length(sizeof(addrLsb));
   trans.set_streaming_width(sizeof(addrLsb));
   outputSock->b_transport(trans, transportTime);
   trans.set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
-  trans.set_address(MM2S_ADDR_MSB_REG(0));
+  trans.set_address(s2mm ? S2MM_ADDR_MSB_REG(0) : MM2S_ADDR_MSB_REG(0));
   trans.set_data_ptr(reinterpret_cast<uint8_t*>(&addrMsb));
   trans.set_data_length(sizeof(addrMsb));
   trans.set_streaming_width(sizeof(addrMsb));
   outputSock->b_transport(trans, transportTime);
 
-  // Write data length, start DMA (one float at a time for now)
+  // Write data length, start DMA
   trans.set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
-  trans.set_address(MM2S_LENGTH_REG(0));
+  trans.set_address(s2mm ? S2MM_LENGTH_REG(0) : MM2S_LENGTH_REG(0));
   trans.set_data_ptr(reinterpret_cast<uint8_t*>(&dataSize));
   trans.set_data_length(sizeof(dataSize));
   outputSock->b_transport(trans, transportTime);
-  currentTestData += dataSize / sizeof(float);
+  if (s2mm)
+    s2mmOffset += dataSize / sizeof(float);
+  else
+    mm2sOffset += dataSize / sizeof(float);
 }
 
-void DMAProducer::testRun() {
+void DMATester::sendMM2SReq() { sendDMAReq(false); }
+
+void DMATester::sendS2MMReq() { sendDMAReq(true); }
+
+void DMATester::testRun() {
   wait(20, SC_NS);  // Wait for reset sequence to run
   loadData();
 
-  sc_time transportTime =
-      SC_ZERO_TIME;  // The b_transports don't use this anyways
+  enableIOC(false, 0);
 
-  // Enable Interrupt on Complete on DMA
+  while (true) {
+    if (mm2sOffset < testData.size())
+      sendMM2SReq();
+    else
+      break;
+    wait(mm2sIRQOnComp.posedge_event());
+
+    clearIOC(false, 0);
+  }
+
+  std::cout << "Test data consumed!" << std::endl;
+}
+
+void DMATester::verifyMemWriteback() {
+  wait(20, SC_NS);  // Wait for reset sequence to run
+
+  enableIOC(true, 0);
+  wait(dataLoaded);
+
+  while (true) {
+    if (s2mmOffset < testData.size())
+      sendS2MMReq();
+    else
+      break;
+    wait(s2mmIRQOnComp->posedge_event());
+
+    clearIOC(true, 0);
+  }
+
+  // Read from memory
+  std::vector<float> memData(testData.size());
+  sc_time transportTime = SC_ZERO_TIME;
+  trans.reset();
+  trans.set_read();
+  trans.set_address(MEM_BASE_ADDR + testData.size() * sizeof(float));
+  trans.set_data_ptr(reinterpret_cast<uint8_t*>(memData.data()));
+  trans.set_data_length(memData.size() * sizeof(float));
+  outputSock->b_transport(trans, transportTime);
+  if (!trans.is_response_ok())
+    throw std::runtime_error("Failed to read writeback data from memory");
+
+  for (size_t ii = 0; ii < testData.size(); ii++) {
+    if (testData.at(ii) != memData.at(ii)) {
+      std::cout << "Writeback data doesn't match test data" << std::endl;
+      return;
+    }
+  }
+}
+
+void DMATester::enableIOC(bool s2mm, size_t ii) {
+  sc_time transportTime = SC_ZERO_TIME;  // The b_transports don't use this anyways
+
   uint32_t crRegVal;
   trans.reset();
   trans.set_read();
-  trans.set_address(MM2S_CR_REG(0));
+  trans.set_address(s2mm ? S2MM_CR_REG(ii) : MM2S_CR_REG(ii));
   trans.set_data_ptr(reinterpret_cast<uint8_t*>(&crRegVal));
   trans.set_data_length(sizeof(crRegVal));
   trans.set_streaming_width(sizeof(crRegVal));
@@ -85,34 +142,27 @@ void DMAProducer::testRun() {
   trans.set_write();
   trans.set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
   outputSock->b_transport(trans, transportTime);
+}
 
-  while (true) {
-    if (currentTestData < testData.size())
-      sendDMAReq();
-    else
-      break;
-    wait(dmaIRQOnComp.posedge_event());
+void DMATester::clearIOC(bool s2mm, size_t ii) {
+  sc_time transportTime = SC_ZERO_TIME;  // The b_transports don't use this anyways
+  // Get current status register value
+  uint32_t srRegVal;
+  trans.reset();
+  trans.set_read();
+  trans.set_address(s2mm ? S2MM_SR_REG(ii) : MM2S_SR_REG(ii));
+  trans.set_data_ptr(reinterpret_cast<uint8_t*>(&srRegVal));
+  trans.set_data_length(sizeof(srRegVal));
+  trans.set_streaming_width(sizeof(srRegVal));
+  outputSock->b_transport(trans, transportTime);
 
-    // Get current status register value
-    uint32_t srRegVal;
-    trans.reset();
-    trans.set_read();
-    trans.set_address(MM2S_SR_REG(0));
-    trans.set_data_ptr(reinterpret_cast<uint8_t*>(&srRegVal));
-    trans.set_data_length(sizeof(srRegVal));
-    trans.set_streaming_width(sizeof(srRegVal));
-    outputSock->b_transport(trans, transportTime);
+  wait(50, SC_PS);  // So that we see something on the interrupt line
 
-    wait(50, SC_PS);  // So that we see something on the interrupt line
+  // Clear complete interrupt (clears on write, just write the same thing
+  // back)
+  trans.set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
+  trans.set_write();
+  outputSock->b_transport(trans, transportTime);
 
-    // Clear complete interrupt (clears on write, just write the same thing
-    // back)
-    trans.set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
-    trans.set_write();
-    outputSock->b_transport(trans, transportTime);
-
-    wait(50, SC_PS);  // Give time for IOC to be deasserted
-  }
-
-  std::cout << "Test data consumed!" << std::endl;
+  wait(50, SC_PS);  // Give time for IOC to be deasserted
 }

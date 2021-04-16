@@ -1,8 +1,7 @@
 #include "AddressGenerator.hh"
 
-Descriptor_2D::Descriptor_2D(unsigned int _next, unsigned int _start,
-                             DescriptorState _state, unsigned int _x_count,
-                             int _x_modify, unsigned int _y_count,
+Descriptor_2D::Descriptor_2D(unsigned int _next, unsigned int _start, DescriptorState _state,
+                             unsigned int _x_count, int _x_modify, unsigned int _y_count,
                              int _y_modify) {
   this->next = _next;
   this->start = _start;
@@ -18,10 +17,9 @@ Descriptor_2D Descriptor_2D::default_descriptor() {
 }
 
 bool Descriptor_2D::operator==(const Descriptor_2D& rhs) {
-  return this->next == rhs.next && this->start == rhs.start &&
-         this->state == rhs.state && this->x_count == rhs.x_count &&
-         this->x_modify == rhs.x_modify && this->y_count == rhs.y_count &&
-         this->y_modify == rhs.y_modify;
+  return this->next == rhs.next && this->start == rhs.start && this->state == rhs.state &&
+         this->x_count == rhs.x_count && this->x_modify == rhs.x_modify &&
+         this->y_count == rhs.y_count && this->y_modify == rhs.y_modify;
 }
 
 template <typename DataType>
@@ -31,16 +29,14 @@ void AddressGenerator<DataType>::resetIndexingCounters() {
 }
 
 template <typename DataType>
-void AddressGenerator<DataType>::loadInternalCountersFromIndex(
-    unsigned int index) {
+void AddressGenerator<DataType>::loadInternalCountersFromIndex(unsigned int index) {
   current_ram_index = descriptors.at(index).start;
   x_count_remaining = descriptors.at(index).x_count;
   y_count_remaining = descriptors.at(index).y_count;
 }
 
 template <typename DataType>
-void AddressGenerator<DataType>::loadProgram(
-    const vector<Descriptor_2D>& newProgram) {
+void AddressGenerator<DataType>::loadProgram(const vector<Descriptor_2D>& newProgram) {
   descriptors.clear();
   copy(newProgram.begin(), newProgram.end(), std::back_inserter(descriptors));
 }
@@ -103,8 +99,8 @@ void AddressGenerator<DataType>::update() {
     programmed = false;
     first_cycle = false;
     channel->reset();
-    std::cout << "@ " << sc_time_stamp() << " " << this->name()
-              << ":MODULE has been reset" << std::endl;
+    std::cout << "@ " << sc_time_stamp() << " " << this->name() << ":MODULE has been reset"
+              << std::endl;
   } else if (control->program()) {
     // TODO: Extend with programming logic
     execute_index = 0;
@@ -112,14 +108,13 @@ void AddressGenerator<DataType>::update() {
     channel->set_addr(descriptors.at(0).start);
     programmed = true;
     first_cycle = true;
-    std::cout << "@ " << sc_time_stamp() << " " << this->name()
-              << ":MODULE has been programmed" << std::endl;
+    std::cout << "@ " << sc_time_stamp() << " " << this->name() << ":MODULE has been programmed"
+              << std::endl;
   } else if (control->enable() && programmed) {
     // Update internal address counters, ignore for first cycle due to channel
     // enable delay
-    if (!first_cycle &&
-        (currentDescriptor().state == DescriptorState::GENERATE ||
-         currentDescriptor().state == DescriptorState::WAIT)) {
+    if (!first_cycle && (currentDescriptor().state == DescriptorState::GENERATE ||
+                         currentDescriptor().state == DescriptorState::WAIT)) {
       updateCurrentIndex();
       if (descriptorComplete()) {
         loadNextDescriptor();
@@ -173,15 +168,14 @@ void AddressGenerator<DataType>::update() {
     //     }
     //     }
     // }
-
-    ready = currentDescriptor().state == DescriptorState::GENERATE;
   }
+
+  ready = programmed ? currentDescriptor().state == DescriptorState::GENERATE : false;
 }
 
 // Constructor
 template <typename DataType>
-AddressGenerator<DataType>::AddressGenerator(sc_module_name name,
-                                             GlobalControlChannel& _control,
+AddressGenerator<DataType>::AddressGenerator(sc_module_name name, GlobalControlChannel& _control,
                                              sc_trace_file* _tf)
     : sc_module(name),
       control("control"),
@@ -206,18 +200,17 @@ AddressGenerator<DataType>::AddressGenerator(sc_module_name name,
   sensitive << _reset.pos();
 
   // connect signals
-  std::cout << "ADDRESS_GENERATOR MODULE: " << name << " has been instantiated "
-            << std::endl;
+  std::cout << "ADDRESS_GENERATOR MODULE: " << name << " has been instantiated " << std::endl;
 }
 
 template <typename DataType>
-AddressGeneratorCreator<DataType>::AddressGeneratorCreator(
-    GlobalControlChannel& _control, sc_trace_file* _tf)
+AddressGeneratorCreator<DataType>::AddressGeneratorCreator(GlobalControlChannel& _control,
+                                                           sc_trace_file* _tf)
     : tf(_tf), control(_control) {}
 
 template <typename DataType>
-AddressGenerator<DataType>* AddressGeneratorCreator<DataType>::operator()(
-    const char* name, size_t) {
+AddressGenerator<DataType>* AddressGeneratorCreator<DataType>::operator()(const char* name,
+                                                                          size_t) {
   return new AddressGenerator<DataType>(name, control, tf);
 }
 

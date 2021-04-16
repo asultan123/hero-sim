@@ -1,10 +1,7 @@
-#include <sysc/communication/sc_signal.h>
-#include <sysc/utils/sc_vector.h>
 #if !defined(__SAM_CPP__)
 #define __SAM_CPP__
 
-#include <assert.h>
-
+#include <cstddef>
 #include <iostream>
 #include <string>
 #include <systemc>
@@ -43,8 +40,8 @@ struct SAM : public sc_module {
   Memory<DataType> mem;
   sc_vector<AddressGenerator<DataType>> generators;
   sc_vector<MemoryChannel<DataType>> channels;
+  sc_vector<sc_signal<bool>> channel_dma_periph_ready_valid;
   sc_vector<sc_vector<sc_out<DataType>>> read_channel_data;
-  sc_vector<sc_signal<bool>> write_channel_dma_periph_ready;
   sc_vector<sc_vector<sc_in<DataType>>> write_channel_data;
   const unsigned int length, width, channel_count;
 
@@ -54,9 +51,8 @@ struct SAM : public sc_module {
 
   void out_port_propogate();
 
-  SAM(sc_module_name name, GlobalControlChannel& _control,
-      unsigned int _channel_count, unsigned int _length, unsigned int _width,
-      sc_trace_file* tf);
+  SAM(sc_module_name name, GlobalControlChannel& _control, unsigned int _channel_count,
+      unsigned int _length, unsigned int _width, sc_trace_file* tf);
 
   SC_HAS_PROCESS(SAM);
 };
