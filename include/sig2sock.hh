@@ -41,12 +41,14 @@ class Sig2Sock : public sc_module {
  private:
   void updateInput();
   void flushBuffer();
+  void resetSetupTime();
 
   std::queue<uint64_t> buffer;
   size_t currentWords;
   size_t maxWords;
   sc_in<bool> clk;
   tlm::tlm_generic_payload trans;
+  size_t setupTime;
 };
 
 #endif  // __SIG2SOCK_H__

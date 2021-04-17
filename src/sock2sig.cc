@@ -1,9 +1,12 @@
 #include "sock2sig.hh"
 
+#include <sysc/tracing/sc_trace.h>
+
 #include <cstddef>
 #include <cstring>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <stdexcept>
 #include <utility>
 
@@ -23,13 +26,13 @@ Sock2Sig<BUSWIDTH>::Sock2Sig(sc_clock& clk, size_t maxWords, sc_trace_file* tf,
       outputSig("output-sig"),
       outputValid("output-valid"),
       peripheralReady("peripherhal-ready"),
+      tLast("t-last"),
       bitOffset(0),
       byteOffset(0),
       currentWords(0),
       maxWords(maxWords),
       isInit(false),
-      clk(clk),
-      setupTime(1) {
+      clk(clk) {
   if (BUSWIDTH % 8 != 0)
     throw std::runtime_error("Adapter does not currently support non-byte aligned widths");
   inputSock.register_b_transport(this, &Sock2Sig<BUSWIDTH>::inputSock_b_transport);
@@ -40,6 +43,7 @@ Sock2Sig<BUSWIDTH>::Sock2Sig(sc_clock& clk, size_t maxWords, sc_trace_file* tf,
     sc_trace(tf, outputSig, outputSig.name());
     sc_trace(tf, outputValid, outputValid.name());
     sc_trace(tf, peripheralReady, peripheralReady.name());
+    sc_trace(tf, tLast, tLast.name());
   }
 }
 
@@ -69,10 +73,16 @@ void Sock2Sig<BUSWIDTH>::inputSock_b_transport(tlm::tlm_generic_payload& trans, 
   auto receivedData = std::make_unique<std::vector<uint8_t>>(trans.get_data_length());
   memcpy(receivedData->data(), trans.get_data_ptr(), receivedData->size());
 
+  // TODO: Use TLM extensions to provide last flag; in the current implementation, each transaction
+  // equals one DMA operation
+  auto dataTrans = std::make_unique<DataTrans>();
+  dataTrans->data = std::move(receivedData);
+  dataTrans->last = true;
+
   // Wait if no space in buffer
   while (currentWords + wordsReceived > maxWords) wait(wordRead);
 
-  buffer.push(std::move(receivedData));
+  buffer.push(std::move(dataTrans));
 
   currentWords += wordsReceived;
 
@@ -83,16 +93,13 @@ template <unsigned int BUSWIDTH>
 void Sock2Sig<BUSWIDTH>::updateOutput() {
   if (!currentData) {
     if (buffer.empty()) {
-      if (holdTime) {
-        holdTime--;
-        return;
-      }
       outputValid = false;
       return;
     }
 
     currentData = std::move(buffer.front());
     buffer.pop();
+    tLast = false;
 
     byteOffset = 0;
     bitOffset = 0;
@@ -100,23 +107,18 @@ void Sock2Sig<BUSWIDTH>::updateOutput() {
 
   // We only bother updating the output if a peripheral is available to read it
   if (isInit) {
-    if (setupTime) {
-      setupTime--;
-      return;
-    }
     if (!peripheralReady->read()) return;
   } else {
     isInit = true;
-    holdTime = 2;
   }
 
   // Copy the smaller of either the closest number of bytes that fits bus
   // width or bytes left in packet
-  size_t bytesToCopy = std::min(bitsToBytes(BUSWIDTH), currentData->size() - byteOffset);
+  size_t bytesToCopy = std::min(bitsToBytes(BUSWIDTH), currentData->data->size() - byteOffset);
 
   uint64_t value = 0;
 
-  memcpy(&value, &(*currentData)[byteOffset], bytesToCopy);
+  memcpy(&value, &(*(currentData->data))[byteOffset], bytesToCopy);
 
   // TODO: Non-byte aligned widths, revisit when needed
   // // Trim bits already read
@@ -135,7 +137,10 @@ void Sock2Sig<BUSWIDTH>::updateOutput() {
   byteOffset += (bitOffset + BUSWIDTH) / 8;
 
   // currentData consumed, discard
-  if (byteOffset >= currentData->size()) currentData.reset();
+  if (byteOffset >= currentData->data->size()) {
+    if (currentData->last) tLast = true;
+    currentData.reset();
+  }
 }
 
 template class Sock2Sig<8>;

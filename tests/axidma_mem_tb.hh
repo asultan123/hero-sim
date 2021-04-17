@@ -34,6 +34,7 @@ class DMA_TB : public sc_module {
   sc_vector<sc_signal<sc_int<32>, SC_MANY_WRITERS>> externalChannelWriteBus;
   sc_vector<sc_signal<bool>> dmaDataReadyValidBus;
   sc_vector<sc_signal<bool>> dmaPeriphReadyValidBus;
+  sc_vector<sc_signal<bool>> dmaTLastBus;
   ChannelEnable channelEnable;
 
   int runTB();

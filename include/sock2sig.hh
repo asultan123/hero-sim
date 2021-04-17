@@ -24,7 +24,13 @@ struct GlobalControlChannel_IF;
 
 using namespace sc_core;
 using namespace sc_dt;
-using DataTrans = std::unique_ptr<std::vector<uint8_t>>;
+
+typedef struct DataTrans {
+  std::unique_ptr<std::vector<uint8_t>> data;
+  bool last;  // The last transaction of a DMA operation
+} DataTrans;
+
+typedef std::unique_ptr<DataTrans> DataTransPtr;
 
 template <unsigned int BUSWIDTH>
 class Sock2Sig : public sc_module {
@@ -40,13 +46,14 @@ class Sock2Sig : public sc_module {
   sc_out<sc_int<BUSWIDTH>> outputSig;
   sc_out<bool> outputValid;     // Data is fresh, has not already been read
   sc_in<bool> peripheralReady;  // High if the peripheral is reading data every cycle
+  sc_out<bool> tLast;           // The last transaction of a DMA operation was reached
 
  private:
   void inputSock_b_transport(tlm::tlm_generic_payload& trans, sc_time& delay);
   void updateOutput();
 
-  std::queue<DataTrans> buffer;
-  DataTrans currentData;
+  std::queue<DataTransPtr> buffer;
+  DataTransPtr currentData;
   size_t bitOffset;
   size_t byteOffset;
   size_t currentWords;
@@ -54,8 +61,6 @@ class Sock2Sig : public sc_module {
   bool isInit;
   sc_event wordRead;
   sc_in<bool> clk;
-  size_t setupTime;
-  size_t holdTime;
 };
 
 #endif  // __SOCK2SIG_H__

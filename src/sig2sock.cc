@@ -1,5 +1,7 @@
 #include "sig2sock.hh"
 
+#include <sysc/kernel/sc_module.h>
+
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
@@ -24,11 +26,14 @@ Sig2Sock<BUSWIDTH>::Sig2Sock(sc_clock& clk, size_t maxWords, sc_module_name modu
       packetLength("packet-length"),
       currentWords(0),
       maxWords(maxWords),
-      clk(clk) {
+      clk(clk),
+      setupTime(1) {
   if (BUSWIDTH % 8 != 0)
     throw std::runtime_error("Adapter does not currently support non-byte aligned widths");
   SC_METHOD(updateInput);
   sensitive << clk.posedge_event();
+  SC_METHOD(resetSetupTime);
+  sensitive << peripheralValid.neg();
 
   if (tf) {
     sc_trace(tf, inputSig, inputSig.name());
@@ -45,6 +50,11 @@ Sig2Sock<BUSWIDTH>::Sig2Sock(GlobalControlChannel_IF& control, size_t maxWords, 
 template <unsigned int BUSWIDTH>
 void Sig2Sock<BUSWIDTH>::updateInput() {
   if (peripheralValid->read() && currentWords < maxWords) {
+    if (setupTime) {
+      setupTime--;
+      return;
+    }
+
     buffer.push(inputSig.read());
     currentWords++;
   }
@@ -79,6 +89,11 @@ void Sig2Sock<BUSWIDTH>::flushBuffer() {
     if (!trans.is_response_ok())
       throw std::runtime_error("Failed to write DMA transaction to memory");
   }
+}
+
+template <unsigned int BUSWIDTH>
+void Sig2Sock<BUSWIDTH>::resetSetupTime() {
+  setupTime = 1;
 }
 
 template class Sig2Sock<8>;

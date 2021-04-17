@@ -37,6 +37,7 @@ DMA_TB::DMA_TB(sc_module_name moduleName)
       externalChannelWriteBus("ext-channel-write-bus", dutMemChannelCount),
       dmaDataReadyValidBus("dma-data-ready-valid-bus", dutMemChannelCount),
       dmaPeriphReadyValidBus("dma-assert-read-bus", dutMemChannelCount),
+      dmaTLastBus("dma-t-last-bus", dutMemChannelCount),
       channelEnable(control, tf) {
   // Bindings
   bus.memmap(MEM_BASE_ADDR, MEM_SIZE, ADDRMODE_RELATIVE, -1, mem.socket);
@@ -55,10 +56,11 @@ DMA_TB::DMA_TB(sc_module_name moduleName)
   sock2sig.outputSig.bind(externalChannelWriteBus[0]);
   sock2sig.outputValid.bind(dmaDataReadyValidBus[0]);
   sock2sig.peripheralReady.bind(sam.channel_dma_periph_ready_valid[0]);
+  sock2sig.tLast.bind(dmaTLastBus[0]);
   externalChannelWriteBus[0] = 0xDEADBEEF;
 
   channelEnable.outputValid.bind(dmaDataReadyValidBus[0]);
-  channelEnable.peripheralReady.bind(sam.channel_dma_periph_ready_valid[0]);
+  channelEnable.tLast.bind(dmaTLastBus[0]);
 
   // s2mm bindings
   bus.memmap(S2MM_BASE_ADDR, MM2S_REG_SIZE, ADDRMODE_RELATIVE, -1, s2mm.tgt_socket);
@@ -71,7 +73,6 @@ DMA_TB::DMA_TB(sc_module_name moduleName)
   sig2sock.peripheralValid.bind(sam.channel_dma_periph_ready_valid[1]);
   sig2sock.packetLength.bind(s2mm.packet_length);
 
-  channelEnable.peripheralValid.bind(sam.channel_dma_periph_ready_valid[1]);
   channelEnable.inputReady.bind(dmaDataReadyValidBus[1]);
 
   for (size_t ii = 0; ii < sam.read_channel_data.size(); ii++) {

@@ -17,9 +17,8 @@ class ChannelEnable : public sc_module {
 
   sc_out<bool> enable;
   sc_in<bool> outputValid;
-  sc_in<bool> peripheralReady;
-  sc_in<bool> peripheralValid;
   sc_in<bool> inputReady;
+  sc_in<bool> tLast;
 
  private:
   void updateEnable();

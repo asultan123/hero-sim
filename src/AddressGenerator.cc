@@ -170,7 +170,8 @@ void AddressGenerator<DataType>::update() {
     // }
   }
 
-  ready = programmed ? currentDescriptor().state == DescriptorState::GENERATE : false;
+  ready = programmed && control->enable() ? currentDescriptor().state == DescriptorState::GENERATE
+                                          : false;
 }
 
 // Constructor
