@@ -1,7 +1,5 @@
 #include "sock2sig.hh"
 
-#include <sysc/tracing/sc_trace.h>
-
 #include <cstddef>
 #include <cstring>
 #include <iostream>

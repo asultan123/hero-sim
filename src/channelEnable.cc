@@ -1,7 +1,5 @@
 #include "channelEnable.hh"
 
-#include <sysc/tracing/sc_trace.h>
-
 #include "GlobalControl.hh"
 
 ChannelEnable::ChannelEnable(GlobalControlChannel_IF& control, sc_trace_file* tf,

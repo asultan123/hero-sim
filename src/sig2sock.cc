@@ -1,7 +1,5 @@
 #include "sig2sock.hh"
 
-#include <sysc/kernel/sc_module.h>
-
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
