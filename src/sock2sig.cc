@@ -1,3 +1,10 @@
+/**
+ * @file sock2sig.cc
+ * @author Vincent Zhao
+ * @brief Implementation of TLM-to-signal converter. Converts data received from a TLM-2.0 socket to
+ * individual bit signals, adds a data ready-read interface with adjustable timing.
+ */
+
 #include "sock2sig.hh"
 
 #include <cstddef>
@@ -17,6 +24,15 @@ inline uint64_t bitsToBytes(unsigned int bits) {
 }
 }  // namespace
 
+/**
+ * @brief Construct a new Sock2Sig<BUSWIDTH>::Sock2Sig object
+ *
+ * @tparam BUSWIDTH How many bits wide a word is
+ * @param clk Clock signal
+ * @param maxWords Maximum number of words that can be stored in the FIFO bufferr
+ * @param tf Signal state trace file
+ * @param moduleName Module identifier
+ */
 template <unsigned int BUSWIDTH>
 Sock2Sig<BUSWIDTH>::Sock2Sig(sc_clock& clk, size_t maxWords, sc_trace_file* tf,
                              sc_module_name moduleName)
@@ -45,11 +61,30 @@ Sock2Sig<BUSWIDTH>::Sock2Sig(sc_clock& clk, size_t maxWords, sc_trace_file* tf,
   }
 }
 
+/**
+ * @brief Construct a new Sock2Sig<BUSWIDTH>::Sock2Sig object with a global control channel
+ *
+ * @tparam BUSWIDTH How many bits wide a word is
+ * @param control Global control signal, provides clock signal
+ * @param maxWords Maximum number of words that can be stored in the FIFO bufferr
+ * @param tf Signal state trace file
+ * @param moduleName Module identifier
+ */
 template <unsigned int BUSWIDTH>
 Sock2Sig<BUSWIDTH>::Sock2Sig(GlobalControlChannel_IF& control, size_t maxWords, sc_trace_file* tf,
                              sc_module_name moduleName)
     : Sock2Sig<BUSWIDTH>(control.clk(), maxWords, tf, moduleName) {}
 
+/**
+ * @brief Socket data blocking transport callback.
+ *
+ * Stores received data in FIFO and concludes TLM transaction, otherwise blocks transaction until
+ * space is available.
+ *
+ * @tparam BUSWIDTH How many bits wide a word is
+ * @param trans Data transaction received
+ * @param delay How long the transaction should take to complete
+ */
 template <unsigned int BUSWIDTH>
 void Sock2Sig<BUSWIDTH>::inputSock_b_transport(tlm::tlm_generic_payload& trans, sc_time& delay) {
   // Should only propagate writes
@@ -87,6 +122,13 @@ void Sock2Sig<BUSWIDTH>::inputSock_b_transport(tlm::tlm_generic_payload& trans, 
   trans.set_response_status(tlm::TLM_OK_RESPONSE);
 }
 
+/**
+ * @brief Reads data out of the buffer if present.
+ *
+ * Informs peripheral if new data is available to read.
+ *
+ * @tparam BUSWIDTH How many bits wide a word is
+ */
 template <unsigned int BUSWIDTH>
 void Sock2Sig<BUSWIDTH>::updateOutput() {
   if (!currentData) {

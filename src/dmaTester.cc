@@ -1,3 +1,9 @@
+/**
+ * @file dmaTester.cc
+ * @author Vincent Zhao
+ * @brief Implementation of testbench for testing reading and writing data between memory and the
+ * SAM via the AXI DMA.
+ */
 #include "dmaTester.hh"
 
 #include <algorithm>
@@ -8,12 +14,24 @@
 
 #include "dmaTestRegisterMap.hh"
 
+/**
+ * @brief Construct a new DMATester::DMATester object
+ *
+ * @param burstMode Whether to send the test data as one float per transaction, or the entire data
+ * as one transaction.
+ * @param moduleName The name of the module for indentification, defaults to "dma-tester".
+ */
 DMATester::DMATester(bool burstMode, sc_module_name moduleName)
     : sc_module(moduleName), burstMode(burstMode), mm2sOffset(0), s2mmOffset(0) {
   SC_THREAD(testRun);
   SC_THREAD(verifyMemWriteback);
 }
 
+/**
+ * @brief Writes test data to memory for testing memory-to stream reading.
+ *
+ * @throws std::runtime_error if failed to write to memory.
+ */
 void DMATester::loadData() {
   for (size_t ii = 0; ii < 10; ii++) {
     testData.push_back(ii);
@@ -31,6 +49,14 @@ void DMATester::loadData() {
   dataLoaded.notify();
 }
 
+/**
+ * @brief Starts the next transaction for the corresponding stream direction.
+ *
+ * Data for the next transaction is determined by internal offsets and the selected transmission
+ * mode. Offsets are incremented accordingly.
+ *
+ * @param s2mm Whether the next transaction should be stream-to-memory or memory-to-stream.
+ */
 void DMATester::sendDMAReq(bool s2mm) {
   // Set address to pull from
   sc_time transportTime = SC_ZERO_TIME;
@@ -66,10 +92,19 @@ void DMATester::sendDMAReq(bool s2mm) {
     mm2sOffset += dataSize / sizeof(float);
 }
 
+/**
+ * @brief Starts the next memory-to-stream transaction.
+ */
 void DMATester::sendMM2SReq() { sendDMAReq(false); }
 
+/**
+ * @brief Starts the next stream-to-memory transaction.
+ */
 void DMATester::sendS2MMReq() { sendDMAReq(true); }
 
+/**
+ * @brief Performs memory-to-stream test.
+ */
 void DMATester::testRun() {
   wait(20, SC_NS);  // Wait for reset sequence to run
   loadData();
@@ -89,6 +124,11 @@ void DMATester::testRun() {
   std::cout << "Test data consumed!" << std::endl;
 }
 
+/**
+ * @brief Performs stream-to-memory test.
+ *
+ * Data must be loaded to unblock test.
+ */
 void DMATester::verifyMemWriteback() {
   wait(20, SC_NS);  // Wait for reset sequence to run
 
@@ -125,6 +165,12 @@ void DMATester::verifyMemWriteback() {
   }
 }
 
+/**
+ * @brief Enables interrupt on complete on specified DMA.
+ *
+ * @param s2mm Whether to enable interrupt on stream-to-memory or memory-to-stream.
+ * @param ii Index of DMA from base address.
+ */
 void DMATester::enableIOC(bool s2mm, size_t ii) {
   sc_time transportTime = SC_ZERO_TIME;  // The b_transports don't use this anyways
 
@@ -144,6 +190,12 @@ void DMATester::enableIOC(bool s2mm, size_t ii) {
   outputSock->b_transport(trans, transportTime);
 }
 
+/**
+ * @brief Clears raised interrupt on complete on specified DMA.
+ *
+ * @param s2mm Whether to clear interrupt on stream-to-memory or memory-to-stream.
+ * @param ii Index of DMA from base address.
+ */
 void DMATester::clearIOC(bool s2mm, size_t ii) {
   sc_time transportTime = SC_ZERO_TIME;  // The b_transports don't use this anyways
   // Get current status register value

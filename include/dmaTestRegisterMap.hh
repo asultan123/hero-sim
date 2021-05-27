@@ -1,3 +1,9 @@
+/**
+ * @file dmaTestRegisterMap.hh
+ * @author Vincent Zhao
+ * @brief Defines the memory layout used for the DMATester testbench.
+ */
+
 #if !defined(__DMA_TEST_ADDR_MAP_H__)
 #define __DMA_TEST_ADDR_MAP_H__
 

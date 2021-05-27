@@ -1,7 +1,21 @@
+/**
+ * @file channelEnable.cc
+ * @author Vincent Zhao
+ * @brief Implementation of address generator enable control logic.
+ */
+
 #include "channelEnable.hh"
 
 #include "GlobalControl.hh"
 
+/**
+ * @brief Construct a new ChannelEnable::ChannelEnable object
+ *
+ * @param control The global enable channel for the address generator, supplies the output enable
+ * signal.
+ * @param tf Traces signal state changes.
+ * @param moduleName Name of this module instance for identification, defaults to "channel-enable".
+ */
 ChannelEnable::ChannelEnable(GlobalControlChannel_IF& control, sc_trace_file* tf,
                              sc_module_name moduleName)
     : sc_module(moduleName),
@@ -21,4 +35,8 @@ ChannelEnable::ChannelEnable(GlobalControlChannel_IF& control, sc_trace_file* tf
   }
 }
 
+/**
+ * @brief Changes the enable state based on the output valid, T last, and input ready signals on any
+ * changes to the inputs.
+ */
 void ChannelEnable::updateEnable() { enable = (outputValid || tLast) && inputReady; }

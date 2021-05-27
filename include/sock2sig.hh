@@ -1,14 +1,12 @@
-#if !defined(__SOCK2SIG_H__)
-#define __SOCK2SIG_H__
-
 /**
  * @file sock2sig.hh
  * @author Vincent Zhao
  * @brief Converts data received from a TLM-2.0 socket to individual bit
  * signals, adds a data ready-read interface with adjustable timing.
- *
- *
  */
+
+#if !defined(__SOCK2SIG_H__)
+#define __SOCK2SIG_H__
 
 #include <tlm_utils/simple_target_socket.h>
 
@@ -25,6 +23,9 @@ struct GlobalControlChannel_IF;
 using namespace sc_core;
 using namespace sc_dt;
 
+/**
+ * @brief Represents an arbitrary length data transaction that is part of a DMA operation
+ */
 typedef struct DataTrans {
   std::unique_ptr<std::vector<uint8_t>> data;
   bool last;  // The last transaction of a DMA operation
@@ -44,23 +45,24 @@ class Sock2Sig : public sc_module {
 
   tlm_utils::simple_target_socket<Sock2Sig, BUSWIDTH> inputSock;
   sc_out<sc_int<BUSWIDTH>> outputSig;
-  sc_out<bool> outputValid;     // Data is fresh, has not already been read
-  sc_in<bool> peripheralReady;  // High if the peripheral is reading data every cycle
-  sc_out<bool> tLast;           // The last transaction of a DMA operation was reached
+  sc_out<bool> outputValid;     //! Data is fresh, has not already been read
+  sc_in<bool> peripheralReady;  //! High if the peripheral is reading data every cycle
+  sc_out<bool> tLast;           //! The last transaction of a DMA operation was reached
 
  private:
-  void inputSock_b_transport(tlm::tlm_generic_payload& trans, sc_time& delay);
-  void updateOutput();
+  void inputSock_b_transport(tlm::tlm_generic_payload& trans,
+                             sc_time& delay);  //! Socket data blocking transport callback
+  void updateOutput();                         //! Reads data out of the buffer if present
 
-  std::queue<DataTransPtr> buffer;
-  DataTransPtr currentData;
-  size_t bitOffset;
-  size_t byteOffset;
-  size_t currentWords;
-  size_t maxWords;
-  bool isInit;
-  sc_event wordRead;
-  sc_in<bool> clk;
+  std::queue<DataTransPtr> buffer;  //! Buffered data received from the input
+  DataTransPtr currentData;         //! Current data packet being clocked out on the output
+  size_t bitOffset;                 //! Which bit in the current byte to read from
+  size_t byteOffset;                //! White byte in the current data packet to read from
+  size_t currentWords;              //! Number of workds in the FIFO
+  size_t maxWords;                  //! Max number of words that can be stored in the FIFO
+  bool isInit;                      //! Has the initial value of the output been set?
+  sc_event wordRead;  //! If new data has been read at the input, restarts data output after stall
+  sc_in<bool> clk;    //! Clock
 };
 
 #endif  // __SOCK2SIG_H__
