@@ -10,30 +10,30 @@ target_compile_options(sock2sig_tb
     PUBLIC -Wall
 )
 
-add_executable(SAM_tb "")
-target_sources(SAM_tb
-    PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/SAM_tb.cc"
-)
+# add_executable(SAM_tb "")
+# target_sources(SAM_tb
+#     PRIVATE
+#     "${CMAKE_CURRENT_SOURCE_DIR}/SAM_tb.cc"
+# )
 
-target_link_libraries(SAM_tb cnn_processor PkgConfig::SYSTEMC PkgConfig::TLM2)
+# target_link_libraries(SAM_tb cnn_processor PkgConfig::SYSTEMC PkgConfig::TLM2)
 
-target_compile_options(SAM_tb
-    PUBLIC -Wall
-)
+# target_compile_options(SAM_tb
+#     PUBLIC -Wall
+# )
 
-add_executable(AddressGenerator_tb "")
-target_sources(AddressGenerator_tb
-    PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/AddressGenerator_tb.cc"
-)
+# add_executable(AddressGenerator_tb "")
+# target_sources(AddressGenerator_tb
+#     PRIVATE
+#     "${CMAKE_CURRENT_SOURCE_DIR}/AddressGenerator_tb.cc"
+# )
 
 
-target_link_libraries(AddressGenerator_tb cnn_processor PkgConfig::SYSTEMC PkgConfig::TLM2)
+# target_link_libraries(AddressGenerator_tb cnn_processor PkgConfig::SYSTEMC PkgConfig::TLM2)
 
-target_compile_options(AddressGenerator_tb
-    PUBLIC -Wall
-)
+# target_compile_options(AddressGenerator_tb
+#     PUBLIC -Wall
+# )
 
 
 add_executable(Memory_tb "")
@@ -63,17 +63,17 @@ target_compile_options(Connector_tb
     PUBLIC -Wall
 )
 
-add_executable(axidma_mem_tb "")
-target_sources(axidma_mem_tb
-    PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/axidma_mem_tb.cc"
-)
+# add_executable(axidma_mem_tb "")
+# target_sources(axidma_mem_tb
+#     PRIVATE
+#     "${CMAKE_CURRENT_SOURCE_DIR}/axidma_mem_tb.cc"
+# )
 
-target_link_libraries(axidma_mem_tb cnn_processor xilinx-modules PkgConfig::SYSTEMC PkgConfig::TLM2)
+# target_link_libraries(axidma_mem_tb cnn_processor xilinx-modules PkgConfig::SYSTEMC PkgConfig::TLM2)
 
-target_compile_options(axidma_mem_tb
-    PUBLIC -Wall
-)
+# target_compile_options(axidma_mem_tb
+#     PUBLIC -Wall
+# )
 
 function(do_test target result)
   add_test(NAME ${target} COMMAND ${target})

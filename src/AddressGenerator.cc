@@ -177,7 +177,7 @@ void AddressGenerator<DataType>::update() {
 // Constructor
 template <typename DataType>
 AddressGenerator<DataType>::AddressGenerator(sc_module_name name, GlobalControlChannel& _control,
-                                             sc_trace_file* _tf)
+                                             sc_trace_file* _tf, uint16_t& _uid, uint16_t& _max_uid)
     : sc_module(name),
       control("control"),
       channel("channel"),
@@ -200,19 +200,22 @@ AddressGenerator<DataType>::AddressGenerator(sc_module_name name, GlobalControlC
   sensitive << _clk.pos();
   sensitive << _reset.pos();
 
+  uid = _uid > _max_uid ? UINT16_MAX : _uid++;
+
   // connect signals
   std::cout << "ADDRESS_GENERATOR MODULE: " << name << " has been instantiated " << std::endl;
 }
 
 template <typename DataType>
 AddressGeneratorCreator<DataType>::AddressGeneratorCreator(GlobalControlChannel& _control,
-                                                           sc_trace_file* _tf)
-    : tf(_tf), control(_control) {}
+                                                           sc_trace_file* _tf, uint16_t& _uid,
+                                                           uint16_t& _max_uid)
+    : tf(_tf), control(_control), uid(_uid), max_uid(_max_uid) {}
 
 template <typename DataType>
 AddressGenerator<DataType>* AddressGeneratorCreator<DataType>::operator()(const char* name,
                                                                           size_t) {
-  return new AddressGenerator<DataType>(name, control, tf);
+  return new AddressGenerator<DataType>(name, control, tf, uid, max_uid);
 }
 
 template struct AddressGenerator<sc_int<32>>;

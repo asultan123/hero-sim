@@ -43,6 +43,8 @@ struct SAM : public sc_module {
   sc_vector<sc_signal<bool>> channel_dma_periph_ready_valid;
   sc_vector<sc_vector<sc_out<DataType>>> read_channel_data;
   sc_vector<sc_vector<sc_in<DataType>>> write_channel_data;
+  sc_in<DataType> program_in;
+  sc_out<DataType> program_out;
   const unsigned int length, width, channel_count;
 
   void update();
@@ -52,8 +54,24 @@ struct SAM : public sc_module {
   void out_port_propogate();
 
   SAM(sc_module_name name, GlobalControlChannel& _control, unsigned int _channel_count,
-      unsigned int _length, unsigned int _width, sc_trace_file* tf);
+      unsigned int _length, unsigned int _width, sc_trace_file* tf, uint16_t _start_uid,
+      uint16_t _end_uid);
 
   SC_HAS_PROCESS(SAM);
 };
+
+template <typename DataType>
+struct SAMCreator {
+  SAMCreator(GlobalControlChannel& _control, unsigned int _channel_count, unsigned int _length,
+             unsigned int _width, sc_trace_file* tf, uint16_t _start_uid, uint16_t _end_uid);
+  SAM<DataType>* operator()(const char* name, size_t);
+  GlobalControlChannel& control;
+  unsigned int channel_count;
+  unsigned int length;
+  unsigned int width;
+  sc_trace_file* tf;
+  uint16_t start_uid;
+  uint16_t end_uid;
+};
+
 #endif

@@ -46,6 +46,7 @@ struct AddressGenerator : public sc_module {
  private:
   sc_in_clk _clk;
   sc_in<bool> _reset;
+  uint16_t uid;
 
  public:
   sc_port<GlobalControlChannel_IF> control;
@@ -83,17 +84,21 @@ struct AddressGenerator : public sc_module {
   void update();
 
   // Constructor
-  AddressGenerator(sc_module_name name, GlobalControlChannel& _control, sc_trace_file* _tf);
+  AddressGenerator(sc_module_name name, GlobalControlChannel& _control, sc_trace_file* _tf,
+                   uint16_t& _uid, uint16_t& _max_uid);
 
   SC_HAS_PROCESS(AddressGenerator);
 };
 
 template <typename DataType>
 struct AddressGeneratorCreator {
-  AddressGeneratorCreator(GlobalControlChannel& _control, sc_trace_file* _tf);
+  AddressGeneratorCreator(GlobalControlChannel& _control, sc_trace_file* _tf, uint16_t& _uid,
+                          uint16_t& _max_uid);
   AddressGenerator<DataType>* operator()(const char* name, size_t);
   sc_trace_file* tf;
   GlobalControlChannel& control;
+  uint16_t& uid;
+  uint16_t& max_uid;
 };
 
 #endif

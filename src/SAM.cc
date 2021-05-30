@@ -1,7 +1,5 @@
 #include "SAM.hh"
 
-#include <sysc/communication/sc_signal_ports.h>
-
 template <typename DataType>
 SAMDataPortCreator<DataType>::SAMDataPortCreator(unsigned int _width, sc_trace_file* _tf)
     : tf(_tf), width(_width) {}
@@ -46,16 +44,20 @@ void SAM<DataType>::out_port_propogate() {
 // Constructor
 template <typename DataType>
 SAM<DataType>::SAM(sc_module_name name, GlobalControlChannel& _control, unsigned int _channel_count,
-                   unsigned int _length, unsigned int _width, sc_trace_file* tf)
+                   unsigned int _length, unsigned int _width, sc_trace_file* tf,
+                   uint16_t _start_uid, uint16_t _end_uid)
     : sc_module(name),
       mem("mem", _control, _channel_count, _length, _width, tf),
-      generators("generator", _channel_count, AddressGeneratorCreator<DataType>(_control, tf)),
+      generators("generator", _channel_count,
+                 AddressGeneratorCreator<DataType>(_control, tf, _start_uid, _end_uid)),
       channels("channels", _channel_count, MemoryChannelCreator<DataType>(_width, tf)),
       channel_dma_periph_ready_valid("channel_dma_periph_ready_valid", _channel_count),
       read_channel_data("read_channel_data", _channel_count,
                         OutDataPortCreator<DataType>(_width, tf)),
       write_channel_data("write_channel_data", _channel_count,
                          InDataPortCreator<DataType>(_width, tf)),
+      program_in("program_in"),
+      program_out("program_out"),
       length(_length),
       width(_width),
       channel_count(_channel_count) {
@@ -97,5 +99,23 @@ SAM<DataType>::SAM(sc_module_name name, GlobalControlChannel& _control, unsigned
   cout << " SAM MODULE: " << name << " has been instantiated " << endl;
 }
 
+template <typename DataType>
+SAMCreator<DataType>::SAMCreator(GlobalControlChannel& _control, unsigned int _channel_count,
+                                 unsigned int _length, unsigned int _width, sc_trace_file* tf,
+                                 uint16_t _start_uid, uint16_t _end_uid)
+    : control(_control),
+      channel_count(_channel_count),
+      length(_length),
+      width(_width),
+      tf(tf),
+      start_uid(_start_uid),
+      end_uid(_end_uid) {}
+
+template <typename DataType>
+SAM<DataType>* SAMCreator<DataType>::operator()(const char* name, size_t) {
+  return new SAM<DataType>(name, control, channel_count, length, width, tf, start_uid, end_uid);
+}
+
 template struct SAMDataPortCreator<sc_int<32>>;
 template struct SAM<sc_int<32>>;
+template struct SAMCreator<sc_int<32>>;
