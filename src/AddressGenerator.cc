@@ -1,5 +1,16 @@
 #include "AddressGenerator.hh"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstring>
+
+namespace {
+struct Program_Hdr {
+  uint16_t uid;
+  size_t num_descriptors;
+};
+}  // namespace
+
 Descriptor_2D::Descriptor_2D(unsigned int _next, unsigned int _start, DescriptorState _state,
                              unsigned int _x_count, int _x_modify, unsigned int _y_count,
                              int _y_modify) {
@@ -102,14 +113,54 @@ void AddressGenerator<DataType>::update() {
     std::cout << "@ " << sc_time_stamp() << " " << this->name() << ":MODULE has been reset"
               << std::endl;
   } else if (control->program()) {
-    // TODO: Extend with programming logic
-    execute_index = 0;
-    loadInternalCountersFromIndex(0);
-    channel->set_addr(descriptors.at(0).start);
-    programmed = true;
-    first_cycle = true;
-    std::cout << "@ " << sc_time_stamp() << " " << this->name() << ":MODULE has been programmed"
-              << std::endl;
+    if (!programmed) {
+      if (program_wait) {
+        if (program_buf_idx >= program_buf.size()) {
+          program_wait--;
+          program_buf_idx = 0;
+        } else {
+          execute_index = 0;
+          loadInternalCountersFromIndex(0);
+          channel->set_addr(descriptors.at(0).start);
+          first_cycle = true;
+          program_buf_idx += sizeof(DataType);
+        }
+      } else {
+        assert(sizeof(DataType) <= program_buf.size());
+        DataType curr_data = program_data.read();
+        memcpy(program_buf.data() + program_buf_idx, reinterpret_cast<uint8_t*>(&curr_data),
+               std::min(sizeof(curr_data), program_buf.size() - program_buf_idx));
+        program_buf_idx += sizeof(DataType);
+        if (program_descriptors_left) {
+          // Copy this AG's program
+          if (program_buf_idx >= sizeof(Descriptor_2D)) {
+            Descriptor_2D* descriptor = reinterpret_cast<Descriptor_2D*>(program_buf.data());
+            descriptors.push_back(*descriptor);
+            program_descriptors_left--;
+            if (program_descriptors_left == 0) {
+              programmed = true;
+              std::cout << "@ " << sc_time_stamp() << " " << this->name()
+                        << ":MODULE has been programmed" << std::endl;
+            }
+          } else {
+          }
+        } else {
+          // Header parsing
+          if (program_buf_idx >= sizeof(Program_Hdr)) {
+            Program_Hdr* header = reinterpret_cast<Program_Hdr*>(program_buf.data());
+            if (header->uid == uid) {
+              program_descriptors_left = header->num_descriptors;
+              if (program_buf_idx > sizeof(Program_Hdr))
+                memmove(program_buf.data(), program_buf.data() + program_buf_idx,
+                        program_buf_idx - sizeof(Program_Hdr));
+              descriptors.clear();
+            } else {
+              program_wait = header->num_descriptors;
+            }
+          }
+        }
+      }
+    }
   } else if (control->enable() && programmed) {
     // Update internal address counters, ignore for first cycle due to channel
     // enable delay

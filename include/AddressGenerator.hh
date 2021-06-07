@@ -1,6 +1,7 @@
 #if !defined(__ADDRESS_GENERATOR_CPP__)
 #define __ADDRESS_GENERATOR_CPP__
 
+#include <array>
 #include <iostream>
 #include <string>
 #include <systemc>
@@ -47,11 +48,16 @@ struct AddressGenerator : public sc_module {
   sc_in_clk _clk;
   sc_in<bool> _reset;
   uint16_t uid;
+  std::array<uint8_t, sizeof(Descriptor_2D)> program_buf;
+  size_t program_buf_idx;
+  size_t program_wait;
+  size_t program_descriptors_left;
 
  public:
   sc_port<GlobalControlChannel_IF> control;
   sc_port<MemoryChannel_IF<DataType>> channel;
   sc_out<bool> ready;
+  sc_in<DataType> program_data;
   sc_trace_file* tf;
 
   // Internal Data
