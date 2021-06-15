@@ -8,7 +8,7 @@ project(Processor
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-# set(CHECK_INCLUDES ON)
+set(CHECK_INCLUDES ON)
 
 set(CMAKE_BUILD_TYPE DEBUG)
 
@@ -36,6 +36,7 @@ target_sources(cnn_processor PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/GlobalControl.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Memory_Channel.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Memory.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/MultiProgramSender.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/SAM.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/sig2sock.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/sock2sig.cc"

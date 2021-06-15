@@ -28,6 +28,10 @@
  * the relative mode. But for example, when bridging accesses over to
  * any slave inside a QEMU instance, the addresses need to be absolute.
  */
+
+#include <tlm_utils/simple_target_socket.h>
+#include <tlm_utils/simple_initiator_socket.h>
+
 enum addrmode { ADDRMODE_RELATIVE, ADDRMODE_ABSOLUTE };
 
 struct memmap_entry {

@@ -6,6 +6,8 @@
 
 #include "channelEnable.hh"
 
+#include <memory>
+
 #include "GlobalControl.hh"
 
 /**

@@ -75,6 +75,18 @@ target_compile_options(Connector_tb
 #     PUBLIC -Wall
 # )
 
+add_executable(dissemination_tb "")
+target_sources(dissemination_tb
+    PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/dissemination_tb.cc"
+)
+
+target_link_libraries(dissemination_tb cnn_processor xilinx-modules PkgConfig::SYSTEMC PkgConfig::TLM2)
+
+target_compile_options(dissemination_tb
+    PUBLIC -Wall
+)
+
 function(do_test target result)
   add_test(NAME ${target} COMMAND ${target})
   set_tests_properties(${target}

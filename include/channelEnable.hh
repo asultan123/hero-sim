@@ -8,7 +8,6 @@
 #if !defined(__CHANNELENABLE_H__)
 #define __CHANNELENABLE_H__
 
-#include <memory>
 #include <systemc>
 
 using namespace sc_core;

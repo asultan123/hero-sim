@@ -2,14 +2,14 @@
 #define __ADDRESS_GENERATOR_CPP__
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <iostream>
 #include <string>
 #include <systemc>
 #include <vector>
 
 #include "GlobalControl.hh"
-#include "Memory.hh"
-#include "memory.h"
 
 using std::cout;
 using std::endl;
@@ -17,6 +17,10 @@ using std::string;
 using std::vector;
 using namespace sc_core;
 using namespace sc_dt;
+
+// Forward declarations
+template <typename DataType>
+struct MemoryChannel_IF;
 
 enum class DescriptorState {
   SUSPENDED,  // do nothing indefinitely
@@ -41,6 +45,16 @@ struct Descriptor_2D {
   static Descriptor_2D default_descriptor();
 };
 
+/**
+ * @brief Metadata for an address generator program
+ */
+struct Program_Hdr {
+  const char magic_num[6] = {'N', 'N', 'P',
+                             'R', 'O', 'G'};  //! Signifies the start of an AG program
+  uint16_t uid;            //! Unique identifier for the AG this program belongs to
+  size_t num_descriptors;  //! How many descriptors are in this program
+};
+
 template <typename DataType>
 struct AddressGenerator : public sc_module {
   // Control Signals
@@ -52,6 +66,7 @@ struct AddressGenerator : public sc_module {
   size_t program_buf_idx;
   size_t program_wait;
   size_t program_descriptors_left;
+  size_t data_length_bytes;
 
  public:
   sc_port<GlobalControlChannel_IF> control;

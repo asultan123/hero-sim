@@ -1,5 +1,8 @@
 #include "SAM.hh"
 
+#include "AddressGenerator.hh"
+#include "Memory_Channel.hh"
+
 template <typename DataType>
 SAMDataPortCreator<DataType>::SAMDataPortCreator(unsigned int _width, sc_trace_file* _tf)
     : tf(_tf), width(_width) {}
@@ -15,6 +18,7 @@ void SAM<DataType>::update() {
   } else if (control->enable()) {
     in_port_propogate();
   }
+  program_data = program_in.read();
 }
 
 template <typename DataType>
@@ -45,11 +49,11 @@ void SAM<DataType>::out_port_propogate() {
 template <typename DataType>
 SAM<DataType>::SAM(sc_module_name name, GlobalControlChannel& _control, unsigned int _channel_count,
                    unsigned int _length, unsigned int _width, sc_trace_file* tf,
-                   uint16_t _start_uid, uint16_t _end_uid)
+                   uint16_t& _current_uid, uint16_t _end_uid)
     : sc_module(name),
       mem("mem", _control, _channel_count, _length, _width, tf),
       generators("generator", _channel_count,
-                 AddressGeneratorCreator<DataType>(_control, tf, _start_uid, _end_uid)),
+                 AddressGeneratorCreator<DataType>(_control, tf, _current_uid, _end_uid)),
       channels("channels", _channel_count, MemoryChannelCreator<DataType>(_width, tf)),
       channel_dma_periph_ready_valid("channel_dma_periph_ready_valid", _channel_count),
       read_channel_data("read_channel_data", _channel_count,
@@ -96,6 +100,13 @@ SAM<DataType>::SAM(sc_module_name name, GlobalControlChannel& _control, unsigned
              channel_dma_periph_ready_valid[channel_index].name());
   }
 
+  for (AddressGenerator<DataType>& ag : generators) {
+    ag.program_data.bind(program_data);
+  }
+
+  sc_trace(tf, program_in, program_in.name());
+  sc_trace(tf, program_out, program_out.name());
+
   cout << " SAM MODULE: " << name << " has been instantiated " << endl;
 }
 
@@ -108,12 +119,12 @@ SAMCreator<DataType>::SAMCreator(GlobalControlChannel& _control, unsigned int _c
       length(_length),
       width(_width),
       tf(tf),
-      start_uid(_start_uid),
+      current_uid(_start_uid),
       end_uid(_end_uid) {}
 
 template <typename DataType>
 SAM<DataType>* SAMCreator<DataType>::operator()(const char* name, size_t) {
-  return new SAM<DataType>(name, control, channel_count, length, width, tf, start_uid, end_uid);
+  return new SAM<DataType>(name, control, channel_count, length, width, tf, current_uid, end_uid);
 }
 
 template struct SAMDataPortCreator<sc_int<32>>;

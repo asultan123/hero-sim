@@ -2,18 +2,25 @@
 #define __SAM_CPP__
 
 #include <cstddef>
+#include <cstdint>
 #include <iostream>
 #include <string>
 #include <systemc>
 
-#include "AddressGenerator.hh"
 #include "GlobalControl.hh"
+#include "Memory.hh"
 
 using std::cout;
 using std::endl;
 using std::string;
 using namespace sc_core;
 using namespace sc_dt;
+
+// Forward declarations
+template <typename DataType>
+struct AddressGenerator;
+template <typename DataType>
+struct MemoryChannel;
 
 template <typename DataType>
 struct SAMDataPortCreator {
@@ -34,6 +41,7 @@ struct SAM : public sc_module {
   // Member Signals
  private:
   sc_in_clk _clk;
+  sc_signal<DataType> program_data;
 
  public:
   sc_port<GlobalControlChannel_IF> control;
@@ -54,7 +62,7 @@ struct SAM : public sc_module {
   void out_port_propogate();
 
   SAM(sc_module_name name, GlobalControlChannel& _control, unsigned int _channel_count,
-      unsigned int _length, unsigned int _width, sc_trace_file* tf, uint16_t _start_uid,
+      unsigned int _length, unsigned int _width, sc_trace_file* tf, uint16_t& _current_uid,
       uint16_t _end_uid);
 
   SC_HAS_PROCESS(SAM);
@@ -70,7 +78,7 @@ struct SAMCreator {
   unsigned int length;
   unsigned int width;
   sc_trace_file* tf;
-  uint16_t start_uid;
+  uint16_t current_uid;
   uint16_t end_uid;
 };
 

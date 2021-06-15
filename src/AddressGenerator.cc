@@ -1,14 +1,16 @@
 #include "AddressGenerator.hh"
 
-#include <algorithm>
+#include <cassert>
 #include <cstddef>
+#include <cstdlib>
 #include <cstring>
+#include <iterator>
+#include <stdexcept>
+
+#include "Memory_Channel.hh"
 
 namespace {
-struct Program_Hdr {
-  uint16_t uid;
-  size_t num_descriptors;
-};
+constexpr char hdr_magic_num[6] = {'N', 'N', 'P', 'R', 'O', 'G'};
 }  // namespace
 
 Descriptor_2D::Descriptor_2D(unsigned int _next, unsigned int _start, DescriptorState _state,
@@ -114,52 +116,93 @@ void AddressGenerator<DataType>::update() {
               << std::endl;
   } else if (control->program()) {
     if (!programmed) {
+      DataType curr_data = program_data.read();
+      uint64_t curr_data_val = curr_data;
+      size_t bytes_to_copy = std::min(program_buf.size() - program_buf_idx, data_length_bytes);
+      if (program_buf_idx >= program_buf.size())
+        throw std::runtime_error("program_buf_idx out of bounds");
+      memcpy(program_buf.data() + program_buf_idx, reinterpret_cast<uint8_t*>(&curr_data_val),
+             bytes_to_copy);
+      program_buf_idx += bytes_to_copy;
       if (program_wait) {
         if (program_buf_idx >= program_buf.size()) {
           program_wait--;
           program_buf_idx = 0;
-        } else {
-          execute_index = 0;
-          loadInternalCountersFromIndex(0);
-          channel->set_addr(descriptors.at(0).start);
-          first_cycle = true;
-          program_buf_idx += sizeof(DataType);
         }
       } else {
-        assert(sizeof(DataType) <= program_buf.size());
-        DataType curr_data = program_data.read();
-        memcpy(program_buf.data() + program_buf_idx, reinterpret_cast<uint8_t*>(&curr_data),
-               std::min(sizeof(curr_data), program_buf.size() - program_buf_idx));
-        program_buf_idx += sizeof(DataType);
+        // Copy this AG's program
         if (program_descriptors_left) {
-          // Copy this AG's program
           if (program_buf_idx >= sizeof(Descriptor_2D)) {
             Descriptor_2D* descriptor = reinterpret_cast<Descriptor_2D*>(program_buf.data());
             descriptors.push_back(*descriptor);
             program_descriptors_left--;
             if (program_descriptors_left == 0) {
+              execute_index = 0;
+              loadInternalCountersFromIndex(0);
+              channel->set_addr(descriptors.at(0).start);
+              first_cycle = true;
               programmed = true;
               std::cout << "@ " << sc_time_stamp() << " " << this->name()
                         << ":MODULE has been programmed" << std::endl;
             }
-          } else {
+            program_buf_idx = 0;
           }
         } else {
           // Header parsing
-          if (program_buf_idx >= sizeof(Program_Hdr)) {
-            Program_Hdr* header = reinterpret_cast<Program_Hdr*>(program_buf.data());
-            if (header->uid == uid) {
-              program_descriptors_left = header->num_descriptors;
-              if (program_buf_idx > sizeof(Program_Hdr))
+          uint8_t* magic_start = static_cast<uint8_t*>(
+              memchr(program_buf.data(), hdr_magic_num[0], program_buf_idx + 1));
+          while (program_buf_idx >= sizeof(Program_Hdr)) {
+            if (magic_start) {
+              // Shift potential header start to front of buffer
+              size_t new_buf_size = program_buf.data() + program_buf_idx - magic_start;
+              memmove(program_buf.data(), magic_start, new_buf_size);
+              program_buf_idx = new_buf_size;
+
+              // Add remainder data if possible
+              if (bytes_to_copy < data_length_bytes) {
+                size_t remainder_to_add = std::min(program_buf.size() - program_buf_idx,
+                                                   data_length_bytes - bytes_to_copy);
+                memcpy(program_buf.data() + program_buf_idx,
+                       reinterpret_cast<uint8_t*>(curr_data_val) + bytes_to_copy, remainder_to_add);
+                program_buf_idx += remainder_to_add;
+                bytes_to_copy += remainder_to_add;
+              }
+
+              if (program_buf_idx < sizeof(Program_Hdr))
+                break;  // No longer enough data for header parsing
+
+              if (memcmp(program_buf.data(), hdr_magic_num, sizeof(hdr_magic_num))) {
+                // Magic number mismatch, find next potential header
+                magic_start = static_cast<uint8_t*>(
+                    memchr(program_buf.data() + 1, hdr_magic_num[0], program_buf_idx));
+              } else {
+                Program_Hdr* header = reinterpret_cast<Program_Hdr*>(program_buf.data());
+                if (header->uid == uid) {
+                  program_descriptors_left = header->num_descriptors;
+                  descriptors.clear();
+                } else {
+                  program_wait = header->num_descriptors;
+                }
+
+                // Remove header from buffer
                 memmove(program_buf.data(), program_buf.data() + program_buf_idx,
                         program_buf_idx - sizeof(Program_Hdr));
-              descriptors.clear();
+                program_buf_idx -= sizeof(Program_Hdr);
+
+                break;
+              }
             } else {
-              program_wait = header->num_descriptors;
+              program_buf_idx = 0;
             }
           }
         }
       }
+
+      // Copy remaining data if needed
+      if (bytes_to_copy < data_length_bytes)
+        memcpy(program_buf.data() + program_buf_idx,
+               reinterpret_cast<uint8_t*>(&curr_data_val) + bytes_to_copy,
+               data_length_bytes - bytes_to_copy);
     }
   } else if (control->enable() && programmed) {
     // Update internal address counters, ignore for first cycle due to channel
@@ -240,6 +283,12 @@ AddressGenerator<DataType>::AddressGenerator(sc_module_name name, GlobalControlC
   control(_control);
   _clk(control->clk());
   _reset(control->reset());
+  DataType test;
+  static_assert(sizeof(Program_Hdr) <= sizeof(Descriptor_2D),
+                "Program header must not exceed descriptor size");
+  assert(test.length() % 8 == 0);
+  data_length_bytes = test.length() / 8;
+  assert(data_length_bytes <= program_buf.size());
   execute_index = 0;
   // sc_trace(tf, this->execute_index, (this->execute_index.name()));
   sc_trace(tf, this->execute_index, (this->execute_index.name()));
