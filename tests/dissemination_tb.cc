@@ -1,3 +1,12 @@
+/**
+ * @file dissemination_tb.cc
+ * @author Vincent Zhao
+ * @brief Basic test of program dissemination on a simple memory layout.
+ *
+ * Sends a set of distinct programs to a set of connected memories with address generators. The
+ * layout of the memory is one parent SAM with 3 children SAMs attached.
+ */
+
 #include "dissemination_tb.hh"
 
 #include <cstddef>
@@ -23,14 +32,7 @@ DISSEMINATION_TB::DISSEMINATION_TB(sc_module_name moduleName)
       sams("sams", samCount,
            SAMCreator<sc_int<32>>(control, dutMemChannelCount, dutMemLength, dutMemWidth, tf, 0,
                                   samCount - 1)),
-      // sock2sig(control, 256, tf),
-      // sig2sock(control, 256, tf),
       dmaCompleteSigs("dma-complete-sigs", dutMemChannelCount),
-      // mm2s("axidma-mm2s"),
-      // s2mms("s2mms", ),
-      // bus("bus"),
-      // mem("memory", SC_ZERO_TIME, MEM_SIZE),
-      // dmaTester(true),
       externalChannelReadBus("ext-channel-read-bus", dutMemChannelCount * samCount),
       externalChannelWriteBus("ext-channel-write-bus", dutMemChannelCount * samCount),
       dmaDataReadyValidBus("dma-data-ready-valid-bus", dutMemChannelCount * samCount),
@@ -40,35 +42,12 @@ DISSEMINATION_TB::DISSEMINATION_TB(sc_module_name moduleName)
       dummySigs("dummy-sigs", 3),
       channelEnable(control, tf),
       programSender(control, tf) {
+  externalChannelWriteBus[0] =
+      0xDEADBEEF;  // Set a recognizable value to detect shift to program data
+
   // Bindings
-  // bus.memmap(MEM_BASE_ADDR, MEM_SIZE, ADDRMODE_RELATIVE, -1, mem.socket);
-
-  // mm2s bindings
-  // bus.memmap(MM2S_BASE_ADDR, MM2S_REG_SIZE, ADDRMODE_RELATIVE, -1, mm2s.tgt_socket);
-  // mm2s.init_socket.bind(*bus.t_sk[1]);
-  // mm2s.irq.bind(dmaCompleteSigs[0]);
-
-  // sock2sig.inputSock.bind(mm2s.stream_socket);
-  // sock2sig.outputSig.bind(externalChannelWriteBus[0]);
-  // sock2sig.outputValid.bind(dmaDataReadyValidBus[0]);
-  // sock2sig.peripheralReady.bind(sams[0].channel_dma_periph_ready_valid[0]);
-  // sock2sig.tLast.bind(dmaTLastBus[0]);
-  externalChannelWriteBus[0] = 0xDEADBEEF;
-
   channelEnable.outputValid.bind(dmaDataReadyValidBus[0]);
   channelEnable.tLast.bind(dmaTLastBus[0]);
-
-  // s2mm bindings
-  // bus.memmap(S2MM_BASE_ADDR, MM2S_REG_SIZE, ADDRMODE_RELATIVE, -1, s2mm.tgt_socket);
-  // s2mm.init_socket.bind(*bus.t_sk[2]);
-  // s2mm.irq.bind(dmaCompleteSigs[1]);
-
-  // sig2sock.outputSock.bind(s2mm.stream_socket);
-  // sig2sock.inputSig.bind(externalChannelReadBus[1]);
-  // sig2sock.inputReady.bind(dmaDataReadyValidBus[1]);
-  // sig2sock.peripheralValid.bind(sam.channel_dma_periph_ready_valid[1]);
-  // sig2sock.packetLength.bind(s2mm.packet_length);
-
   channelEnable.inputReady.bind(dmaDataReadyValidBus[1]);
 
   for (size_t ii = 0; ii < sams.size(); ii++) {
@@ -88,8 +67,6 @@ DISSEMINATION_TB::DISSEMINATION_TB(sc_module_name moduleName)
     sams[ii].program_in.bind(programSigs[1]);
     sams[ii].program_out.bind(dummySigs[ii - 1]);
   }
-
-  // sc_trace(tf, mm2s.irq, "dma-mm2s-ioc");
 }
 
 int DISSEMINATION_TB::runTB() {
@@ -123,6 +100,8 @@ bool DISSEMINATION_TB::disseminatePrograms() {
 
   for (size_t ii = 0; ii < samCount; ii++) {
     tempProgram.clear();
+    // Descriptors have IDs encoded in descriptors to identify that program was disseminated to
+    // correct module
     Descriptor_2D waitDescriptor(1, ii, DescriptorState::WAIT, ii, ii, 0, 0);
     Descriptor_2D suspendDescriptor(2, ii, DescriptorState::SUSPENDED, 0, 0, 0, 0);
     tempProgram.push_back(waitDescriptor);

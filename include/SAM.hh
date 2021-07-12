@@ -78,8 +78,9 @@ struct SAMCreator {
   unsigned int length;
   unsigned int width;
   sc_trace_file* tf;
-  uint16_t current_uid;
-  uint16_t end_uid;
+  uint16_t current_uid;  //! Main UID distributor; NOTE: You should not instantiate SAMCreators with
+                         //! overlapping UID ranges to avoid collisions
+  uint16_t end_uid;      //! Last UID this SAMCreator can assign
 };
 
 #endif

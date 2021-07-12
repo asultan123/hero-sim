@@ -18,7 +18,9 @@ void SAM<DataType>::update() {
   } else if (control->enable()) {
     in_port_propogate();
   }
-  program_data = program_in.read();
+  program_data =
+      program_in
+          .read();  // Always update what the next data in the program bitstream is for forwarding
 }
 
 template <typename DataType>
@@ -100,6 +102,7 @@ SAM<DataType>::SAM(sc_module_name name, GlobalControlChannel& _control, unsigned
              channel_dma_periph_ready_valid[channel_index].name());
   }
 
+  // All related AGs should have access to this SAM's program data
   for (AddressGenerator<DataType>& ag : generators) {
     ag.program_data.bind(program_data);
   }
