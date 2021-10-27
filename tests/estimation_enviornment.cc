@@ -10,15 +10,17 @@
 #include "ProcEngine.hh"
 #include "SAM.hh"
 #include <chrono>
+#include <vector>
+#include <assert.h>
 
 using std::cout;
 using std::endl;
 using std::string;
-using std::chrono::high_resolution_clock;
-using std::chrono::duration_cast;
+using std::vector;
 using std::chrono::duration;
+using std::chrono::duration_cast;
+using std::chrono::high_resolution_clock;
 using std::chrono::milliseconds;
-
 
 template <typename DataType>
 struct SignalVectorCreator
@@ -46,6 +48,14 @@ struct PeCreator
     sc_trace_file *tf;
 };
 
+const long unsigned filter_count{7};
+const long unsigned channel_count{9};
+const long unsigned pe_count{63};
+
+const long unsigned ifmap_mem_size{256 * 1024};
+const long unsigned psum_mem_size{256 * 1024};
+const long unsigned dram_access_cost{200};
+
 template <typename DataType>
 struct Arch_1x1 : public sc_module
 {
@@ -54,57 +64,38 @@ private:
     sc_in_clk _clk;
 
 public:
+
     sc_port<GlobalControlChannel_IF> control;
     sc_vector<PE<DataType>> pe_array;
-    sc_vector<sc_signal<DataType>> filter_psum_out{"psum_out", 7};
+    sc_vector<sc_signal<DataType>> filter_psum_out{"psum_out", filter_count};
     sc_trace_file *tf;
     SAM<DataType> psum_mem;
     sc_vector<sc_vector<sc_signal<DataType>>> psum_mem_read;
+
     sc_vector<sc_vector<sc_signal<DataType>>> psum_mem_write;
     SAM<DataType> ifmap_mem;
     sc_vector<sc_vector<sc_signal<DataType>>> ifmap_mem_read;
     sc_vector<sc_vector<sc_signal<DataType>>> ifmap_mem_write;
+    vector<float> res;
+
+    unsigned int dram_access_counter{0};
 
     void update()
     {
         if (control->enable())
         {
-            for (int filter_row = 0; filter_row < 7; filter_row++)
+            for (long unsigned filter_row = 0; filter_row < filter_count; filter_row++)
             {
-                for (int channel_column = 0; channel_column < 8; channel_column++)
+                for (long unsigned channel_column = 0; channel_column < channel_count - 1; channel_column++)
                 {
-                    PE<DataType> &cur_pe = this->pe_array[filter_row * 9 + channel_column];
-                    PE<DataType> &next_pe = this->pe_array[filter_row * 9 + channel_column + 1];
-                    next_pe.psum_in = cur_pe.psum_in.read() + cur_pe.currentWeight() * filter_row * 9 + channel_column;
+                    PE<DataType> &cur_pe = this->pe_array[filter_row * channel_count + channel_column];
+                    PE<DataType> &next_pe = this->pe_array[filter_row * channel_column + channel_column + 1];
+                    next_pe.psum_in = cur_pe.psum_in.read() + cur_pe.currentWeight() * (filter_row * channel_count + channel_column);
                     cur_pe.updateState();
                 }
-                PE<DataType> &last_pe = this->pe_array[filter_row * 9 + 8];
-                filter_psum_out[filter_row] = last_pe.psum_in.read() + last_pe.currentWeight() * filter_row * 9 + 8;
+                PE<DataType> &last_pe = this->pe_array[filter_row * channel_count + channel_count - 1];
+                filter_psum_out[filter_row] = last_pe.psum_in.read() + last_pe.currentWeight() * (filter_row * channel_count + channel_count - 1);
                 last_pe.updateState();
-            }
-        }
-    }
-
-    void load_weights(vector<vector<vector<int>>> weights)
-    {
-        for (int filter_row = 0; filter_row < 7; filter_row++)
-        {
-            for (int channel_column = 0; channel_column < 8; channel_column++)
-            {
-                PE<DataType> *cur_pe = this->pe_array[filter_row * 9 + channel_column];
-                cur_pe->loadWeights(weights[filter_row][channel_column]);
-            }
-        }
-    }
-
-    void load_pe_program(vector<vector<vector<Descriptor_2D>>> programs)
-    {
-        for (int filter_row = 0; filter_row < 7; filter_row++)
-        {
-            for (int channel_column = 0; channel_column < 8; channel_column++)
-            {
-                PE<DataType> *cur_pe = this->pe_array[filter_row * 9 + channel_column];
-                cur_pe->loadProgram(programs[filter_row][channel_column]);
             }
         }
     }
@@ -114,27 +105,28 @@ public:
         sc_module_name name,
         GlobalControlChannel &_control,
         sc_trace_file *_tf) : sc_module(name),
-                              pe_array("pe_array", 63, PeCreator<DataType>(_tf)),
+                              pe_array("pe_array", pe_count, PeCreator<DataType>(_tf)),
                               tf(_tf),
-                              psum_mem("psum_mem", _control, 9 * 2, 256*1024, 1, _tf),
-                              psum_mem_read("psum_mem_read", 9 * 2, SignalVectorCreator<DataType>(1, tf)),
-                              psum_mem_write("psum_mem_write", 9 * 2, SignalVectorCreator<DataType>(1, tf)),
-                              ifmap_mem("ifmap_mem", _control, 7, 256*1024, 1, _tf),
-                              ifmap_mem_read("ifmap_mem_read", 7, SignalVectorCreator<DataType>(1, tf)),
-                              ifmap_mem_write("ifmap_mem_write", 7, SignalVectorCreator<DataType>(1, tf))
+                              psum_mem("psum_mem", _control, filter_count * 2, psum_mem_size, 1, _tf),
+                              psum_mem_read("psum_mem_read", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
+                              psum_mem_write("psum_mem_write", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
+                              ifmap_mem("ifmap_mem", _control, channel_count, 256 * 1024, 1, _tf),
+                              ifmap_mem_read("ifmap_mem_read", channel_count, SignalVectorCreator<DataType>(1, tf)),
+                              ifmap_mem_write("ifmap_mem_write", channel_count, SignalVectorCreator<DataType>(1, tf)),
+                              res(ifmap_mem_size)
     {
         control(_control);
         _clk(control->clk());
         tf = _tf;
 
-        // psum_read/write 
-        for (int i = 0; i < 18; i++)
+        // psum_read/write
+        for (long unsigned int i = 0; i < filter_count * 2; i++)
         {
             psum_mem.read_channel_data[i][0](psum_mem_read[i][0]);
             psum_mem.write_channel_data[i][0](psum_mem_write[i][0]);
         }
 
-        for (int i = 0; i < 7; i++)
+        for (long unsigned int i = 0; i < channel_count; i++)
         {
             ifmap_mem.read_channel_data[i][0](ifmap_mem_read[i][0]);
             ifmap_mem.write_channel_data[i][0](ifmap_mem_write[i][0]);
@@ -149,25 +141,108 @@ public:
     SC_HAS_PROCESS(Arch_1x1);
 };
 
-int sc_main(int argc, char *argv[])
+template <typename DataType>
+void dram_load(Arch_1x1<DataType> &arch, long unsigned int ifmap_w, long unsigned int ifmap_h, long unsigned int channel_in)
+{
+    auto input_size = ifmap_h * ifmap_h * channel_in;
+    assert(input_size < ifmap_mem_size);
+    for (long unsigned int c = 0; c < channel_in; c++)
+    {
+        for (long unsigned int i = 0; i < ifmap_h; i++)
+        {
+            for (long unsigned int j = 0; j < ifmap_w; j++)
+            {
+                auto &mem_ptr = arch.ifmap_mem.mem.ram[c * (ifmap_h * ifmap_w) + i * ifmap_w + j][0];
+                mem_ptr.write(c * (ifmap_h * ifmap_w) + i * ifmap_w + j);
+                arch.dram_access_counter++;
+                arch.ifmap_mem.mem.access_counter++;
+            }
+        }
+    }
+    sc_start(1, SC_NS);
+    cout << "Loaded dram contents into ifmap mem" << endl;
+}
+
+template <typename DataType>
+void dram_store(Arch_1x1<DataType> &arch, long unsigned int ofmap_w, long unsigned int ofmap_h, long unsigned int channel_out)
+{
+    auto output_size = ofmap_h * ofmap_h * channel_out;
+    assert(output_size < ifmap_mem_size);
+    for (int c = 0; c < channel_out; c++)
+    {
+        for (int i = 0; i < ofmap_h; i++)
+        {
+            for (int j = 0; j < ofmap_w; j++)
+            {
+                auto &mem_ptr = arch.ifmap_mem.mem.ram[c * (ofmap_h * ofmap_w) + i * ofmap_w + j][0];
+                auto &res_ptr = arch.res[c * (ofmap_h * ofmap_w) + i * ofmap_w + j];
+                mem_ptr.read();
+                arch.dram_access_counter++;
+                arch.psum_mem.mem.access_counter++;
+            }
+        }
+    }
+    sc_start(1, SC_NS);
+    cout << "Loaded dram contents into ifmap mem" << endl;
+}
+
+template <typename DataType>
+void generate_weights(Arch_1x1<DataType> &arch, int channel_in, int filter_out)
+{
+    for (int filter_row = 0; filter_row < 7; filter_row++)
+    {
+        for (int channel_column = 0; channel_column < 8; channel_column++)
+        {
+            PE<DataType> &cur_pe = arch.pe_array[filter_row * 9 + channel_column];
+            // cur_pe.loadWeights(weights[filter_row][channel_column]);
+        }
+    }
+}
+
+template <typename DataType>
+void load_pe_program(Arch_1x1<DataType> &arch, vector<vector<vector<Descriptor_2D>>> programs)
+{
+    for (int filter_row = 0; filter_row < 7; filter_row++)
+    {
+        for (int channel_column = 0; channel_column < 8; channel_column++)
+        {
+            PE<DataType> &cur_pe = arch.pe_array[filter_row * 9 + channel_column];
+            cur_pe.loadProgram(programs[filter_row][channel_column]);
+        }
+    }
+}
+
+long sim_and_get_results()
 {
     sc_trace_file *tf = sc_create_vcd_trace_file("ProgTrace");
     tf->set_time_unit(1, SC_PS);
-    
+
     GlobalControlChannel control("global_control_channel", sc_time(1, SC_NS), tf);
     Arch_1x1<sc_int<32>> arch("arch", control, tf);
+
     auto t1 = high_resolution_clock::now();
-    sc_start(1000, SC_NS);
+    control.set_reset(true);
+    sc_start(10, SC_NS);
+    control.set_reset(false);
+    sc_start(10, SC_NS);
+    dram_load(arch, 224, 224, 3);
+    control.set_enable(true);
+    sc_start(10000, SC_NS);
     auto t2 = high_resolution_clock::now();
+    auto ms_int = duration_cast<milliseconds>(t2 - t1);
+    return ms_int.count();
+}
+
+int sc_main(int argc, char *argv[])
+{
+
+    auto sim_time = sim_and_get_results();
 
     cout << "ALL TESTS PASS" << endl;
-    auto ms_int = duration_cast<milliseconds>(t2 - t1);
-    std::cout << ms_int.count() << "ms\n";
 
-    exit(0); // avoids calling expensive destructors
-    // ComputeBlob_TB<sc_int<32>> tb("ComputeBlob_tb");
-    return 0;
-    // return tb.run_tb();
+    std::cout << sim_time << "ms\n";
+
+    exit(EXIT_SUCCESS); // avoids expensive de-alloc
 }
 
 #endif // MEM_HIERARCHY_CPP
