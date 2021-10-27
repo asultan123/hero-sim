@@ -204,7 +204,9 @@ Connection<DataType>::Connection(sc_module_name name, sc_trace_file* _tf, sc_out
 {
     out.bind(signals[0]);
     in.bind(signals[0]);
+    #ifdef TRACE
     sc_trace(_tf, signals[0], signals[0].name());
+    #endif
     output_port_name = out.name();
     std::cout << "CONNECTION " << name << " instantiated and resolved to one-to-one connection" << std::endl;
 }
@@ -219,7 +221,9 @@ Connection<DataType>::Connection(sc_module_name name, sc_trace_file* _tf, sc_out
         in[idx].bind(signals[0]);
     }
     output_port_name = out.name();
+    #ifdef TRACE
     sc_trace(_tf, signals[0], signals[0].name());
+    #endif
     std::cout << "CONNECTION  " << name << " instantiated and resolved to one-to-many connection" << std::endl;
 }
 
@@ -232,7 +236,9 @@ Connection<DataType>::Connection(sc_module_name name, sc_trace_file* _tf, sc_vec
     {
         in[idx].bind(signals[idx]);
         out[idx].bind(signals[idx]);
+#ifdef TRACE
         sc_trace(_tf, signals[idx], signals[idx].name());
+#endif
     }
     output_port_name = out.name();
     std::cout << "CONNECTION " << name << " instantiated and resolved to many-to-many connection" << std::endl;

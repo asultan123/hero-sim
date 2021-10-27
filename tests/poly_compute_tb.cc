@@ -72,7 +72,7 @@ public:
         {
             pe_group_in[i].bind(_pe_group_in[i]);
         }
-
+#ifdef TRACE
         sc_trace(tf, pe_group_in[0], "pe_group_in_0");
         sc_trace(tf, pe_group_in[1], "pe_group_in_1");
         sc_trace(tf, pe_group_in[2], "pe_group_in_2");
@@ -82,7 +82,7 @@ public:
         sc_trace(tf, pe_group_in[6], "pe_group_in_6");
         sc_trace(tf, pe_group_in[7], "pe_group_in_7");
         sc_trace(tf, pe_group_in[8], "pe_group_in_8");
-
+#endif
         for (int i = 0; i < 28; i++)
         {
             sc_trace(tf, psums[i], (string("psums") + std::to_string(i)));

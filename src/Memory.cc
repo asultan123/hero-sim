@@ -85,6 +85,7 @@ Memory<DataType>::Memory(
                             write_access_counter(0)
                             
 {
+#ifdef TRACE
     for (unsigned int row = 0; row < length; row++)
     {
         for (unsigned int col = 0; col < width; col++)
@@ -92,7 +93,7 @@ Memory<DataType>::Memory(
             sc_trace(tf, ram[row][col], ram[row][col].name());
         }
     }
-
+#endif
     control(_control);
     _clk(control->clk());
 

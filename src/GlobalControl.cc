@@ -9,10 +9,12 @@ GlobalControlChannel::GlobalControlChannel(sc_module_name name,
                                                     global_enable("enable"),
                                                     global_program("program")
 {
+#ifdef TRACE
     sc_trace(tf, this->global_clock, (this->global_clock.name()));
     sc_trace(tf, this->global_reset, (this->global_reset.name()));
     sc_trace(tf, this->global_program, (this->global_program.name()));
     sc_trace(tf, this->global_enable, (this->global_enable.name()));
+#endif
 }
 
 sc_clock& GlobalControlChannel::clk()

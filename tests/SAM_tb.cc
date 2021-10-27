@@ -41,11 +41,12 @@ struct SAM_TB : public sc_module
             dut.write_channel_data[0][i](external_channel_0_write_bus[i]);
             dut.read_channel_data[1][i](external_channel_1_read_bus[i]);
             dut.write_channel_data[1][i](external_channel_1_write_bus[i]);
-
+#ifdef TRACE
             sc_trace(tf, external_channel_0_read_bus[i], external_channel_0_read_bus[i].name());
             sc_trace(tf, external_channel_0_write_bus[i], external_channel_0_write_bus[i].name());
             sc_trace(tf, external_channel_1_read_bus[i], external_channel_1_read_bus[i].name());
             sc_trace(tf, external_channel_1_write_bus[i], external_channel_1_write_bus[i].name());
+#endif
         }
         tf->set_time_unit(1, SC_PS);
         cout << "Instantiated SAM TB with name " << this->name() << endl;
