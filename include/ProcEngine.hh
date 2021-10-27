@@ -1,5 +1,5 @@
-#if !defined(__PE__CC__)
-#define __PE__CC__
+#if !defined(__PROCENGINE_CC__)
+#define __PROCENGINE_CC__
 
 #include <systemc>
 #include <map>
@@ -23,8 +23,7 @@ struct PE : public sc_module
 {
 
 public:
-
-    sc_trace_file* tf;
+    sc_trace_file *tf;
     vector<int> weights;
     int weight_idx;
     sc_signal<DataType> psum_in;
@@ -40,14 +39,15 @@ public:
 
     void resetWeights();
 
-    void loadWeights(vector<int>& weights);
+    void loadWeights(vector<int> &weights);
 
     void updateState();
 
-    void loadProgram(vector<Descriptor_2D>& _program);
+    void loadProgram(vector<Descriptor_2D> &_program);
 
     // Constructor
-    PE(sc_module_name name, sc_trace_file* _tf);
+    PE(sc_module_name name, sc_trace_file *_tf);
+
 };
 
 #endif

@@ -1,4 +1,4 @@
-#include "pe.hh"
+#include "ProcEngine.hh"
 
 template <typename DataType>
 PE<DataType>::PE(sc_module_name name, sc_trace_file* _tf) : sc_module(name), tf(_tf), psum_in("psum_in")
@@ -6,8 +6,9 @@ PE<DataType>::PE(sc_module_name name, sc_trace_file* _tf) : sc_module(name), tf(
     this->resetWeightIdx();
     this->resetWeights();
     this->programmed = false;
-
+#ifdef TRACE
     sc_trace(tf, this->psum_in, (this->psum_in.name()));
+#endif
 }
 
 template <typename DataType>
@@ -95,11 +96,15 @@ void PE<DataType>::updateState()
         }
         else
         {
-            throw std::exception("Invalid Descriptor in pe program");
+            throw std::runtime_error("Invalid Descriptor in pe program");
         }
     }
     else
     {
-        throw std::exception("Attempted to update pe state without it being programmed");
+        throw std::runtime_error("Attempted to update pe state without it being programmed");
     }
 }
+
+template struct PE<int>;
+template struct PE<sc_int<32>>;
+
