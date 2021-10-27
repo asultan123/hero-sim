@@ -14,6 +14,8 @@ void Memory<DataType>::update()
 {
     if (control->reset())
     {
+        read_access_counter = 0;
+        write_access_counter = 0;
         for (auto& row : ram)
         {
             for (auto& col : row)
@@ -36,11 +38,13 @@ void Memory<DataType>::update()
                     assert(channels[channel_idx]->get_width() == width);
                     for (unsigned int i = 0; i < width; i++)
                     {
+                        write_access_counter++;
                         ram[channels[channel_idx]->addr()][i] = channels[channel_idx]->mem_read_data()[i];
                     }
                     break;
                 case MemoryChannelMode::READ:
                     assert(channels[channel_idx]->get_width() == width);
+                    read_access_counter++;
                     channels[channel_idx]->mem_write_data(ram[channels[channel_idx]->addr()]);
                     break;
                 }
@@ -76,7 +80,10 @@ Memory<DataType>::Memory(
                             channels("channel", _channel_count),
                             width(_width),
                             length(_length),
-                            channel_count(_channel_count)
+                            channel_count(_channel_count),
+                            read_access_counter(0),
+                            write_access_counter(0)
+                            
 {
     for (unsigned int row = 0; row < length; row++)
     {
