@@ -34,7 +34,15 @@ void PE<DataType>::resetWeights()
 template <typename DataType>
 int PE<DataType>::currentWeight()
 {
-    return this->weights[this->weight_idx];
+    if(this->programmed)
+    {
+        return this->weights[this->weight_idx];
+    }
+    else
+    {
+        std::cout << "ERROR, attempted to load a weight in pe " + std::string(this->name()) + " that has not yet been programmed" << endl;
+        exit(EXIT_FAILURE);
+    }
 }
 
 
@@ -96,12 +104,14 @@ void PE<DataType>::updateState()
         }
         else
         {
-            throw std::runtime_error("Invalid Descriptor in pe program");
+            cout << "ERROR: Invalid Descriptor in pe program" << endl;
+            exit(EXIT_FAILURE);
         }
     }
     else
     {
-        throw std::runtime_error("Attempted to update pe state without it being programmed");
+        cout << "ERROR: Attempted to update pe state without it being programmed" << endl;
+        exit(EXIT_FAILURE);
     }
 }
 
