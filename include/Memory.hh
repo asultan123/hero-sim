@@ -34,7 +34,7 @@ public:
     sc_port<GlobalControlChannel_IF> control;
     sc_vector<sc_port<MemoryChannel_IF<DataType>>> channels;
     const unsigned int width, length, channel_count;
-    int read_access_counter, write_access_counter;
+    int access_counter;
 
     void update();
 
