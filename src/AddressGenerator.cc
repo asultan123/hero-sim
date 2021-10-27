@@ -11,7 +11,24 @@ Descriptor_2D::Descriptor_2D(unsigned int _next, unsigned int _start, Descriptor
     this->x_modify = _x_modify;
     this->y_count = _y_count;
     this->y_modify = _y_modify;
+    this->x_counter = _x_count;
+    this->y_counter = _y_count;
+}
+
+Descriptor_2D::Descriptor_2D(const Descriptor_2D& rhs)
+{
+    this->next = rhs.next;
+    this->start = rhs.start;
+    this->state = rhs.state;
+    this->x_count = rhs.x_count;
+    this->x_modify = rhs.x_modify;
+    this->y_count = rhs.y_count;
+    this->y_modify = rhs.y_modify;
+    this->x_counter = rhs.x_count;
+    this->y_counter = rhs.y_count;
 } 
+
+
 
 Descriptor_2D Descriptor_2D::default_descriptor()
 {

@@ -88,6 +88,20 @@ target_compile_options(poly_compute_tb
 )
 
 
+add_executable(estimation_enviornment "")
+target_sources(estimation_enviornment
+    PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/estimation_enviornment.cc"
+)
+
+target_link_libraries(estimation_enviornment cnn_processor PkgConfig::SYSTEMC PkgConfig::TLM2)
+
+target_compile_options(estimation_enviornment
+    PUBLIC -Wall
+)
+
+
+
 function(do_test target result)
   add_test(NAME ${target} COMMAND ${target})
   set_tests_properties(${target}
@@ -101,3 +115,4 @@ do_test(Connector_tb "ALL TESTS PASS")
 do_test(Memory_tb "ALL TESTS PASS")
 do_test(sock2sig_tb "ALL TESTS PASS")
 do_test(poly_compute_tb "ALL TESTS PASS")
+do_test(estimation_enviornment "ALL TESTS PASS")

@@ -22,7 +22,8 @@ enum class DescriptorState
 {
     SUSPENDED, // do nothing indefinitely
     GENERATE,  // transfer data
-    WAIT       // do nothing for certain number of cycles
+    WAIT,       // do nothing for certain number of cycles
+    GENWAIT
 };
 
 struct Descriptor_2D
@@ -34,10 +35,14 @@ struct Descriptor_2D
     int x_modify;          // number of floats between each transfer/wait
     unsigned int y_count;  // number of floats to transfer/wait
     int y_modify;          // number of floats between each transfer/wait
+    int x_counter;
+    int y_counter;
 
     Descriptor_2D(unsigned int _next, unsigned int _start, DescriptorState _state,
                   unsigned int _x_count, int _x_modify, unsigned int _y_count,
                   int _y_modify);
+
+    Descriptor_2D(const Descriptor_2D& rhs);
 
     bool operator==(const Descriptor_2D& rhs);
 
