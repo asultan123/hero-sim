@@ -15,6 +15,7 @@
 #include <iomanip>
 #include <cmath>
 #include <deque>
+#include <memory>
 
 using std::cout;
 using std::deque;
@@ -54,7 +55,7 @@ struct PeCreator
 
 const long unsigned filter_count{9};
 const long unsigned channel_count{9};
-const long unsigned pe_count{filter_count*channel_count};
+const long unsigned pe_count{filter_count * channel_count};
 
 const long unsigned ifmap_mem_size{10};
 const long unsigned psum_mem_size{10};
@@ -215,23 +216,30 @@ void print_vec_2d(string name, vector<int> &vec, int row_max, int col_max)
 template <typename DataType>
 void generate_and_load_weights(Arch_1x1<DataType> &arch, int channel_in_dim, int filter_out_dim, int kernel_size, string unroll_orientation)
 {
-    vector<int> weights(channel_in_dim * filter_out_dim, 0);
+
+    vector<vector<int>> weights(filter_out_dim, vector<int>(channel_in_dim*kernel_size, 0));
+    int row = 0;
+    int col = 0;
 
     int effective_filter_count = filter_count;
     int effective_channel_count = channel_count;
+    int usable_filter_count = filter_count;
+    int usable_channel_count = channel_count;
 
-    if(unroll_orientation == "horizontal")
+    if (unroll_orientation == "horizontal")
     {
         assert(channel_count >= kernel_size);
         effective_channel_count /= kernel_size;
+        usable_channel_count = effective_channel_count * kernel_size;
     }
-    else if(unroll_orientation == "verticle")
+    else if (unroll_orientation == "verticle")
     {
         assert(filter_count >= kernel_size);
         effective_filter_count /= kernel_size;
+        usable_filter_count = effective_filter_count * kernel_size;
     }
 
-    int filter_tile_count = filter_out_dim /  effective_filter_count ;
+    int filter_tile_count = filter_out_dim / effective_filter_count;
     int channel_tile_count = channel_in_dim / effective_channel_count;
 
     vector<vector<deque<int>>> pe_weights(filter_count, vector<deque<int>>(channel_count, deque<int>()));
@@ -241,13 +249,42 @@ void generate_and_load_weights(Arch_1x1<DataType> &arch, int channel_in_dim, int
     {
         for (int channel_tile = 0; channel_tile <= channel_tile_count; channel_tile++)
         {
-            int filter_tile_boundary = (filter_tile < filter_tile_count) ? filter_count : filter_out_dim % effective_filter_count;
-            int channel_tile_boundary = (channel_tile < channel_tile_count) ? channel_count : channel_in_dim % effective_channel_count;
-            for (int filter_row = 0; filter_row < filter_tile_boundary; filter_row++)
+            int filter_tile_boundary = (filter_tile < filter_tile_count) ? usable_filter_count : filter_out_dim % effective_filter_count;
+            int channel_tile_boundary = (channel_tile < channel_tile_count) ? usable_channel_count : channel_in_dim % effective_channel_count;
+
+            if (unroll_orientation == "horizontal")
+            {
+
+                for (int filter_row = 0; filter_row < filter_tile_boundary; filter_row++)
+                {
+                    for (int channel_column = 0; channel_column < channel_tile_boundary; channel_column++)
+                    {
+                        weights[row][col] = weight_val;
+                        col++;
+                        if (col == channel_in_dim*kernel_size)
+                        {
+                            col = 0;
+                            row++;
+                        }
+                        pe_weights[filter_row][channel_column].push_back(weight_val++);
+                    }
+                }
+            }
+            else if (unroll_orientation == "verticle")
             {
                 for (int channel_column = 0; channel_column < channel_tile_boundary; channel_column++)
                 {
-                    pe_weights[filter_row][channel_column].push_back(weight_val++);
+                    for (int filter_row = 0; filter_row < filter_tile_boundary; filter_row++)
+                    {
+                        weights[row][col] = weight_val;
+                        col++;
+                        if (col == channel_in_dim*kernel_size)
+                        {
+                            col = 0;
+                            row++;
+                        }
+                        pe_weights[filter_row][channel_column].push_back(weight_val++);
+                    }
                 }
             }
         }
@@ -263,31 +300,53 @@ void generate_and_load_weights(Arch_1x1<DataType> &arch, int channel_in_dim, int
         }
     }
 
+    cout << "weights" << endl;
+    for(auto i : weights)
+    {
+        for(auto j : i)
+        {
+            cout << std::right << std::setw(5) << j << std::flush;
+        }
+        cout << endl;
+    }
+
+    cout << endl;
+
     bool all_empty;
     int row_counter = 0;
     do
     {
         all_empty = true;
+        cout << std::right << std::setw(14) << "";
+        for (long unsigned int channel_column = 0; channel_column < channel_count; channel_column++)
+        {
+            cout << std::right << std::setw(10) << channel_column << std::flush;
+        }
+        cout << endl;
+        cout << std::right << std::setw(13) << "__________";
+        for (long unsigned int channel_column = 0; channel_column < channel_count; channel_column++)
+        {
+            cout << std::right << std::setw(10) << "__________" << std::flush;
+        }
+        cout << endl;
         for (long unsigned int filter_row = 0; filter_row < filter_count; filter_row++)
         {
+            cout << std::right << std::setw(10) << filter_row << "   |" << std::flush;
             for (long unsigned int channel_column = 0; channel_column < channel_count; channel_column++)
             {
-                if(pe_weights[filter_row][channel_column].size() > 0)
+                if (pe_weights[filter_row][channel_column].size() > 0)
                 {
-                    if((row_counter++ % (channel_in_dim*kernel_size)) == 0)
-                    {
-                        cout << endl;
-                    }
-                    cout << std::right << std::setw(5) << pe_weights[filter_row][channel_column].front();
+                    cout << std::right << std::setw(10) << /* " ["<< filter_row << "]"<< "[" << channel_column << "] " <<  */ pe_weights[filter_row][channel_column].front() << std::flush;
                     pe_weights[filter_row][channel_column].pop_front();
                     all_empty = false;
                 }
             }
+            cout << endl;
         }
+        cout << endl;
 
     } while (!all_empty);
     cout << endl;
-
 }
 
 template <typename DataType>
