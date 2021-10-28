@@ -40,7 +40,7 @@ int PE<DataType>::currentWeight()
     }
     else
     {
-        std::cout << "ERROR, attempted to load a weight in pe " + std::string(this->name()) + " that has not yet been programmed" << endl;
+        std::cout << "ERROR, attempted to get a weight from pe " + std::string(this->name()) + " that has not yet been programmed" << endl;
         exit(EXIT_FAILURE);
     }
 }

@@ -12,8 +12,12 @@
 #include <chrono>
 #include <vector>
 #include <assert.h>
+#include <iomanip>
+#include <cmath>
+#include <deque>
 
 using std::cout;
+using std::deque;
 using std::endl;
 using std::string;
 using std::vector;
@@ -52,8 +56,8 @@ const long unsigned filter_count{7};
 const long unsigned channel_count{9};
 const long unsigned pe_count{63};
 
-const long unsigned ifmap_mem_size{256 * 1024};
-const long unsigned psum_mem_size{256 * 1024};
+const long unsigned ifmap_mem_size{10};
+const long unsigned psum_mem_size{10};
 const long unsigned dram_access_cost{200};
 
 template <typename DataType>
@@ -64,7 +68,6 @@ private:
     sc_in_clk _clk;
 
 public:
-
     sc_port<GlobalControlChannel_IF> control;
     sc_vector<PE<DataType>> pe_array;
     sc_vector<sc_signal<DataType>> filter_psum_out{"psum_out", filter_count};
@@ -79,6 +82,7 @@ public:
     vector<float> res;
 
     unsigned int dram_access_counter{0};
+    unsigned int pe_mem_access_counter{0};
 
     void update()
     {
@@ -110,7 +114,7 @@ public:
                               psum_mem("psum_mem", _control, filter_count * 2, psum_mem_size, 1, _tf),
                               psum_mem_read("psum_mem_read", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
                               psum_mem_write("psum_mem_write", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
-                              ifmap_mem("ifmap_mem", _control, channel_count, 256 * 1024, 1, _tf),
+                              ifmap_mem("ifmap_mem", _control, channel_count, ifmap_mem_size, 1, _tf),
                               ifmap_mem_read("ifmap_mem_read", channel_count, SignalVectorCreator<DataType>(1, tf)),
                               ifmap_mem_write("ifmap_mem_write", channel_count, SignalVectorCreator<DataType>(1, tf)),
                               res(ifmap_mem_size)
@@ -186,17 +190,104 @@ void dram_store(Arch_1x1<DataType> &arch, long unsigned int ofmap_w, long unsign
     cout << "Loaded dram contents into ifmap mem" << endl;
 }
 
-template <typename DataType>
-void generate_weights(Arch_1x1<DataType> &arch, int channel_in, int filter_out)
+void print_vec(string name, vector<int> &vec)
 {
-    for (int filter_row = 0; filter_row < 7; filter_row++)
+    int idx = 0;
+    for (auto &i : vec)
     {
-        for (int channel_column = 0; channel_column < 8; channel_column++)
+        cout << name << "[" << idx++ << "]" << std::right << std::setw(5) << i << endl;
+    }
+}
+
+void print_vec_2d(string name, vector<int> &vec, int row_max, int col_max)
+{
+    cout << name << endl;
+    for (int i = 0; i < row_max; i++)
+    {
+        for (int j = 0; j < col_max; j++)
         {
-            PE<DataType> &cur_pe = arch.pe_array[filter_row * 9 + channel_column];
-            // cur_pe.loadWeights(weights[filter_row][channel_column]);
+            cout << std::right << std::setw(5) << vec.at(i * col_max + j);
+        }
+        cout << endl;
+    }
+}
+
+template <typename DataType>
+void generate_and_load_weights(Arch_1x1<DataType> &arch, int channel_in_dim, int filter_out_dim, int kernel_size, string unroll_orientation)
+{
+    vector<int> weights(channel_in_dim * filter_out_dim, 0);
+
+    int effective_filter_count = filter_count;
+    int effective_channel_count = channel_count;
+
+    if(unroll_orientation == "horizontal")
+    {
+        assert(channel_count >= kernel_size);
+        effective_channel_count /= kernel_size;
+    }
+    else if(unroll_orientation == "verticle")
+    {
+        assert(filter_count >= kernel_size);
+        effective_filter_count /= kernel_size;
+    }
+
+    int filter_tile_count = filter_out_dim /  effective_filter_count ;
+    int channel_tile_count = channel_in_dim / effective_channel_count;
+
+    vector<vector<deque<int>>> pe_weights(filter_count, vector<deque<int>>(channel_count, deque<int>()));
+
+    int weight_val = 0;
+    for (int filter_tile = 0; filter_tile <= filter_tile_count; filter_tile++)
+    {
+        for (int channel_tile = 0; channel_tile <= channel_tile_count; channel_tile++)
+        {
+            int filter_tile_boundary = (filter_tile < filter_tile_count) ? filter_count : filter_out_dim % effective_filter_count;
+            int channel_tile_boundary = (channel_tile < channel_tile_count) ? channel_count : channel_in_dim % effective_channel_count;
+            for (int filter_row = 0; filter_row < filter_tile_boundary; filter_row++)
+            {
+                for (int channel_column = 0; channel_column < channel_tile_boundary; channel_column++)
+                {
+                    pe_weights[filter_row][channel_column].push_back(weight_val++);
+                }
+            }
         }
     }
+
+    for (unsigned long int filter_row = 0; filter_row < filter_count; filter_row++)
+    {
+        for (unsigned long int channel_column = 0; channel_column < channel_count; channel_column++)
+        {
+            auto &cur_pe = arch.pe_array[filter_row * channel_count + channel_column];
+            vector<int> pe_weight_temp(pe_weights[filter_row][channel_column].begin(), pe_weights[filter_row][channel_column].end());
+            cur_pe.loadWeights(pe_weight_temp);
+        }
+    }
+
+    bool all_empty;
+    int row_counter = 0;
+    do
+    {
+        all_empty = true;
+        for (long unsigned int filter_row = 0; filter_row < filter_count; filter_row++)
+        {
+            for (long unsigned int channel_column = 0; channel_column < channel_count; channel_column++)
+            {
+                if(pe_weights[filter_row][channel_column].size() > 0)
+                {
+                    if((row_counter++ % (channel_in_dim*kernel_size)) == 0)
+                    {
+                        cout << endl;
+                    }
+                    cout << std::right << std::setw(5) << pe_weights[filter_row][channel_column].front();
+                    pe_weights[filter_row][channel_column].pop_front();
+                    all_empty = false;
+                }
+            }
+        }
+
+    } while (!all_empty);
+    cout << endl;
+
 }
 
 template <typename DataType>
@@ -212,20 +303,22 @@ void load_pe_program(Arch_1x1<DataType> &arch, vector<vector<vector<Descriptor_2
     }
 }
 
+template <typename DataType>
 long sim_and_get_results()
 {
     sc_trace_file *tf = sc_create_vcd_trace_file("ProgTrace");
     tf->set_time_unit(1, SC_PS);
 
     GlobalControlChannel control("global_control_channel", sc_time(1, SC_NS), tf);
-    Arch_1x1<sc_int<32>> arch("arch", control, tf);
+    Arch_1x1<DataType> arch("arch", control, tf);
 
     auto t1 = high_resolution_clock::now();
     control.set_reset(true);
     sc_start(10, SC_NS);
     control.set_reset(false);
     sc_start(10, SC_NS);
-    dram_load(arch, 224, 224, 3);
+    // dram_load(arch, 224, 224, 3);
+    generate_and_load_weights(arch, 16, 16, 9, "horizontal");
     control.set_enable(true);
     sc_start(10000, SC_NS);
     auto t2 = high_resolution_clock::now();
@@ -236,7 +329,7 @@ long sim_and_get_results()
 int sc_main(int argc, char *argv[])
 {
 
-    auto sim_time = sim_and_get_results();
+    auto sim_time = sim_and_get_results<sc_int<32>>();
 
     cout << "ALL TESTS PASS" << endl;
 
