@@ -52,9 +52,9 @@ struct PeCreator
     sc_trace_file *tf;
 };
 
-const long unsigned filter_count{7};
+const long unsigned filter_count{9};
 const long unsigned channel_count{9};
-const long unsigned pe_count{63};
+const long unsigned pe_count{filter_count*channel_count};
 
 const long unsigned ifmap_mem_size{10};
 const long unsigned psum_mem_size{10};
@@ -318,7 +318,7 @@ long sim_and_get_results()
     control.set_reset(false);
     sc_start(10, SC_NS);
     // dram_load(arch, 224, 224, 3);
-    generate_and_load_weights(arch, 16, 16, 9, "horizontal");
+    generate_and_load_weights(arch, 16, 16, 9, "verticle");
     control.set_enable(true);
     sc_start(10000, SC_NS);
     auto t2 = high_resolution_clock::now();
