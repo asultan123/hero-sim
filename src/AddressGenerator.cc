@@ -33,6 +33,18 @@ Descriptor_2D Descriptor_2D::default_descriptor()
     return {0, 0, DescriptorState::SUSPENDED, 0, 0, 0, 0};
 }
 
+void Descriptor_2D::x_count_update(int count)
+{
+    this->x_count = count;
+    this->x_counter = count;
+}
+
+void Descriptor_2D::y_count_update(int count)
+{
+    this->y_count = count;
+    this->y_counter = count;
+}
+
 bool Descriptor_2D::operator==(const Descriptor_2D &rhs)
 {
     return this->next == rhs.next && this->start == rhs.start &&
@@ -232,13 +244,11 @@ AddressGenerator<DataType>::AddressGenerator(sc_module_name name, GlobalControlC
     _clk(control->clk());
     _reset(control->reset());
     execute_index = 0;
-#ifdef TRACE
 // sc_trace(tf, this->execute_index, (this->execute_index.name()));
     sc_trace(tf, this->execute_index, (this->execute_index.name()));
     sc_trace(tf, this->current_ram_index, (this->current_ram_index.name()));
     sc_trace(tf, this->x_count_remaining, (this->x_count_remaining.name()));
     sc_trace(tf, this->y_count_remaining, (this->y_count_remaining.name()));
-#endif
 
     SC_METHOD(update);
     sensitive << _clk.pos();

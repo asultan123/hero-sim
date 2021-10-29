@@ -46,6 +46,10 @@ struct Descriptor_2D
 
     bool operator==(const Descriptor_2D& rhs);
 
+    void x_count_update(int count);
+    
+    void y_count_update(int count);
+
     static Descriptor_2D default_descriptor();
 };
 
