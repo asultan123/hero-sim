@@ -83,7 +83,7 @@ Memory<DataType>::Memory(
                             access_counter(0)
                             
 {
-#ifdef TRACE
+#ifdef MEM_WAVE_TRACE
     for (unsigned int row = 0; row < length; row++)
     {
         for (unsigned int col = 0; col < width; col++)
