@@ -1,14 +1,13 @@
 #include "ProcEngine.hh"
 
 template <typename DataType>
-PE<DataType>::PE(sc_module_name name, sc_trace_file* _tf) : sc_module(name), tf(_tf), psum_in("psum_in")
+PE<DataType>::PE(sc_module_name name, sc_trace_file* _tf) : sc_module(name), tf(_tf), psum_in("psum_in"), current_weight("weight")
 {
     this->resetWeightIdx();
     this->resetWeights();
     this->programmed = false;
-#ifdef TRACE
     sc_trace(tf, this->psum_in, (this->psum_in.name()));
-#endif
+    sc_trace(tf, this->current_weight, (this->current_weight.name()));
 }
 
 template <typename DataType>
@@ -30,21 +29,6 @@ void PE<DataType>::resetWeights()
 {
     this->weights.clear();
 }
-
-template <typename DataType>
-int PE<DataType>::currentWeight()
-{
-    if(this->programmed)
-    {
-        return this->weights[this->weight_idx];
-    }
-    else
-    {
-        std::cout << "ERROR, attempted to get a weight from pe " + std::string(this->name()) + " that has not yet been programmed" << endl;
-        exit(EXIT_FAILURE);
-    }
-}
-
 
 template <typename DataType>
 void PE<DataType>::loadWeights(vector<int> &weights)
@@ -70,9 +54,10 @@ void PE<DataType>::updateState()
     if (this->programmed)
     {
         Descriptor_2D &current_desc = this->program.at(prog_idx);
-
+        
         if (current_desc.state == DescriptorState::GENWAIT)
         {
+            this->current_weight = this->weights[weight_idx];
             current_desc.x_counter--;
             if (current_desc.x_counter < 0)
             {
@@ -89,11 +74,6 @@ void PE<DataType>::updateState()
         {
             current_desc.x_counter--;
             if (current_desc.x_counter < 0)
-            {
-                current_desc.x_counter = current_desc.x_count;
-                current_desc.y_counter--;
-            }
-            if (current_desc.y_counter < 0)
             {
                 this->prog_idx++;
             }

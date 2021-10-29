@@ -27,13 +27,12 @@ public:
     vector<int> weights;
     int weight_idx;
     sc_signal<DataType> psum_in;
+    sc_signal<int> current_weight;
     int prog_idx;
     bool programmed;
     vector<Descriptor_2D> program;
 
     void reset();
-
-    int currentWeight();
 
     void resetWeightIdx();
 
