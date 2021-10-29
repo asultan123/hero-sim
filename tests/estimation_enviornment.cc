@@ -16,6 +16,7 @@
 #include <cmath>
 #include <deque>
 #include <memory>
+#include "AddressGenerator.hh"
 
 using std::cout;
 using std::deque;
@@ -53,7 +54,8 @@ struct PeCreator
     sc_trace_file *tf;
 };
 
-const long unsigned filter_count{9};
+
+const long unsigned filter_count{7};
 const long unsigned channel_count{9};
 const long unsigned pe_count{filter_count * channel_count};
 
@@ -71,7 +73,7 @@ private:
 public:
     sc_port<GlobalControlChannel_IF> control;
     sc_vector<PE<DataType>> pe_array;
-    sc_vector<sc_signal<DataType>> filter_psum_out{"psum_out", filter_count};
+    sc_vector<sc_signal<DataType>> filter_psum_out{"filter_psum_out", filter_count};
     sc_trace_file *tf;
     SAM<DataType> psum_mem;
     sc_vector<sc_vector<sc_signal<DataType>>> psum_mem_read;
@@ -87,21 +89,26 @@ public:
 
     void update()
     {
-        if (control->enable())
+        while(1)
         {
-            for (long unsigned filter_row = 0; filter_row < filter_count; filter_row++)
+            while (control->enable())
             {
-                for (long unsigned channel_column = 0; channel_column < channel_count - 1; channel_column++)
+                for (long unsigned filter_row = 0; filter_row < filter_count; filter_row++)
                 {
-                    PE<DataType> &cur_pe = this->pe_array[filter_row * channel_count + channel_column];
-                    PE<DataType> &next_pe = this->pe_array[filter_row * channel_column + channel_column + 1];
-                    next_pe.psum_in = cur_pe.psum_in.read() + cur_pe.currentWeight() * (filter_row * channel_count + channel_column);
-                    cur_pe.updateState();
+                    for (long unsigned channel_column = 0; channel_column < channel_count - 1; channel_column++)
+                    {
+                        PE<DataType> &cur_pe = this->pe_array[filter_row * channel_count + channel_column];
+                        PE<DataType> &next_pe = this->pe_array[filter_row * channel_count + channel_column + 1];
+                        next_pe.psum_in = cur_pe.psum_in.read() + cur_pe.current_weight.read() * (channel_column+1);
+                        cur_pe.updateState();
+                    }
+                    PE<DataType> &last_pe = this->pe_array[filter_row * channel_count + channel_count - 1];
+                    filter_psum_out[filter_row] = last_pe.psum_in.read() + last_pe.current_weight.read() * (channel_count);
+                    last_pe.updateState();
                 }
-                PE<DataType> &last_pe = this->pe_array[filter_row * channel_count + channel_count - 1];
-                filter_psum_out[filter_row] = last_pe.psum_in.read() + last_pe.currentWeight() * (filter_row * channel_count + channel_count - 1);
-                last_pe.updateState();
+                wait();
             }
+            wait();
         }
     }
 
@@ -122,7 +129,11 @@ public:
     {
         control(_control);
         _clk(control->clk());
-        tf = _tf;
+
+        for(auto& psum: this->filter_psum_out)
+        {
+            sc_trace(tf, psum, psum.name());
+        }
 
         // psum_read/write
         for (long unsigned int i = 0; i < filter_count * 2; i++)
@@ -137,7 +148,7 @@ public:
             ifmap_mem.write_channel_data[i][0](ifmap_mem_write[i][0]);
         }
 
-        SC_METHOD(update);
+        SC_THREAD(update);
         sensitive << _clk.pos();
         sensitive << control->reset();
         cout << "Arch_1x1 MODULE: " << name << " has been instantiated " << endl;
@@ -228,32 +239,50 @@ void generate_and_load_weights(Arch_1x1<DataType> &arch, int channel_in_dim, int
 
     if (unroll_orientation == "horizontal")
     {
-        assert(channel_count >= kernel_size);
+        assert((unsigned long int)channel_count >= kernel_size);
         effective_channel_count /= kernel_size;
         usable_channel_count = effective_channel_count * kernel_size;
     }
     else if (unroll_orientation == "verticle")
     {
-        assert(filter_count >= kernel_size);
+        assert((unsigned long int)filter_count >= kernel_size);
         effective_filter_count /= kernel_size;
         usable_filter_count = effective_filter_count * kernel_size;
     }
 
-    int filter_tile_count = filter_out_dim / effective_filter_count;
-    int channel_tile_count = channel_in_dim / effective_channel_count;
+    int filter_tile_count = ceil(filter_out_dim / (float)effective_filter_count);
+    int channel_tile_count = ceil(channel_in_dim / (float)effective_channel_count);
 
     vector<vector<deque<int>>> pe_weights(filter_count, vector<deque<int>>(channel_count, deque<int>()));
 
-    int weight_val = 0;
-    for (int filter_tile = 0; filter_tile <= filter_tile_count; filter_tile++)
+    int weight_val = 1;
+    for (int filter_tile = 0; filter_tile < filter_tile_count; filter_tile++)
     {
-        for (int channel_tile = 0; channel_tile <= channel_tile_count; channel_tile++)
+        for (int channel_tile = 0; channel_tile < channel_tile_count; channel_tile++)
         {
-            int filter_tile_boundary = (filter_tile < filter_tile_count) ? usable_filter_count : filter_out_dim % effective_filter_count;
-            int channel_tile_boundary = (channel_tile < channel_tile_count) ? usable_channel_count : channel_in_dim % effective_channel_count;
 
             if (unroll_orientation == "horizontal")
             {
+
+                int filter_tile_boundary = (filter_tile == filter_tile_count - 1) ? filter_out_dim % usable_filter_count : usable_filter_count;
+
+                int channel_tile_boundary;
+
+                if(channel_tile == channel_tile_count - 1)
+                {
+                    if(channel_in_dim % effective_channel_count == 0)
+                    {
+                        channel_tile_boundary = kernel_size;
+                    }
+                    else
+                    {
+                        channel_tile_boundary = kernel_size * (channel_in_dim % effective_channel_count);
+                    }
+                }
+                else
+                {
+                    channel_tile_boundary = usable_channel_count;
+                }
 
                 for (int filter_row = 0; filter_row < filter_tile_boundary; filter_row++)
                 {
@@ -269,9 +298,39 @@ void generate_and_load_weights(Arch_1x1<DataType> &arch, int channel_in_dim, int
                         pe_weights[filter_row][channel_column].push_back(weight_val++);
                     }
                 }
+                for (unsigned long int filter_row = 0; filter_row < filter_count; filter_row++)
+                {
+                    for (unsigned long int channel_column = 0; channel_column < channel_count; channel_column++)
+                    {
+                        if(filter_row >= filter_tile_boundary || channel_column >= channel_tile_boundary)
+                        {
+                            pe_weights[filter_row][channel_column].push_back(-1);
+                        }
+                    }
+                }
             }
             else if (unroll_orientation == "verticle")
             {
+                int filter_tile_boundary;
+
+                int channel_tile_boundary = (channel_tile == channel_tile_count - 1) ? (channel_in_dim % effective_channel_count) : usable_channel_count;
+
+                if(filter_tile == filter_tile_count - 1)
+                {
+                    if(filter_out_dim % effective_filter_count == 0)
+                    {
+                        filter_tile_boundary = kernel_size;
+                    }
+                    else
+                    {
+                        filter_tile_boundary = kernel_size * (filter_out_dim % effective_filter_count);
+                    }
+                }
+                else
+                {
+                    filter_tile_boundary = usable_filter_count;
+                }
+
                 for (int channel_column = 0; channel_column < channel_tile_boundary; channel_column++)
                 {
                     for (int filter_row = 0; filter_row < filter_tile_boundary; filter_row++)
@@ -284,6 +343,16 @@ void generate_and_load_weights(Arch_1x1<DataType> &arch, int channel_in_dim, int
                             row++;
                         }
                         pe_weights[filter_row][channel_column].push_back(weight_val++);
+                    }
+                }
+                for (unsigned long int channel_column = 0; channel_column < channel_count; channel_column++)
+                {
+                    for (unsigned long int filter_row = 0; filter_row < filter_count; filter_row++)
+                    {
+                        if(filter_row >= filter_tile_boundary || channel_column >= channel_tile_boundary)
+                        {
+                            pe_weights[filter_row][channel_column].push_back(-1);
+                        }
                     }
                 }
             }
@@ -300,6 +369,7 @@ void generate_and_load_weights(Arch_1x1<DataType> &arch, int channel_in_dim, int
         }
     }
 
+
     cout << "weights" << endl;
     for(auto i : weights)
     {
@@ -312,12 +382,12 @@ void generate_and_load_weights(Arch_1x1<DataType> &arch, int channel_in_dim, int
 
     cout << endl;
 
+    int slice_idx = 0;
     bool all_empty;
-    int row_counter = 0;
     do
     {
         all_empty = true;
-        cout << std::right << std::setw(14) << "";
+        cout << std::right << std::setw(14) << slice_idx++ <<"";
         for (long unsigned int channel_column = 0; channel_column < channel_count; channel_column++)
         {
             cout << std::right << std::setw(10) << channel_column << std::flush;
@@ -350,14 +420,44 @@ void generate_and_load_weights(Arch_1x1<DataType> &arch, int channel_in_dim, int
 }
 
 template <typename DataType>
-void load_pe_program(Arch_1x1<DataType> &arch, vector<vector<vector<Descriptor_2D>>> programs)
+void generate_and_load_pe_program(Arch_1x1<DataType> &arch)
 {
-    for (int filter_row = 0; filter_row < 7; filter_row++)
+    vector<Descriptor_2D> program{
+        Descriptor_2D(
+            /*next*/ 0,
+            /*start*/ 0,
+            /*state*/ DescriptorState::WAIT,
+            /*x_count*/ 0,
+            /*x_modify*/ 0,
+            /*y_count*/ 0,
+            /*y_modify*/ 0
+        ),
+        Descriptor_2D(
+            /*next*/ 0,
+            /*start*/ 0,
+            /*state*/ DescriptorState::GENWAIT,
+            /*x_count*/ 9,
+            /*x_modify*/ 0,
+            /*y_count*/ 10,
+            /*y_modify*/ 1
+        ),
+        Descriptor_2D(
+            /*next*/ 0,
+            /*start*/ 0,
+            /*state*/ DescriptorState::SUSPENDED,
+            /*x_count*/ 0,
+            /*x_modify*/ 0,
+            /*y_count*/ 0,
+            /*y_modify*/ 0
+        ),
+    };
+    for (int channel_column = 0; channel_column < channel_count; channel_column++)
     {
-        for (int channel_column = 0; channel_column < 8; channel_column++)
+        for (int filter_row = 0; filter_row < filter_count; filter_row++)
         {
-            PE<DataType> &cur_pe = arch.pe_array[filter_row * 9 + channel_column];
-            cur_pe.loadProgram(programs[filter_row][channel_column]);
+            PE<DataType> &cur_pe = arch.pe_array[filter_row * channel_count + channel_column];
+            // program[0].x_count_update(channel_column);
+            cur_pe.loadProgram(program);
         }
     }
 }
@@ -365,8 +465,8 @@ void load_pe_program(Arch_1x1<DataType> &arch, vector<vector<vector<Descriptor_2
 template <typename DataType>
 long sim_and_get_results()
 {
-    sc_trace_file *tf = sc_create_vcd_trace_file("ProgTrace");
-    tf->set_time_unit(1, SC_PS);
+    sc_trace_file *tf = sc_create_vcd_trace_file("Arch1x1");
+    tf->set_time_unit(100, SC_PS);
 
     GlobalControlChannel control("global_control_channel", sc_time(1, SC_NS), tf);
     Arch_1x1<DataType> arch("arch", control, tf);
@@ -377,7 +477,8 @@ long sim_and_get_results()
     control.set_reset(false);
     sc_start(10, SC_NS);
     // dram_load(arch, 224, 224, 3);
-    generate_and_load_weights(arch, 16, 16, 9, "verticle");
+    generate_and_load_weights(arch, 16, 16, 9, "horizontal");
+    generate_and_load_pe_program(arch);
     control.set_enable(true);
     sc_start(10000, SC_NS);
     auto t2 = high_resolution_clock::now();
