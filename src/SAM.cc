@@ -83,9 +83,7 @@ SAM<DataType>::SAM(sc_module_name name, GlobalControlChannel& _control,
         for (unsigned int data_index = 0; data_index < width; data_index++)
         {
             sensitive << write_channel_data[channel_index][data_index];
-#ifdef TRACE
             sc_trace(tf, write_channel_data[channel_index][data_index], write_channel_data[channel_index][data_index].name());
-#endif
         }
     }
 
