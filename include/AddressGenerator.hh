@@ -23,7 +23,8 @@ enum class DescriptorState
     SUSPENDED, // do nothing indefinitely
     GENERATE,  // transfer data
     WAIT,       // do nothing for certain number of cycles
-    GENWAIT
+    GENWAIT,
+    RGENWAIT
 };
 
 struct Descriptor_2D
@@ -31,6 +32,7 @@ struct Descriptor_2D
     unsigned int next;     // index of next descriptor
     unsigned int start;    // start index in ram array
     DescriptorState state; // state of dma
+    unsigned int repeat;  // number of floats to transfer/wait
     unsigned int x_count;  // number of floats to transfer/wait
     int x_modify;          // number of floats between each transfer/wait
     unsigned int y_count;  // number of floats to transfer/wait
@@ -74,6 +76,7 @@ public:
     sc_signal<unsigned int> current_ram_index;
     sc_signal<unsigned int> x_count_remaining;
     sc_signal<unsigned int> y_count_remaining;
+    sc_signal<unsigned int> repeat;
     sc_signal<bool> programmed;
     sc_signal<bool> first_cycle;
     sc_signal<bool> last_cycle;
@@ -90,6 +93,8 @@ public:
     Descriptor_2D nextDescriptor();
 
     void updateCurrentIndex();
+    
+    void RGENWAITupdateCurrentIndex();
 
     bool descriptorComplete();
 

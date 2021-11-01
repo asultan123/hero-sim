@@ -13,6 +13,7 @@ Descriptor_2D::Descriptor_2D(unsigned int _next, unsigned int _start, Descriptor
     this->y_modify = _y_modify;
     this->x_counter = _x_count;
     this->y_counter = _y_count;
+    this->repeat = 0;
 }
 
 Descriptor_2D::Descriptor_2D(const Descriptor_2D &rhs)
@@ -24,8 +25,9 @@ Descriptor_2D::Descriptor_2D(const Descriptor_2D &rhs)
     this->x_modify = rhs.x_modify;
     this->y_count = rhs.y_count;
     this->y_modify = rhs.y_modify;
-    this->x_counter = rhs.x_count;
-    this->y_counter = rhs.y_count;
+    this->x_counter = rhs.x_counter;
+    this->y_counter = rhs.y_counter;
+    this->repeat = rhs.repeat;
 }
 
 Descriptor_2D Descriptor_2D::default_descriptor()
@@ -66,6 +68,7 @@ void AddressGenerator<DataType>::loadInternalCountersFromIndex(unsigned int inde
     current_ram_index = descriptors.at(index).start;
     x_count_remaining = descriptors.at(index).x_count;
     y_count_remaining = descriptors.at(index).y_count;
+    repeat = descriptors.at(index).repeat;
 }
 
 template <typename DataType>
@@ -94,6 +97,36 @@ Descriptor_2D AddressGenerator<DataType>::nextDescriptor()
 {
     return descriptors.at(descriptors[execute_index].next);
 }
+
+template <typename DataType>
+void AddressGenerator<DataType>::RGENWAITupdateCurrentIndex()
+{
+    // TODO: NOT IMPLEMENTED!
+    assert(0);
+    // if (x_count_remaining != 0)
+    // {
+    //     x_count_remaining = x_count_remaining - 1;
+    // }
+
+    // if (x_count_remaining == 0)
+    // {
+    //     if (y_count_remaining != 0)
+    //     {
+    //         current_ram_index = current_ram_index + currentDescriptor().y_modify;
+    //         // HACK WITH CHANNEL->SET_ADDR
+    //         channel->set_addr(current_ram_index + currentDescriptor().y_modify);
+    //         x_count_remaining = currentDescriptor().x_count;
+    //         y_count_remaining = y_count_remaining - 1;
+    //     }
+    // }
+    // else
+    // {
+    //     // HACK WITH CHANNEL->SET_ADDR
+    //     current_ram_index = current_ram_index + currentDescriptor().x_modify;
+    //     channel->set_addr(current_ram_index + currentDescriptor().x_modify);
+    // }
+}
+
 
 template <typename DataType>
 void AddressGenerator<DataType>::updateCurrentIndex()
@@ -125,7 +158,7 @@ void AddressGenerator<DataType>::updateCurrentIndex()
 template <typename DataType>
 bool AddressGenerator<DataType>::descriptorComplete()
 {
-    return (x_count_remaining == 0 && y_count_remaining == 0);
+    return (x_count_remaining == 0 && y_count_remaining == 0 && repeat == 0);
 }
 
 template <typename DataType>
@@ -164,9 +197,18 @@ void AddressGenerator<DataType>::update()
     {
         // Update internal address counters, ignore for first cycle due to channel enable delay
         if (!first_cycle && (currentDescriptor().state == DescriptorState::GENERATE ||
-                             currentDescriptor().state == DescriptorState::WAIT))
+                             currentDescriptor().state == DescriptorState::WAIT ||
+                             currentDescriptor().state == DescriptorState::RGENWAIT))
         {
-            updateCurrentIndex();
+            if(currentDescriptor().state == DescriptorState::RGENWAIT)
+            {
+                RGENWAITupdateCurrentIndex();
+            }
+            else
+            {
+                updateCurrentIndex();
+            }
+            
             if (descriptorComplete())
             {
                 loadNextDescriptor();
@@ -238,7 +280,8 @@ AddressGenerator<DataType>::AddressGenerator(sc_module_name name, GlobalControlC
       execute_index("execute_index"),
       current_ram_index("current_ram_index"),
       x_count_remaining("x_count_remaining"),
-      y_count_remaining("y_count_remaining")
+      y_count_remaining("y_count_remaining"),
+      repeat("repeat")
 {
     control(_control);
     _clk(control->clk());
@@ -249,6 +292,7 @@ AddressGenerator<DataType>::AddressGenerator(sc_module_name name, GlobalControlC
     sc_trace(tf, this->current_ram_index, (this->current_ram_index.name()));
     sc_trace(tf, this->x_count_remaining, (this->x_count_remaining.name()));
     sc_trace(tf, this->y_count_remaining, (this->y_count_remaining.name()));
+    sc_trace(tf, this->repeat, (this->repeat.name()));
 
     SC_METHOD(update);
     sensitive << _clk.pos();
