@@ -15,8 +15,8 @@ using std::string;
 
 enum MemoryChannelMode
 {
-    READ = 0,
-    WRITE = 1
+    READ = 1,
+    WRITE = 2
 };
 
 template <typename DataType>

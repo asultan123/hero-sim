@@ -27,6 +27,8 @@ void Memory<DataType>::update()
     }
     else if (control->enable())
     {
+        string comp_name = name();
+
         for (unsigned int channel_idx = 0; channel_idx < channel_count; channel_idx++)
         {
             if (channels[channel_idx]->enabled())

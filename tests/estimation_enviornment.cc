@@ -60,7 +60,7 @@ const long unsigned channel_count{9};
 const long unsigned pe_count{filter_count * channel_count};
 
 const long unsigned ifmap_mem_size{10*10*10};
-const long unsigned psum_mem_size{10};
+const long unsigned psum_mem_size{10*10};
 const long unsigned dram_access_cost{200};
 
 template <typename DataType>
@@ -73,7 +73,7 @@ private:
 public:
     sc_port<GlobalControlChannel_IF> control;
     sc_vector<PE<DataType>> pe_array;
-    sc_vector<sc_signal<DataType>> filter_psum_out{"filter_psum_out", filter_count};
+    // sc_vector<sc_signal<DataType>> filter_psum_out{"filter_psum_out", filter_count};
     sc_trace_file *tf;
     SAM<DataType> psum_mem;
     sc_vector<sc_vector<sc_signal<DataType>>> psum_mem_read;
@@ -95,6 +95,11 @@ public:
             {
                 for (long unsigned filter_row = 0; filter_row < filter_count; filter_row++)
                 {
+                    PE<DataType> &first_pe_in_row = this->pe_array[filter_row * channel_count];
+                    first_pe_in_row.psum_in = psum_mem_read[filter_row + filter_count][0].read();
+                }
+                for (long unsigned filter_row = 0; filter_row < filter_count; filter_row++)
+                {
                     for (long unsigned channel_column = 0; channel_column < channel_count - 1; channel_column++)
                     {
                         PE<DataType> &cur_pe = this->pe_array[filter_row * channel_count + channel_column];
@@ -103,7 +108,8 @@ public:
                         cur_pe.updateState();
                     }
                     PE<DataType> &last_pe = this->pe_array[filter_row * channel_count + channel_count - 1];
-                    filter_psum_out[filter_row] = last_pe.compute(ifmap_mem_read[channel_count - 1][0].read());
+                    // filter_psum_out[filter_row] = last_pe.compute(ifmap_mem_read[channel_count - 1][0].read());
+                    psum_mem_write[filter_row][0] = last_pe.compute(ifmap_mem_read[channel_count - 1][0].read());
                     last_pe.updateState();
                 }
                 wait();
@@ -130,10 +136,10 @@ public:
         control(_control);
         _clk(control->clk());
 
-        for(auto& psum: this->filter_psum_out)
-        {
-            sc_trace(tf, psum, psum.name());
-        }
+        // for(auto& psum: this->filter_psum_out)
+        // {
+        //     sc_trace(tf, psum, psum.name());
+        // }
 
         // psum_read/write
         for (long unsigned int i = 0; i < filter_count * 2; i++)
@@ -143,13 +149,14 @@ public:
         }
         for (long unsigned int i = 0; i < filter_count; i++)
         {
-            psum_mem.channels[i].set_mode(MemoryChannelMode::READ);
+            psum_mem.channels[i].set_mode(MemoryChannelMode::WRITE);
+            sc_trace(tf, psum_mem_write[i][0], (this->psum_mem_write[i][0].name()));
         }
         for (long unsigned int i = filter_count; i < filter_count*2; i++)
         {
             psum_mem.channels[i].set_mode(MemoryChannelMode::READ);
+            sc_trace(tf, psum_mem_read[i][0], (this->psum_mem_read[i][0].name()));
         }
-
 
         for (long unsigned int i = 0; i < channel_count; i++)
         {
@@ -169,6 +176,26 @@ public:
 };
 
 template <typename DataType>
+void set_channel_modes(Arch_1x1<DataType> &arch)
+{
+
+    for (long unsigned int i = 0; i < filter_count; i++)
+    {
+        arch.psum_mem.channels[i].set_mode(MemoryChannelMode::WRITE);
+    }
+    for (long unsigned int i = filter_count; i < filter_count*2; i++)
+    {
+        arch.psum_mem.channels[i].set_mode(MemoryChannelMode::READ);
+    }
+
+    for (long unsigned int i = 0; i < channel_count; i++)
+    {
+        arch.ifmap_mem.channels[i].set_mode(MemoryChannelMode::READ);
+    }
+}
+
+
+template <typename DataType>
 void dram_load(Arch_1x1<DataType> &arch, long unsigned int ifmap_w, long unsigned int ifmap_h, long unsigned int channel_in)
 {
     auto input_size = ifmap_h * ifmap_h * channel_in;
@@ -180,7 +207,7 @@ void dram_load(Arch_1x1<DataType> &arch, long unsigned int ifmap_w, long unsigne
             for (long unsigned int j = 0; j < ifmap_w; j++)
             {
                 auto &mem_ptr = arch.ifmap_mem.mem.ram[c * (ifmap_h * ifmap_w) + i * ifmap_w + j][0];
-                mem_ptr.write(c * (ifmap_h * ifmap_w) + i * ifmap_w + j);
+                mem_ptr.write(c * (ifmap_h * ifmap_w) + i * ifmap_w + j + 1);
                 arch.dram_access_counter++;
                 arch.ifmap_mem.mem.access_counter++;
             }
@@ -474,6 +501,81 @@ void generate_and_load_pe_program(Arch_1x1<DataType> &arch)
     }
 }
 
+template <typename DataType>
+void generate_and_load_psum_program(Arch_1x1<DataType> &arch)
+{
+    vector<Descriptor_2D> write_program{
+        Descriptor_2D(
+            /*next*/ 1,
+            /*start*/ 0,
+            /*state*/ DescriptorState::WAIT,
+            /*x_count*/ 1,
+            /*x_modify*/ 0,
+            /*y_count*/ 0,
+            /*y_modify*/ 0
+        ),
+        Descriptor_2D(
+            /*next*/ 2,
+            /*start*/ 0,
+            /*state*/ DescriptorState::GENERATE,
+            /*x_count*/ 10,
+            /*x_modify*/ 1,
+            /*y_count*/ 10,
+            /*y_modify*/ -10
+        ),
+        Descriptor_2D(
+            /*next*/ 2,
+            /*start*/ 0,
+            /*state*/ DescriptorState::SUSPENDED,
+            /*x_count*/ 0,
+            /*x_modify*/ 0,
+            /*y_count*/ 0,
+            /*y_modify*/ 0
+        ),
+    };
+
+    for(int write_gen_idx = 0; write_gen_idx < filter_count; write_gen_idx++)
+    {
+        arch.psum_mem.generators.at(write_gen_idx).loadProgram(write_program);
+
+    }
+
+    vector<Descriptor_2D> read_program{
+        Descriptor_2D(
+            /*next*/ 1,
+            /*start*/ 0,
+            /*state*/ DescriptorState::WAIT,
+            /*x_count*/ 2,
+            /*x_modify*/ 0,
+            /*y_count*/ 0,
+            /*y_modify*/ 0
+        ),
+        Descriptor_2D(
+            /*next*/ 2,
+            /*start*/ 0,
+            /*state*/ DescriptorState::GENERATE,
+            /*x_count*/ 10,
+            /*x_modify*/ 1,
+            /*y_count*/ 10,
+            /*y_modify*/ -10
+        ),
+        Descriptor_2D(
+            /*next*/ 2,
+            /*start*/ 0,
+            /*state*/ DescriptorState::SUSPENDED,
+            /*x_count*/ 0,
+            /*x_modify*/ 0,
+            /*y_count*/ 0,
+            /*y_modify*/ 0
+        ),
+    };
+
+    for(int read_gen_idx = filter_count; read_gen_idx < filter_count*2; read_gen_idx++)
+    {
+        arch.psum_mem.generators.at(read_gen_idx).loadProgram(read_program);
+    }
+}
+
 
 
 template <typename DataType>
@@ -517,9 +619,6 @@ void generate_and_load_ifmap_in_program(Arch_1x1<DataType> &arch)
         ag.loadProgram(program);
         channel_idx ++ ;
     }
-
-
-
 }
 
 
@@ -538,9 +637,11 @@ long sim_and_get_results()
     control.set_reset(false);
     sc_start(10, SC_NS);
     dram_load(arch, ifmap_mem_size, 1, 1);
+    set_channel_modes(arch);
     generate_and_load_weights(arch, 16, 16, 9, "horizontal");
     generate_and_load_pe_program(arch);
     generate_and_load_ifmap_in_program(arch);
+    generate_and_load_psum_program(arch);
 
     control.set_program(true);
     sc_start(1, SC_NS);
