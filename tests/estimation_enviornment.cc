@@ -17,6 +17,9 @@
 #include <deque>
 #include <memory>
 #include "AddressGenerator.hh"
+#include <xtensor/xarray.hpp>
+#include <xtensor/xio.hpp>
+#include <xtensor/xview.hpp>
 
 using std::cout;
 using std::deque;
@@ -653,14 +656,33 @@ long sim_and_get_results()
     return ms_int.count();
 }
 
+int xtensor_test()
+{
+    xt::xarray<double> arr1
+      {{1.0, 2.0, 3.0},
+       {2.0, 5.0, 7.0},
+       {2.0, 5.0, 7.0}};
+
+    xt::xarray<double> arr2
+      {5.0, 6.0, 7.0};
+
+    xt::xarray<double> res = xt::view(arr1, 1) + arr2;
+
+    std::cout << res << std::endl;
+
+    return 0;
+}
+
 int sc_main(int argc, char *argv[])
 {
 
-    auto sim_time = sim_and_get_results<sc_int<32>>();
+    // auto sim_time = sim_and_get_results<sc_int<32>>();
+    // std::cout << sim_time << "ms\n";
+
+    xtensor_test();
 
     cout << "ALL TESTS PASS" << endl;
 
-    std::cout << sim_time << "ms\n";
 
     exit(EXIT_SUCCESS); // avoids expensive de-alloc
 }

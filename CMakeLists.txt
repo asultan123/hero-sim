@@ -13,11 +13,13 @@ set(CMAKE_BUILD_TYPE "Debug")
 
 set(CMAKE_CXX_FLAGS "-Wall -Wextra")
 # set(CMAKE_CXX_FLAGS_DEBUG "-pg -DMEM_WAVE_TRACE")
-set(CMAKE_CXX_FLAGS_DEBUG "-g -DMEM_WAVE_TRACE")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -DMEM_WAVE_TRACE -march=native")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(PkgConfig REQUIRED)
+find_package(xtl REQUIRED)
+find_package(xtensor REQUIRED)
 
 pkg_check_modules(SYSTEMC REQUIRED IMPORTED_TARGET systemc)
 pkg_check_modules(TLM2 REQUIRED IMPORTED_TARGET tlm)
@@ -39,7 +41,7 @@ target_sources(cnn_processor PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/stringProducer.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/ProcEngine.cc"
 )
-target_link_libraries(cnn_processor PkgConfig::SYSTEMC PkgConfig::TLM2)
+target_link_libraries(cnn_processor PkgConfig::SYSTEMC PkgConfig::TLM2 xtensor xtensor::optimize xtensor::use_xsimd)
 
 enable_testing()
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/tests")
