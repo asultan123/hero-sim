@@ -44,7 +44,7 @@ void Memory<DataType>::update()
                 case MemoryChannelMode::READ:
                     assert(channels[channel_idx]->get_width() == width);
                     access_counter++;
-                    channels[channel_idx]->mem_write_data(ram[channels[channel_idx]->addr()]);
+                    channels[channel_idx]->mem_write_data(ram.at(channels[channel_idx]->addr()));
                     break;
                 }
             }
