@@ -34,6 +34,9 @@ public:
 
     void reset();
 
+    DataType compute(sc_signal<DataType>& input);
+    DataType compute(unsigned long int input);
+
     void resetWeightIdx();
 
     void resetWeights();
