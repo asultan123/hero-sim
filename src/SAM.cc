@@ -12,7 +12,6 @@ sc_vector<DataType>* SAMDataPortCreator<DataType>::operator()(const char* name, 
     return new sc_vector<DataType>(name, width);
 }
 
-
 template <typename DataType>
 void SAM<DataType>::update()
 {
