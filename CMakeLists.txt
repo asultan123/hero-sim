@@ -6,7 +6,7 @@ project(Processor
     LANGUAGES CXX
 )
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_BUILD_TYPE "Debug")
@@ -20,6 +20,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(PkgConfig REQUIRED)
 find_package(xtl REQUIRED)
 find_package(xtensor REQUIRED)
+find_package(Boost 1.77.0 REQUIRED)
 
 pkg_check_modules(SYSTEMC REQUIRED IMPORTED_TARGET systemc)
 pkg_check_modules(TLM2 REQUIRED IMPORTED_TARGET tlm)
