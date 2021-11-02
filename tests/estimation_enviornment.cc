@@ -20,6 +20,12 @@
 #include <xtensor/xarray.hpp>
 #include <xtensor/xio.hpp>
 #include <xtensor/xview.hpp>
+#include <xtensor/xaxis_iterator.hpp>
+#include <xtensor/xpad.hpp>
+#include <boost/regex.hpp>
+#include <iostream>
+#include <string>
+#include <xtensor/xadapt.hpp>
 
 using std::cout;
 using std::deque;
@@ -57,13 +63,12 @@ struct PeCreator
     sc_trace_file *tf;
 };
 
-
 const long unsigned filter_count{7};
 const long unsigned channel_count{9};
 const long unsigned pe_count{filter_count * channel_count};
 
-const long unsigned ifmap_mem_size{10*10*10};
-const long unsigned psum_mem_size{10*10};
+const long unsigned ifmap_mem_size{10 * 10 * 10};
+const long unsigned psum_mem_size{10 * 10};
 const long unsigned dram_access_cost{200};
 
 template <typename DataType>
@@ -92,7 +97,7 @@ public:
 
     void update()
     {
-        while(1)
+        while (1)
         {
             while (control->enable())
             {
@@ -155,7 +160,7 @@ public:
             psum_mem.channels[i].set_mode(MemoryChannelMode::WRITE);
             sc_trace(tf, psum_mem_write[i][0], (this->psum_mem_write[i][0].name()));
         }
-        for (long unsigned int i = filter_count; i < filter_count*2; i++)
+        for (long unsigned int i = filter_count; i < filter_count * 2; i++)
         {
             psum_mem.channels[i].set_mode(MemoryChannelMode::READ);
             sc_trace(tf, psum_mem_read[i][0], (this->psum_mem_read[i][0].name()));
@@ -186,7 +191,7 @@ void set_channel_modes(Arch_1x1<DataType> &arch)
     {
         arch.psum_mem.channels[i].set_mode(MemoryChannelMode::WRITE);
     }
-    for (long unsigned int i = filter_count; i < filter_count*2; i++)
+    for (long unsigned int i = filter_count; i < filter_count * 2; i++)
     {
         arch.psum_mem.channels[i].set_mode(MemoryChannelMode::READ);
     }
@@ -196,7 +201,6 @@ void set_channel_modes(Arch_1x1<DataType> &arch)
         arch.ifmap_mem.channels[i].set_mode(MemoryChannelMode::READ);
     }
 }
-
 
 template <typename DataType>
 void dram_load(Arch_1x1<DataType> &arch, long unsigned int ifmap_w, long unsigned int ifmap_h, long unsigned int channel_in)
@@ -266,202 +270,6 @@ void print_vec_2d(string name, vector<int> &vec, int row_max, int col_max)
 }
 
 template <typename DataType>
-void generate_and_load_weights(Arch_1x1<DataType> &arch, int channel_in_dim, int filter_out_dim, int kernel_size, string unroll_orientation)
-{
-
-    vector<vector<int>> weights(filter_out_dim, vector<int>(channel_in_dim*kernel_size, 0));
-    int row = 0;
-    int col = 0;
-
-    int effective_filter_count = filter_count;
-    int effective_channel_count = channel_count;
-    int usable_filter_count = filter_count;
-    int usable_channel_count = channel_count;
-
-    if (unroll_orientation == "horizontal")
-    {
-        assert(channel_count >= (unsigned long int)kernel_size);
-        effective_channel_count /= kernel_size;
-        usable_channel_count = effective_channel_count * kernel_size;
-    }
-    else if (unroll_orientation == "verticle")
-    {
-
-        assert((unsigned long int)filter_count >= (unsigned long int)kernel_size);
-        effective_filter_count /= kernel_size;
-        usable_filter_count = effective_filter_count * kernel_size;
-    }
-
-    int filter_tile_count = ceil(filter_out_dim / (float)effective_filter_count);
-    int channel_tile_count = ceil(channel_in_dim / (float)effective_channel_count);
-
-    vector<vector<deque<int>>> pe_weights(filter_count, vector<deque<int>>(channel_count, deque<int>()));
-
-    int weight_val = 1;
-    for (int filter_tile = 0; filter_tile < filter_tile_count; filter_tile++)
-    {
-        for (int channel_tile = 0; channel_tile < channel_tile_count; channel_tile++)
-        {
-
-            if (unroll_orientation == "horizontal")
-            {
-
-                int filter_tile_boundary = (filter_tile == filter_tile_count - 1) ? filter_out_dim % usable_filter_count : usable_filter_count;
-
-                int channel_tile_boundary;
-
-                if(channel_tile == channel_tile_count - 1)
-                {
-                    if(channel_in_dim % effective_channel_count == 0)
-                    {
-                        channel_tile_boundary = kernel_size;
-                    }
-                    else
-                    {
-                        channel_tile_boundary = kernel_size * (channel_in_dim % effective_channel_count);
-                    }
-                }
-                else
-                {
-                    channel_tile_boundary = usable_channel_count;
-                }
-
-                for (int filter_row = 0; filter_row < filter_tile_boundary; filter_row++)
-                {
-                    for (int channel_column = 0; channel_column < channel_tile_boundary; channel_column++)
-                    {
-                        weights[row][col] = weight_val;
-                        col++;
-                        if (col == channel_in_dim*kernel_size)
-                        {
-                            col = 0;
-                            row++;
-                        }
-                        pe_weights[filter_row][channel_column].push_back(weight_val++);
-                    }
-                }
-                for (unsigned long int filter_row = 0; filter_row < filter_count; filter_row++)
-                {
-                    for (unsigned long int channel_column = 0; channel_column < channel_count; channel_column++)
-                    {
-                        if(filter_row >= (unsigned long int)filter_tile_boundary || channel_column >= (unsigned long int)channel_tile_boundary)
-                        {
-                            pe_weights[filter_row][channel_column].push_back(-1);
-                        }
-                    }
-                }
-            }
-            else if (unroll_orientation == "verticle")
-            {
-                int filter_tile_boundary;
-
-                int channel_tile_boundary = (channel_tile == channel_tile_count - 1) ? (channel_in_dim % effective_channel_count) : usable_channel_count;
-
-                if(filter_tile == filter_tile_count - 1)
-                {
-                    if(filter_out_dim % effective_filter_count == 0)
-                    {
-                        filter_tile_boundary = kernel_size;
-                    }
-                    else
-                    {
-                        filter_tile_boundary = kernel_size * (filter_out_dim % effective_filter_count);
-                    }
-                }
-                else
-                {
-                    filter_tile_boundary = usable_filter_count;
-                }
-
-                for (int channel_column = 0; channel_column < channel_tile_boundary; channel_column++)
-                {
-                    for (int filter_row = 0; filter_row < filter_tile_boundary; filter_row++)
-                    {
-                        weights[row][col] = weight_val;
-                        col++;
-                        if (col == channel_in_dim*kernel_size)
-                        {
-                            col = 0;
-                            row++;
-                        }
-                        pe_weights[filter_row][channel_column].push_back(weight_val++);
-                    }
-                }
-                for (unsigned long int channel_column = 0; channel_column < channel_count; channel_column++)
-                {
-                    for (unsigned long int filter_row = 0; filter_row < filter_count; filter_row++)
-                    {
-                        if(filter_row >= (unsigned long int)filter_tile_boundary || channel_column >= (unsigned long int)channel_tile_boundary)
-                        {
-                            pe_weights[filter_row][channel_column].push_back(-1);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    for (unsigned long int filter_row = 0; filter_row < filter_count; filter_row++)
-    {
-        for (unsigned long int channel_column = 0; channel_column < channel_count; channel_column++)
-        {
-            auto &cur_pe = arch.pe_array[filter_row * channel_count + channel_column];
-            vector<int> pe_weight_temp(pe_weights[filter_row][channel_column].begin(), pe_weights[filter_row][channel_column].end());
-            cur_pe.loadWeights(pe_weight_temp);
-        }
-    }
-
-
-    // cout << "weights" << endl;
-    // for(auto i : weights)
-    // {
-    //     for(auto j : i)
-    //     {
-    //         cout << std::right << std::setw(5) << j << std::flush;
-    //     }
-    //     cout << endl;
-    // }
-
-    // cout << endl;
-
-    // int slice_idx = 0;
-    // bool all_empty;
-    // do
-    // {
-    //     all_empty = true;
-    //     cout << std::right << std::setw(14) << slice_idx++ <<"";
-    //     for (long unsigned int channel_column = 0; channel_column < channel_count; channel_column++)
-    //     {
-    //         cout << std::right << std::setw(10) << channel_column << std::flush;
-    //     }
-    //     cout << endl;
-    //     cout << std::right << std::setw(13) << "__________";
-    //     for (long unsigned int channel_column = 0; channel_column < channel_count; channel_column++)
-    //     {
-    //         cout << std::right << std::setw(10) << "__________" << std::flush;
-    //     }
-    //     cout << endl;
-    //     for (long unsigned int filter_row = 0; filter_row < filter_count; filter_row++)
-    //     {
-    //         cout << std::right << std::setw(10) << filter_row << "   |" << std::flush;
-    //         for (long unsigned int channel_column = 0; channel_column < channel_count; channel_column++)
-    //         {
-    //             if (pe_weights[filter_row][channel_column].size() > 0)
-    //             {
-    //                 cout << std::right << std::setw(10) << /* " ["<< filter_row << "]"<< "[" << channel_column << "] " <<  */ pe_weights[filter_row][channel_column].front() << std::flush;
-    //                 pe_weights[filter_row][channel_column].pop_front();
-    //                 all_empty = false;
-    //             }
-    //         }
-    //         cout << endl;
-    //     }
-    //     cout << endl;
-
-    // } while (!all_empty);
-    // cout << endl;
-}
-
-template <typename DataType>
 void generate_and_load_pe_program(Arch_1x1<DataType> &arch)
 {
     vector<Descriptor_2D> program{
@@ -472,8 +280,7 @@ void generate_and_load_pe_program(Arch_1x1<DataType> &arch)
             /*x_count*/ 0,
             /*x_modify*/ 0,
             /*y_count*/ 0,
-            /*y_modify*/ 0
-        ),
+            /*y_modify*/ 0),
         Descriptor_2D(
             /*next*/ 2,
             /*start*/ 0,
@@ -481,8 +288,7 @@ void generate_and_load_pe_program(Arch_1x1<DataType> &arch)
             /*x_count*/ 9,
             /*x_modify*/ 0,
             /*y_count*/ 10,
-            /*y_modify*/ 1
-        ),
+            /*y_modify*/ 1),
         Descriptor_2D(
             /*next*/ 2,
             /*start*/ 0,
@@ -490,8 +296,7 @@ void generate_and_load_pe_program(Arch_1x1<DataType> &arch)
             /*x_count*/ 0,
             /*x_modify*/ 0,
             /*y_count*/ 0,
-            /*y_modify*/ 0
-        ),
+            /*y_modify*/ 0),
     };
     for (unsigned long int channel_column = 0; channel_column < channel_count; channel_column++)
     {
@@ -515,8 +320,7 @@ void generate_and_load_psum_program(Arch_1x1<DataType> &arch)
             /*x_count*/ 1,
             /*x_modify*/ 0,
             /*y_count*/ 0,
-            /*y_modify*/ 0
-        ),
+            /*y_modify*/ 0),
         Descriptor_2D(
             /*next*/ 2,
             /*start*/ 0,
@@ -524,8 +328,7 @@ void generate_and_load_psum_program(Arch_1x1<DataType> &arch)
             /*x_count*/ 10,
             /*x_modify*/ 1,
             /*y_count*/ 10,
-            /*y_modify*/ -10
-        ),
+            /*y_modify*/ -10),
         Descriptor_2D(
             /*next*/ 2,
             /*start*/ 0,
@@ -533,14 +336,12 @@ void generate_and_load_psum_program(Arch_1x1<DataType> &arch)
             /*x_count*/ 0,
             /*x_modify*/ 0,
             /*y_count*/ 0,
-            /*y_modify*/ 0
-        ),
+            /*y_modify*/ 0),
     };
 
-    for(int write_gen_idx = 0; write_gen_idx < filter_count; write_gen_idx++)
+    for (int write_gen_idx = 0; write_gen_idx < filter_count; write_gen_idx++)
     {
         arch.psum_mem.generators.at(write_gen_idx).loadProgram(write_program);
-
     }
 
     vector<Descriptor_2D> read_program{
@@ -551,8 +352,7 @@ void generate_and_load_psum_program(Arch_1x1<DataType> &arch)
             /*x_count*/ 2,
             /*x_modify*/ 0,
             /*y_count*/ 0,
-            /*y_modify*/ 0
-        ),
+            /*y_modify*/ 0),
         Descriptor_2D(
             /*next*/ 2,
             /*start*/ 0,
@@ -560,8 +360,7 @@ void generate_and_load_psum_program(Arch_1x1<DataType> &arch)
             /*x_count*/ 10,
             /*x_modify*/ 1,
             /*y_count*/ 10,
-            /*y_modify*/ -10
-        ),
+            /*y_modify*/ -10),
         Descriptor_2D(
             /*next*/ 2,
             /*start*/ 0,
@@ -569,17 +368,14 @@ void generate_and_load_psum_program(Arch_1x1<DataType> &arch)
             /*x_count*/ 0,
             /*x_modify*/ 0,
             /*y_count*/ 0,
-            /*y_modify*/ 0
-        ),
+            /*y_modify*/ 0),
     };
 
-    for(int read_gen_idx = filter_count; read_gen_idx < filter_count*2; read_gen_idx++)
+    for (int read_gen_idx = filter_count; read_gen_idx < filter_count * 2; read_gen_idx++)
     {
         arch.psum_mem.generators.at(read_gen_idx).loadProgram(read_program);
     }
 }
-
-
 
 template <typename DataType>
 void generate_and_load_ifmap_in_program(Arch_1x1<DataType> &arch)
@@ -592,8 +388,7 @@ void generate_and_load_ifmap_in_program(Arch_1x1<DataType> &arch)
             /*x_count*/ 0,
             /*x_modify*/ 0,
             /*y_count*/ 0,
-            /*y_modify*/ 0
-        ),
+            /*y_modify*/ 0),
         Descriptor_2D(
             /*next*/ 2,
             /*start*/ 0,
@@ -601,8 +396,7 @@ void generate_and_load_ifmap_in_program(Arch_1x1<DataType> &arch)
             /*x_count*/ 10,
             /*x_modify*/ 1,
             /*y_count*/ 10,
-            /*y_modify*/ -10
-        ),
+            /*y_modify*/ -10),
         Descriptor_2D(
             /*next*/ 2,
             /*start*/ 0,
@@ -610,24 +404,88 @@ void generate_and_load_ifmap_in_program(Arch_1x1<DataType> &arch)
             /*x_count*/ 0,
             /*x_modify*/ 0,
             /*y_count*/ 0,
-            /*y_modify*/ 0
-        ),
+            /*y_modify*/ 0),
     };
 
-
     int channel_idx = 0;
-    for(auto& ag: arch.ifmap_mem.generators)
+    for (auto &ag : arch.ifmap_mem.generators)
     {
-        program[1].start = channel_idx * (10*10);
+        program[1].start = channel_idx * (10 * 10);
         ag.loadProgram(program);
-        channel_idx ++ ;
+        channel_idx++;
     }
 }
 
+enum UnrollOrientation
+{
+    HORIZONTAL = 1,
+    VERTICLE = 2
+};
+
+template <typename DataType>
+int generate_and_load_weights(Arch_1x1<DataType> &arch, int channel_in_dim, int filter_out_dim, int kernel_size, UnrollOrientation unroll_orientation)
+{
+    xt::xarray<int> weights = xt::arange(0, channel_in_dim * filter_out_dim * kernel_size);
+    vector<vector<deque<int>>> pe_weights(filter_count, vector<deque<int>>(channel_count, deque<int>()));
+
+    long unsigned int verticle_padding;
+    long unsigned int horizontal_padding;
+
+    switch (unroll_orientation)
+    {
+    case UnrollOrientation::HORIZONTAL:
+    {
+        weights.reshape({filter_out_dim, channel_in_dim * kernel_size});
+        verticle_padding = ceil((float)filter_out_dim / filter_count) * filter_count - filter_out_dim;
+        horizontal_padding = ceil((float)(channel_in_dim * kernel_size) / channel_count) * channel_count - (channel_in_dim * kernel_size);
+        break;
+    }
+    default:
+        cout << "INVALID ORIENTATION" << endl;
+        exit(EXIT_FAILURE);
+        break;
+    }
+
+    xt::xarray<int> padded_weights = xt::pad(weights, {{0, verticle_padding}, {0, horizontal_padding}}, xt::pad_mode::constant, -1);
+
+    cout << padded_weights << endl;
+
+    for (auto filter_offset = 0; filter_offset < padded_weights.shape()[0]; filter_offset += filter_count)
+    {
+        for (auto channel_offset = 0; channel_offset < padded_weights.shape()[1]; channel_offset += channel_count)
+        {
+            auto tiled_view = xt::view(padded_weights, xt::range(filter_offset, filter_offset + filter_count), xt::range(channel_offset, channel_offset + channel_count));
+
+            for (auto i = 0; i < filter_count; i++)
+            {
+                for (auto j = 0; j < channel_count; j++)
+                {
+                    pe_weights[i][j].push_back(tiled_view(i, j));
+                }
+            }
+        }
+    }
+
+    for (unsigned long int filter_row = 0; filter_row < filter_count; filter_row++)
+    {
+        for (unsigned long int channel_column = 0; channel_column < channel_count; channel_column++)
+        {
+            auto &cur_pe = arch.pe_array[filter_row * channel_count + channel_column];
+            vector<int> pe_weight_temp(pe_weights[filter_row][channel_column].begin(), pe_weights[filter_row][channel_column].end());
+            cur_pe.loadWeights(pe_weight_temp);
+        }
+    }
+
+    return 0;
+}
 
 template <typename DataType>
 long sim_and_get_results()
 {
+
+    xt::print_options::set_threshold(10000);
+    xt::print_options::set_line_width(100);
+
     sc_trace_file *tf = sc_create_vcd_trace_file("Arch1x1");
     tf->set_time_unit(100, SC_PS);
 
@@ -641,7 +499,8 @@ long sim_and_get_results()
     sc_start(10, SC_NS);
     dram_load(arch, ifmap_mem_size, 1, 1);
     set_channel_modes(arch);
-    generate_and_load_weights(arch, 16, 16, 9, "horizontal");
+    generate_and_load_weights(arch, 16, 16, 9, UnrollOrientation::HORIZONTAL);
+
     generate_and_load_pe_program(arch);
     generate_and_load_ifmap_in_program(arch);
     generate_and_load_psum_program(arch);
@@ -656,33 +515,13 @@ long sim_and_get_results()
     return ms_int.count();
 }
 
-int xtensor_test()
-{
-    xt::xarray<double> arr1
-      {{1.0, 2.0, 3.0},
-       {2.0, 5.0, 7.0},
-       {2.0, 5.0, 7.0}};
-
-    xt::xarray<double> arr2
-      {5.0, 6.0, 7.0};
-
-    xt::xarray<double> res = xt::view(arr1, 1) + arr2;
-
-    std::cout << res << std::endl;
-
-    return 0;
-}
-
 int sc_main(int argc, char *argv[])
 {
 
-    // auto sim_time = sim_and_get_results<sc_int<32>>();
-    // std::cout << sim_time << "ms\n";
-
-    xtensor_test();
+    auto sim_time = sim_and_get_results<sc_int<32>>();
+    std::cout << sim_time << "ms\n";
 
     cout << "ALL TESTS PASS" << endl;
-
 
     exit(EXIT_SUCCESS); // avoids expensive de-alloc
 }
