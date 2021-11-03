@@ -23,7 +23,7 @@ enum class DescriptorState
     SUSPENDED, // do nothing indefinitely
     GENERATE,  // transfer data
     WAIT,       // do nothing for certain number of cycles
-    GENWAIT,
+    GENHOLD,
     RGENWAIT
 };
 
@@ -51,6 +51,13 @@ struct Descriptor_2D
     void x_count_update(int count);
     
     void y_count_update(int count);
+
+    static void make_sequential(vector<Descriptor_2D>& program);
+
+    static Descriptor_2D delay_inst(int delay_time);
+    static Descriptor_2D stream_inst(int start_idx, int stream_size, int repeats);
+    static Descriptor_2D genhold_inst(int start_idx, int hold_time, int repeats, int access_offset);
+    static Descriptor_2D suspend_inst();
 
     static Descriptor_2D default_descriptor();
 };

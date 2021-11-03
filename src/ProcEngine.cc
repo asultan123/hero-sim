@@ -68,7 +68,7 @@ void PE<DataType>::updateState()
     {
         Descriptor_2D &current_desc = this->program.at(prog_idx);
         
-        if (current_desc.state == DescriptorState::GENWAIT)
+        if (current_desc.state == DescriptorState::GENHOLD)
         {
             this->current_weight = this->weights[weight_idx];
             current_desc.x_counter--;

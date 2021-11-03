@@ -35,6 +35,61 @@ Descriptor_2D Descriptor_2D::default_descriptor()
     return {0, 0, DescriptorState::SUSPENDED, 0, 0, 0, 0};
 }
 
+
+void Descriptor_2D::make_sequential(vector<Descriptor_2D>& program)
+{
+    int idx = 1;
+    for(auto& desc : program)
+    {
+        desc.next = idx++;
+    }
+    idx -= 2;
+    program.at(program.size()-1).next = idx;
+}
+
+Descriptor_2D Descriptor_2D::delay_inst(int delay_time)
+{
+    return Descriptor_2D(
+        /*next*/ 0,
+        /*start*/ 0,
+        /*state*/ DescriptorState::WAIT,
+        /*x_count*/ delay_time,
+        /*x_modify*/ 0,
+        /*y_count*/ 0,
+        /*y_modify*/ 0);
+}
+
+Descriptor_2D Descriptor_2D::stream_inst(int start_idx, int stream_size, int repeats)
+{
+    return Descriptor_2D(
+        /*next*/ 0,
+        /*start*/ start_idx,
+        /*state*/ DescriptorState::GENERATE,
+        /*x_count*/ stream_size,
+        /*x_modify*/ 1,
+        /*y_count*/ repeats,
+        /*y_modify*/ -(stream_size));
+}
+
+
+Descriptor_2D Descriptor_2D::genhold_inst(int start_idx, int hold_time, int repeats, int access_offset)
+{
+    return Descriptor_2D(
+        /*next*/ 0,
+        /*start*/ start_idx,
+        /*state*/ DescriptorState::GENHOLD,
+        /*x_count*/ hold_time,
+        /*x_modify*/ 1,
+        /*y_count*/ repeats,
+        /*y_modify*/ access_offset);
+}
+
+Descriptor_2D Descriptor_2D::suspend_inst()
+{
+    return {0, 0, DescriptorState::SUSPENDED, 0, 0, 0, 0};
+}
+
+
 void Descriptor_2D::x_count_update(int count)
 {
     this->x_count = count;
