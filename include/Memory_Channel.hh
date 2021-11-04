@@ -33,6 +33,7 @@ public:
     virtual MemoryChannelMode mode() = 0;
     virtual const sc_vector<sc_signal<DataType, SC_MANY_WRITERS>>& mem_read_data() = 0;
     virtual void mem_write_data(const sc_vector<sc_signal<DataType>>& _data) = 0;
+    virtual void mem_write_data(int _data) = 0;
     virtual const sc_vector<sc_signal<DataType, SC_MANY_WRITERS>>& channel_read_data() = 0;
     virtual const DataType& channel_read_data_element(unsigned int col) = 0;
     virtual sc_vector<sc_signal<DataType, SC_MANY_WRITERS>>& get_channel_read_data_bus() = 0;
@@ -59,6 +60,7 @@ struct MemoryChannel : public sc_module, public MemoryChannel_IF<DataType>
     const sc_vector<sc_signal<DataType, SC_MANY_WRITERS>>& mem_read_data();
 
     void mem_write_data(const sc_vector<sc_signal<DataType>>& _data);
+    void mem_write_data(int _data);
 
     const sc_vector<sc_signal<DataType, SC_MANY_WRITERS>>& channel_read_data();
 

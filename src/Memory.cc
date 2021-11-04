@@ -40,7 +40,7 @@ void Memory<DataType>::update()
                     for (unsigned int i = 0; i < width; i++)
                     {
                         access_counter++;
-                        ram[channels[channel_idx]->addr()][i] = channels[channel_idx]->mem_read_data()[i];
+                        ram.at(channels[channel_idx]->addr()).at(i) = channels[channel_idx]->mem_read_data().at(i);
                     }
                     break;
                 case MemoryChannelMode::READ:
@@ -49,6 +49,11 @@ void Memory<DataType>::update()
                     channels[channel_idx]->mem_write_data(ram.at(channels[channel_idx]->addr()));
                     break;
                 }
+
+            }
+            else
+            {
+                channels[channel_idx]->mem_write_data(0);
             }
         }
     }

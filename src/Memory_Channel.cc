@@ -38,7 +38,16 @@ void MemoryChannel<DataType>::mem_write_data(const sc_vector<sc_signal<DataType>
     assert(_data.size() == channel_width);
     for (unsigned int i = 0; i < channel_width; i++)
     {
-        read_channel_data[i] = _data[i];
+        read_channel_data.at(i) = _data.at(i);
+    }
+}
+
+template <typename DataType>
+void MemoryChannel<DataType>::mem_write_data(int _data)
+{
+    for (unsigned int i = 0; i < channel_width; i++)
+    {
+        read_channel_data.at(i) = DataType(_data);
     }
 }
 
