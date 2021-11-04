@@ -69,7 +69,7 @@ struct PeCreator
 
 #define IFMAP_H 10
 #define IFMAP_W 10
-#define C_IN 24
+#define C_IN 3
 #define F_OUT 16
 #define K 1
 #define OFMAP_H (IFMAP_H - K + 1)
@@ -102,7 +102,6 @@ public:
     SAM<DataType> ifmap_mem;
     sc_vector<sc_vector<sc_signal<DataType>>> ifmap_mem_read;
     sc_vector<sc_vector<sc_signal<DataType>>> ifmap_mem_write;
-    vector<float> res;
 
     unsigned int dram_access_counter{0};
     unsigned int pe_mem_access_counter{0};
@@ -179,8 +178,7 @@ public:
                               psum_mem_write("psum_mem_write", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
                               ifmap_mem("ifmap_mem", _control, channel_count, ifmap_mem_size, 1, _tf),
                               ifmap_mem_read("ifmap_mem_read", channel_count, SignalVectorCreator<DataType>(1, tf)),
-                              ifmap_mem_write("ifmap_mem_write", channel_count, SignalVectorCreator<DataType>(1, tf)),
-                              res(ifmap_mem_size)
+                              ifmap_mem_write("ifmap_mem_write", channel_count, SignalVectorCreator<DataType>(1, tf))
     {
         control(_control);
         _clk(control->clk());
@@ -272,26 +270,26 @@ xt::xarray<int> dram_load(Arch<DataType> &arch, long unsigned int channel_in, lo
 }
 
 template <typename DataType>
-void dram_store(Arch<DataType> &arch, long unsigned int ofmap_w, long unsigned int ofmap_h, long unsigned int channel_out)
+xt::xarray<int> dram_store(Arch<DataType> &arch, int filter_out, int ofmap_h, int ofmap_w)
 {
-    auto output_size = ofmap_h * ofmap_h * channel_out;
+    auto output_size = ofmap_h * ofmap_w * filter_out;
     assert(output_size <= psum_mem_size);
-    for (int c = 0; c < channel_out; c++)
+    xt::xarray<int> result = xt::zeros<int>({filter_out, ofmap_h, ofmap_w});
+    for (int f = 0; f < filter_out; f++)
     {
         for (int i = 0; i < ofmap_h; i++)
         {
             for (int j = 0; j < ofmap_w; j++)
             {
-                auto &mem_ptr = arch.ifmap_mem.mem.ram[c * (ofmap_h * ofmap_w) + i * ofmap_w + j][0];
-                auto &res_ptr = arch.res[c * (ofmap_h * ofmap_w) + i * ofmap_w + j];
-                mem_ptr.read();
+                auto &mem_ptr = arch.ifmap_mem.mem.ram[f * (ofmap_h * ofmap_w) + i * ofmap_w + j][0];
+                result(f, i, j) = mem_ptr.read();
                 arch.dram_access_counter++;
                 arch.psum_mem.mem.access_counter++;
             }
         }
     }
-    sc_start(1, SC_NS);
     cout << "Loaded dram contents from psum mem" << endl;
+    return result;
 }
 
 template <typename DataType>
@@ -367,18 +365,16 @@ void generate_and_load_psum_program(Arch<DataType> &arch, xt::xarray<int> padded
     for (int read_gen_idx = filter_count; read_gen_idx < filter_count * 2; read_gen_idx++)
     {
         vector<Descriptor_2D> program;
-        program.push_back(Descriptor_2D::delay_inst(0));
+        program.push_back(Descriptor_2D::delay_inst(3));
 
         for (int v = 0; v < verticle_tile_count; v++)
         {
-            program.push_back(Descriptor_2D::delay_inst(1));
             auto active = run_bitmap(v, (read_gen_idx - filter_count));
             if (active)
             {
-                program.push_back(Descriptor_2D::delay_inst(stream_size-4));
-                for (int h = 0; h < horizontal_tile_count; h++)
+                program.push_back(Descriptor_2D::delay_inst(stream_size - 4*(v == 0) - 1));
+                for (int h = 1; h < horizontal_tile_count; h++)
                 {
-                    int offset = (h>0)? 0 : 1;
                     program.push_back(Descriptor_2D::stream_inst((v * filter_count * stream_size) + (read_gen_idx - filter_count) * stream_size, stream_size - 1 , 0));
                 }
             }
@@ -561,6 +557,12 @@ xt::xarray<int> generate_expected_output(xt::xarray<int> ifmap, xt::xarray<int> 
     }
 
     return ofmap;
+}
+
+template <typename DataType>
+bool validate_expected_output(xt::xarray<int> expected, xt::xarray<int> result)
+{
+
 }
 
 template <typename DataType>
