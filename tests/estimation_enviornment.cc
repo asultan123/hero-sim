@@ -27,6 +27,7 @@
 #include <string>
 #include <xtensor/xadapt.hpp>
 #include <xtensor-blas/xlinalg.hpp>
+#include <boost/program_options.hpp>
 
 #define PAD -1
 
@@ -41,6 +42,7 @@ using std::chrono::duration_cast;
 using std::chrono::high_resolution_clock;
 using std::chrono::milliseconds;
 
+namespace po = boost::program_options;
 template <typename DataType>
 struct SignalVectorCreator
 {
@@ -601,19 +603,12 @@ bool validate_expected_output(xt::xarray<int> expected, xt::xarray<int> result)
 }
 
 template <typename DataType>
-void sim_and_get_results()
+void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, int filter_count, int channel_count)
 {
     auto t1 = high_resolution_clock::now();
 
-    int ifmap_h = 4;
-    int ifmap_w = 4;
-    int k = 1;
     int ofmap_h = (ifmap_h - k + 1);
     int ofmap_w = (ifmap_w - k + 1);
-    int c_in = 3;
-    int f_out = 16;
-    int filter_count = 7;
-    int channel_count = 9;
     int ifmap_mem_size = c_in * ifmap_h * ifmap_w;
     int psum_mem_size = f_out * ofmap_h * ofmap_w;
 
@@ -681,7 +676,6 @@ void sim_and_get_results()
         cout << std::left << std::setw(20) << "Latency in cycles" << end_cycle_time - start_cycle_time << endl;
         cout << std::left << std::setw(20) << "Simulated in " << sim_time.count() << "ms\n";
         exit(EXIT_SUCCESS); // avoids expensive de-alloc
-
     }
     else
     {
@@ -691,7 +685,83 @@ void sim_and_get_results()
 
 int sc_main(int argc, char *argv[])
 {
-    sim_and_get_results<sc_int<32>>();
+    int ifmap_h = 10;
+    int ifmap_w = 10;
+    int k = 1;
+    int c_in = 16;
+    int f_out = 16;
+    int filter_count = 7;
+    int channel_count = 9;
+    try
+    {
+        po::options_description config("Configuration");
+        config.add_options()("help", "produce help message")("ifmap_h", po::value<int>(), "set input feature map width")("ifmap_w", po::value<int>(), "set input feature map height")("k", po::value<int>(), "set kernel size")("c_in", po::value<int>(), "set ifmap channel count")("f_out", po::value<int>(), "set weight filter count")("filter_count", po::value<int>(), "set arch width")("channel_count", po::value<int>(), "set arch height");
+
+        po::variables_map vm;
+        po::store(po::parse_command_line(argc, argv, config), vm);
+        po::notify(vm);
+
+        if (vm.count("help"))
+        {
+            cout << config << "\n";
+            return 0;
+        }
+
+        ifmap_h = (vm.count("ifmap_h")) ? vm["ifmap_h"].as<int>() : ifmap_h;
+        ifmap_w = (vm.count("ifmap_w")) ? vm["ifmap_w"].as<int>() : ifmap_w;
+        k = (vm.count("k")) ? vm["k"].as<int>() : k;
+        c_in = (vm.count("c_in")) ? vm["c_in"].as<int>() : c_in;
+        f_out = (vm.count("f_out")) ? vm["f_out"].as<int>() : f_out;
+        filter_count = (vm.count("filter_count")) ? vm["filter_count"].as<int>() : filter_count;
+        channel_count = (vm.count("channel_count")) ? vm["channel_count"].as<int>() : channel_count;
+
+        if (ifmap_h <= 0 || ifmap_w <= 0 || k <= 0 || c_in <= 0 || f_out <= 0 || filter_count <= 0 || channel_count <= 0)
+        {
+            throw std::invalid_argument("all passed arguments must be positive");
+        }
+
+        if ((ifmap_h * ifmap_w) < 11)
+        {
+            throw std::invalid_argument("total ifmap sizes below 11 currently unsupported");
+        }
+
+        if (k > 1)
+        {
+            throw std::invalid_argument("kernel sizes greater than 1 currently unsupported");
+        }
+    }
+    catch (std::exception &e)
+    {
+        cout << "error: " << e.what() << "\n";
+        cout << "FAIL" << endl;
+
+        return 1;
+    }
+    catch (...)
+    {
+        cout << "Exception of unknown type!\n";
+        cout << "FAIL" << endl;
+
+        return 1;
+    }
+    cout << std::left << "Simulating arch with config:" << endl;
+    cout << endl;
+
+    cout << std::left << std::setw(20) << "filter_count"  << filter_count << endl;;
+    cout << std::left << std::setw(20) << "channel_count"  << channel_count << endl;;
+    cout << endl;
+
+    cout << std::left << "With layer config:" << endl;
+    cout << endl;
+    cout << std::left << std::setw(20) << "ifmap_h"  << ifmap_h << endl;
+    cout << std::left << std::setw(20) << "ifmap_w" << ifmap_w << endl;
+    cout << std::left << std::setw(20) << "k" << k << endl;
+    cout << std::left << std::setw(20) << "c_in" << c_in << endl;
+    cout << std::left << std::setw(20) << "f_out" << f_out << endl;
+
+    sim_and_get_results<sc_int<32>>(ifmap_h, ifmap_w, k, c_in, f_out, filter_count, channel_count);
+
+    return 0;
 }
 
 #endif // MEM_HIERARCHY_CPP
