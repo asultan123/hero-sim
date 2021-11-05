@@ -67,21 +67,8 @@ struct PeCreator
     sc_trace_file *tf;
 };
 
-#define IFMAP_H 10
-#define IFMAP_W 10
-#define C_IN 3
-#define F_OUT 16
-#define K 1
-#define OFMAP_H (IFMAP_H - K + 1)
-#define OFMAP_W (IFMAP_W - K + 1)
 
-const long unsigned filter_count{7};
-const long unsigned channel_count{9};
-const long unsigned pe_count{filter_count * channel_count};
 
-const long unsigned ifmap_mem_size{C_IN * IFMAP_H * IFMAP_W};
-const long unsigned psum_mem_size{F_OUT * OFMAP_H * OFMAP_W};
-const long unsigned dram_access_cost{200};
 
 template <typename DataType>
 struct Arch : public sc_module
@@ -105,6 +92,10 @@ public:
 
     unsigned int dram_access_counter{0};
     unsigned int pe_mem_access_counter{0};
+    int filter_count;
+    int channel_count;
+    int psum_mem_size;
+    int ifmap_mem_size;
 
     void update_1x1()
     {
@@ -112,14 +103,14 @@ public:
         {
             while (control->enable())
             {
-                for (long unsigned filter_row = 0; filter_row < filter_count; filter_row++)
+                for (int filter_row = 0; filter_row < filter_count; filter_row++)
                 {
                     PE<DataType> &first_pe_in_row = this->pe_array[filter_row * channel_count];
                     first_pe_in_row.psum_in = psum_mem_read.at(filter_row + filter_count).at(0).read();
                 }
-                for (long unsigned filter_row = 0; filter_row < filter_count; filter_row++)
+                for (int filter_row = 0; filter_row < filter_count; filter_row++)
                 {
-                    for (long unsigned channel_column = 0; channel_column < channel_count - 1; channel_column++)
+                    for (int channel_column = 0; channel_column < channel_count - 1; channel_column++)
                     {
 
                         PE<DataType> &cur_pe = this->pe_array[filter_row * channel_count + channel_column];
@@ -138,10 +129,6 @@ public:
                     }
                     PE<DataType> &last_pe = this->pe_array[filter_row * channel_count + channel_count - 1];
 
-                    if (sc_time_stamp().value() == 328000)
-                    {
-                        cout << "BREAK" << endl;
-                    }
                     if (last_pe.current_weight.read() != -1)
                     {
                         psum_mem_write[filter_row][0] = last_pe.compute(ifmap_mem_read[channel_count - 1][0].read());
@@ -170,8 +157,12 @@ public:
     Arch(
         sc_module_name name,
         GlobalControlChannel &_control,
+        int filter_count, 
+        int channel_count,
+        int psum_mem_size,
+        int ifmap_mem_size,
         sc_trace_file *_tf) : sc_module(name),
-                              pe_array("pe_array", pe_count, PeCreator<DataType>(_tf)),
+                              pe_array("pe_array", filter_count*channel_count, PeCreator<DataType>(_tf)),
                               tf(_tf),
                               psum_mem("psum_mem", _control, filter_count * 2, psum_mem_size, 1, _tf),
                               psum_mem_read("psum_mem_read", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
@@ -182,6 +173,10 @@ public:
     {
         control(_control);
         _clk(control->clk());
+        this->filter_count = filter_count;
+        this->channel_count = channel_count;
+        this->psum_mem_size = psum_mem_size;
+        this->ifmap_mem_size = ifmap_mem_size;
 
         // for(auto& psum: this->filter_psum_out)
         // {
@@ -189,23 +184,23 @@ public:
         // }
 
         // psum_read/write
-        for (long unsigned int i = 0; i < filter_count * 2; i++)
+        for (int i = 0; i < filter_count * 2; i++)
         {
             psum_mem.read_channel_data[i][0](psum_mem_read[i][0]);
             psum_mem.write_channel_data[i][0](psum_mem_write[i][0]);
         }
-        for (long unsigned int i = 0; i < filter_count; i++)
+        for (int i = 0; i < filter_count; i++)
         {
             psum_mem.channels[i].set_mode(MemoryChannelMode::WRITE);
             sc_trace(tf, psum_mem_write[i][0], (this->psum_mem_write[i][0].name()));
         }
-        for (long unsigned int i = filter_count; i < filter_count * 2; i++)
+        for (int i = filter_count; i < filter_count * 2; i++)
         {
             psum_mem.channels[i].set_mode(MemoryChannelMode::READ);
             sc_trace(tf, psum_mem_read[i][0], (this->psum_mem_read[i][0].name()));
         }
 
-        for (long unsigned int i = 0; i < channel_count; i++)
+        for (int i = 0; i < channel_count; i++)
         {
             ifmap_mem.channels[i].set_mode(MemoryChannelMode::READ);
             ifmap_mem.read_channel_data[i][0](ifmap_mem_read[i][0]);
@@ -226,37 +221,40 @@ template <typename DataType>
 void set_channel_modes(Arch<DataType> &arch)
 {
 
-    for (long unsigned int i = 0; i < filter_count; i++)
+    for (int i = 0; i < arch.filter_count; i++)
     {
         arch.psum_mem.channels[i].set_mode(MemoryChannelMode::WRITE);
     }
-    for (long unsigned int i = filter_count; i < filter_count * 2; i++)
+    for (int i = arch.filter_count; i < arch.filter_count * 2; i++)
     {
         arch.psum_mem.channels[i].set_mode(MemoryChannelMode::READ);
     }
 
-    for (long unsigned int i = 0; i < channel_count; i++)
+    for (int i = 0; i < arch.channel_count; i++)
     {
         arch.ifmap_mem.channels[i].set_mode(MemoryChannelMode::READ);
     }
 }
 
 template <typename DataType>
-xt::xarray<int> dram_load(Arch<DataType> &arch, long unsigned int channel_in, long unsigned int ifmap_h, long unsigned int ifmap_w)
+xt::xarray<int> dram_load(Arch<DataType> &arch, int channel_in, int ifmap_h, int ifmap_w)
 {
-    auto input_size = ifmap_h * ifmap_h * channel_in;
-    assert(input_size <= ifmap_mem_size);
+    auto input_size = ifmap_h * ifmap_w * channel_in;
+    assert(input_size <= arch.ifmap_mem_size);
 
-    xt::xarray<int> ifmap = xt::arange((unsigned long int)1, input_size + 1);
+    xt::xarray<int> ifmap = xt::arange((int)1, input_size + 1);
     ifmap.reshape({channel_in, ifmap_h, ifmap_w});
 
-    for (long unsigned int c = 0; c < channel_in; c++)
+    // cout << "IFMAP" << endl;
+    // cout << ifmap << endl;
+
+    for (int c = 0; c < channel_in; c++)
     {
-        for (long unsigned int i = 0; i < ifmap_h; i++)
+        for (int i = 0; i < ifmap_h; i++)
         {
-            for (long unsigned int j = 0; j < ifmap_w; j++)
+            for (int j = 0; j < ifmap_w; j++)
             {
-                auto &mem_ptr = arch.ifmap_mem.mem.ram[c * (ifmap_h * ifmap_w) + i * ifmap_w + j][0];
+                auto &mem_ptr = arch.ifmap_mem.mem.ram.at(c * (ifmap_h * ifmap_w) + i * ifmap_w + j).at(0);
                 mem_ptr.write(ifmap(c, i, j));
                 arch.dram_access_counter++;
                 arch.ifmap_mem.mem.access_counter++;
@@ -273,7 +271,7 @@ template <typename DataType>
 xt::xarray<int> dram_store(Arch<DataType> &arch, int filter_out, int ofmap_h, int ofmap_w)
 {
     auto output_size = ofmap_h * ofmap_w * filter_out;
-    assert(output_size <= psum_mem_size);
+    assert(output_size <= arch.psum_mem_size);
     xt::xarray<int> result = xt::zeros<int>({filter_out, ofmap_h, ofmap_w});
     for (int f = 0; f < filter_out; f++)
     {
@@ -281,7 +279,7 @@ xt::xarray<int> dram_store(Arch<DataType> &arch, int filter_out, int ofmap_h, in
         {
             for (int j = 0; j < ofmap_w; j++)
             {
-                auto &mem_ptr = arch.ifmap_mem.mem.ram[f * (ofmap_h * ofmap_w) + i * ofmap_w + j][0];
+                auto &mem_ptr = arch.psum_mem.mem.ram.at(f * (ofmap_h * ofmap_w) + i * ofmap_w + j).at(0);
                 result(f, i, j) = mem_ptr.read();
                 arch.dram_access_counter++;
                 arch.psum_mem.mem.access_counter++;
@@ -297,11 +295,11 @@ void generate_and_load_pe_program(Arch<DataType> &arch, int ifmap_h, int ifmap_w
 {
     int stream_size = ifmap_h * ifmap_w;
     int delay_offset = 1;
-    for (unsigned long int channel_column = 0; channel_column < channel_count; channel_column++)
+    for ( int channel_column = 0; channel_column < arch.channel_count; channel_column++)
     {
-        for (unsigned long int filter_row = 0; filter_row < filter_count; filter_row++)
+        for ( int filter_row = 0; filter_row < arch.filter_count; filter_row++)
         {
-            PE<DataType> &cur_pe = arch.pe_array[filter_row * channel_count + channel_column];
+            PE<DataType> &cur_pe = arch.pe_array[filter_row * arch.channel_count + channel_column];
             vector<Descriptor_2D> program;
             program.push_back(Descriptor_2D::delay_inst(channel_column + delay_offset));
             program.push_back(Descriptor_2D::genhold_inst(0, stream_size, cur_pe.weights.size() - 1, 1));
@@ -312,23 +310,23 @@ void generate_and_load_pe_program(Arch<DataType> &arch, int ifmap_h, int ifmap_w
 }
 
 template <typename DataType>
-void generate_and_load_psum_program(Arch<DataType> &arch, xt::xarray<int> padded_weights, int ifmap_h, int ifmap_w)
+void generate_and_load_psum_program(Arch<DataType> &arch, xt::xarray<int> padded_weights, int ofmap_h, int ofmap_w)
 {
-    int verticle_tile_count = padded_weights.shape()[0] / filter_count;
-    int horizontal_tile_count = padded_weights.shape()[1] / channel_count;
-    int ofmap_h = OFMAP_H;
-    int ofmap_w = OFMAP_W;
+    int verticle_tile_count = padded_weights.shape()[0] / arch.filter_count;
+    int horizontal_tile_count = padded_weights.shape()[1] / arch.channel_count;
+
     int stream_size = ofmap_h * ofmap_w;
 
-    xt::xarray<int> run_bitmap = xt::zeros<int>({verticle_tile_count, (int)filter_count});
-    for (auto filter_offset = 0; filter_offset < padded_weights.shape()[0]; filter_offset += filter_count)
+
+    xt::xarray<int> run_bitmap = xt::zeros<int>({verticle_tile_count, (int)arch.filter_count});
+    for (auto filter_offset = 0; filter_offset < (int)padded_weights.shape()[0]; filter_offset += arch.filter_count)
     {
-        for (auto channel_offset = 0; channel_offset < padded_weights.shape()[1]; channel_offset += channel_count)
+        for (auto channel_offset = 0; channel_offset < (int)padded_weights.shape()[1]; channel_offset += arch.channel_count)
         {
-            auto tiled_view = xt::view(padded_weights, xt::range(filter_offset, filter_offset + filter_count), xt::range(channel_offset, channel_offset + channel_count));
-            for (int filter = 0; filter < filter_count; filter++)
+            auto tiled_view = xt::view(padded_weights, xt::range(filter_offset, filter_offset + arch.filter_count), xt::range(channel_offset, channel_offset + arch.channel_count));
+            for (int filter = 0; filter < arch.filter_count; filter++)
             {
-                int verticle_tile_idx = filter_offset / filter_count;
+                int verticle_tile_idx = filter_offset / arch.filter_count;
                 if (tiled_view(filter, 0) != -1)
                 {
                     run_bitmap(verticle_tile_idx, filter) = 1;
@@ -337,14 +335,14 @@ void generate_and_load_psum_program(Arch<DataType> &arch, xt::xarray<int> padded
         }
     }
 
-    cout << padded_weights << endl;
-    cout << run_bitmap << endl;
+    // cout << padded_weights << endl;
+    // cout << run_bitmap << endl;
 
-    for (int write_gen_idx = 0; write_gen_idx < filter_count; write_gen_idx++)
+    for (int write_gen_idx = 0; write_gen_idx < arch.filter_count; write_gen_idx++)
     {
         vector<Descriptor_2D> program;
 
-        program.push_back(Descriptor_2D::delay_inst(channel_count + 1));
+        program.push_back(Descriptor_2D::delay_inst(arch.channel_count + 1));
         for (int v = 0; v < verticle_tile_count; v++)
         {
             auto active = run_bitmap(v, write_gen_idx);
@@ -352,7 +350,7 @@ void generate_and_load_psum_program(Arch<DataType> &arch, xt::xarray<int> padded
             {
                 for (int h = 0; h < horizontal_tile_count; h++)
                 {
-                    program.push_back(Descriptor_2D::stream_inst(v * filter_count * stream_size + write_gen_idx * stream_size, stream_size - 1, 0));
+                    program.push_back(Descriptor_2D::stream_inst(v * arch.filter_count * stream_size + write_gen_idx * stream_size, stream_size - 1, 0));
                 }
             }
         }
@@ -362,20 +360,20 @@ void generate_and_load_psum_program(Arch<DataType> &arch, xt::xarray<int> padded
         arch.psum_mem.generators.at(write_gen_idx).loadProgram(program);
     }
 
-    for (int read_gen_idx = filter_count; read_gen_idx < filter_count * 2; read_gen_idx++)
+    for (int read_gen_idx = arch.filter_count; read_gen_idx < arch.filter_count * 2; read_gen_idx++)
     {
         vector<Descriptor_2D> program;
         program.push_back(Descriptor_2D::delay_inst(3));
 
         for (int v = 0; v < verticle_tile_count; v++)
         {
-            auto active = run_bitmap(v, (read_gen_idx - filter_count));
+            auto active = run_bitmap(v, (read_gen_idx - arch.filter_count));
             if (active)
             {
                 program.push_back(Descriptor_2D::delay_inst(stream_size - 4*(v == 0) - 1));
                 for (int h = 1; h < horizontal_tile_count; h++)
                 {
-                    program.push_back(Descriptor_2D::stream_inst((v * filter_count * stream_size) + (read_gen_idx - filter_count) * stream_size, stream_size - 1 , 0));
+                    program.push_back(Descriptor_2D::stream_inst((v * arch.filter_count * stream_size) + (read_gen_idx - arch.filter_count) * stream_size, stream_size - 1 , 0));
                 }
             }
         }
@@ -388,19 +386,19 @@ void generate_and_load_psum_program(Arch<DataType> &arch, xt::xarray<int> padded
 template <typename DataType>
 void generate_and_load_ifmap_in_program(Arch<DataType> &arch, xt::xarray<int> padded_weights, int ifmap_h, int ifmap_w)
 {
-    int verticle_tile_count = padded_weights.shape()[0] / filter_count;
-    int horizontal_tile_count = padded_weights.shape()[1] / channel_count;
+    int verticle_tile_count = padded_weights.shape()[0] / arch.filter_count;
+    int horizontal_tile_count = padded_weights.shape()[1] / arch.channel_count;
 
-    xt::xarray<int> run_bitmap = xt::zeros<int>({verticle_tile_count, horizontal_tile_count, (int)channel_count});
-    for (auto filter_offset = 0; filter_offset < padded_weights.shape()[0]; filter_offset += filter_count)
+    xt::xarray<int> run_bitmap = xt::zeros<int>({verticle_tile_count, horizontal_tile_count, (int)arch.channel_count});
+    for (auto filter_offset = 0; filter_offset < (int)padded_weights.shape()[0]; filter_offset += arch.filter_count)
     {
-        for (auto channel_offset = 0; channel_offset < padded_weights.shape()[1]; channel_offset += channel_count)
+        for (auto channel_offset = 0; channel_offset < (int)padded_weights.shape()[1]; channel_offset += arch.channel_count)
         {
-            auto tiled_view = xt::view(padded_weights, xt::range(filter_offset, filter_offset + filter_count), xt::range(channel_offset, channel_offset + channel_count));
-            for (int channel = 0; channel < channel_count; channel++)
+            auto tiled_view = xt::view(padded_weights, xt::range(filter_offset, filter_offset + arch.filter_count), xt::range(channel_offset, channel_offset + arch.channel_count));
+            for (int channel = 0; channel < arch.channel_count; channel++)
             {
-                int verticle_tile_idx = filter_offset / filter_count;
-                int horizontal_tile_idx = channel_offset / channel_count;
+                int verticle_tile_idx = filter_offset / arch.filter_count;
+                int horizontal_tile_idx = channel_offset / arch.channel_count;
                 if (tiled_view(0, channel) != -1)
                 {
                     run_bitmap(verticle_tile_idx, horizontal_tile_idx, channel) = 1;
@@ -409,9 +407,9 @@ void generate_and_load_ifmap_in_program(Arch<DataType> &arch, xt::xarray<int> pa
         }
     }
 
-    cout << padded_weights << endl;
+    // cout << padded_weights << endl;
 
-    cout << run_bitmap << endl;
+    // cout << run_bitmap << endl;
 
     int ag_idx = 0;
     for (auto &ag : arch.ifmap_mem.generators)
@@ -425,7 +423,7 @@ void generate_and_load_ifmap_in_program(Arch<DataType> &arch, xt::xarray<int> pa
             {
                 int active = run_bitmap(v, h, ag_idx);
                 int stream_size = ifmap_h * ifmap_w;
-                int stream_start_idx = h * channel_count * stream_size + ag_idx * stream_size;
+                int stream_start_idx = h * arch.channel_count * stream_size + ag_idx * stream_size;
 
                 if (active)
                 {
@@ -458,7 +456,7 @@ tuple<xt::xarray<int>, xt::xarray<int>> generate_and_load_weights(Arch<DataType>
 {
     int kernel_size = kernel * kernel;
     xt::xarray<int> weights = xt::arange(1, channel_in_dim * filter_out_dim * kernel_size + 1);
-    vector<vector<deque<int>>> pe_weights(filter_count, vector<deque<int>>(channel_count, deque<int>()));
+    vector<vector<deque<int>>> pe_weights(arch.filter_count, vector<deque<int>>(arch.channel_count, deque<int>()));
 
     long unsigned int verticle_padding;
     long unsigned int horizontal_padding;
@@ -468,8 +466,8 @@ tuple<xt::xarray<int>, xt::xarray<int>> generate_and_load_weights(Arch<DataType>
     case UnrollOrientation::HORIZONTAL:
     {
         weights.reshape({filter_out_dim, channel_in_dim * kernel_size});
-        verticle_padding = ceil((float)filter_out_dim / filter_count) * filter_count - filter_out_dim;
-        horizontal_padding = ceil((float)(channel_in_dim * kernel_size) / channel_count) * channel_count - (channel_in_dim * kernel_size);
+        verticle_padding = ceil((float)filter_out_dim / arch.filter_count) * arch.filter_count - filter_out_dim;
+        horizontal_padding = ceil((float)(channel_in_dim * kernel_size) / arch.channel_count) * arch.channel_count - (channel_in_dim * kernel_size);
         break;
     }
     default:
@@ -480,17 +478,17 @@ tuple<xt::xarray<int>, xt::xarray<int>> generate_and_load_weights(Arch<DataType>
 
     xt::xarray<int> padded_weights = xt::pad(weights, {{0, verticle_padding}, {0, horizontal_padding}}, xt::pad_mode::constant, PAD);
 
-    cout << padded_weights << endl;
+    // cout << padded_weights << endl;
 
-    for (auto filter_offset = 0; filter_offset < padded_weights.shape()[0]; filter_offset += filter_count)
+    for (auto filter_offset = 0; filter_offset < (int)padded_weights.shape()[0]; filter_offset += arch.filter_count)
     {
-        for (auto channel_offset = 0; channel_offset < padded_weights.shape()[1]; channel_offset += channel_count)
+        for (auto channel_offset = 0; channel_offset < (int)padded_weights.shape()[1]; channel_offset += arch.channel_count)
         {
-            auto tiled_view = xt::view(padded_weights, xt::range(filter_offset, filter_offset + filter_count), xt::range(channel_offset, channel_offset + channel_count));
+            auto tiled_view = xt::view(padded_weights, xt::range(filter_offset, filter_offset + arch.filter_count), xt::range(channel_offset, channel_offset + arch.channel_count));
 
-            for (auto i = 0; i < filter_count; i++)
+            for (auto i = 0; i < arch.filter_count; i++)
             {
-                for (auto j = 0; j < channel_count; j++)
+                for (auto j = 0; j < arch.channel_count; j++)
                 {
                     pe_weights[i][j].push_back(tiled_view(i, j));
                 }
@@ -498,11 +496,11 @@ tuple<xt::xarray<int>, xt::xarray<int>> generate_and_load_weights(Arch<DataType>
         }
     }
 
-    for (unsigned long int filter_row = 0; filter_row < filter_count; filter_row++)
+    for ( int filter_row = 0; filter_row < arch.filter_count; filter_row++)
     {
-        for (unsigned long int channel_column = 0; channel_column < channel_count; channel_column++)
+        for ( int channel_column = 0; channel_column < arch.channel_count; channel_column++)
         {
-            auto &cur_pe = arch.pe_array[filter_row * channel_count + channel_column];
+            auto &cur_pe = arch.pe_array[filter_row * arch.channel_count + channel_column];
             vector<int> pe_weight_temp(pe_weights[filter_row][channel_column].begin(), pe_weights[filter_row][channel_column].end());
             cur_pe.loadWeights(pe_weight_temp);
         }
@@ -516,11 +514,11 @@ xt::xarray<int> generate_expected_output(xt::xarray<int> ifmap, xt::xarray<int> 
 {
     // weights.shape() = F*C*K*K
     assert(weights.shape().size() == 4);
-    cout << xt::adapt(weights.shape()) << endl;
+    // cout << xt::adapt(weights.shape()) << endl;
     // ifmap.shape() = C*H*W
     assert(ifmap.shape().size() == 3);
-    cout << xt::adapt(ifmap.shape()) << endl;
-    cout << ifmap << endl;
+    // cout << xt::adapt(ifmap.shape()) << endl;
+    // cout << ifmap << endl;
     // symmetric kernel
     assert(weights.shape(3) == weights.shape(2));
 
@@ -559,20 +557,31 @@ xt::xarray<int> generate_expected_output(xt::xarray<int> ifmap, xt::xarray<int> 
     return ofmap;
 }
 
-template <typename DataType>
 bool validate_expected_output(xt::xarray<int> expected, xt::xarray<int> result)
 {
-
+    // cout << "EXPECTED RESULT" << endl;
+    // cout << expected << endl;
+    // cout << "ACTUAL RESULT" << endl;
+    // cout << result << endl;
+    return expected == result;
 }
+
 
 template <typename DataType>
 long sim_and_get_results()
 {
-    int ifmap_h = IFMAP_H;
-    int ifmap_w = IFMAP_W;
-    int c_in = C_IN;
-    int f_out = F_OUT;
-    int k = K;
+    int ifmap_h = 10;
+    int ifmap_w = 10;
+    int k = 1;
+    int ofmap_h = (ifmap_h - k + 1);
+    int ofmap_w = (ifmap_w - k + 1);
+    int c_in = 16;
+    int f_out = 16;
+    int filter_count = 7;
+    int channel_count = 9;
+    int ifmap_mem_size = c_in * ifmap_h * ifmap_w;
+    int psum_mem_size = f_out * ofmap_h * ofmap_w;
+    int dram_access_cost = 200;
 
     xt::print_options::set_threshold(10000);
     xt::print_options::set_line_width(100);
@@ -581,7 +590,7 @@ long sim_and_get_results()
     tf->set_time_unit(100, SC_PS);
 
     GlobalControlChannel control("global_control_channel", sc_time(1, SC_NS), tf);
-    Arch<DataType> arch("arch", control, tf);
+    Arch<DataType> arch("arch", control, filter_count,  channel_count, psum_mem_size, ifmap_mem_size, tf);
 
     auto t1 = high_resolution_clock::now();
     control.set_reset(true);
@@ -594,11 +603,13 @@ long sim_and_get_results()
     set_channel_modes(arch);
     xt::xarray<int> weights, padded_weights;
     std::tie(weights, padded_weights) = generate_and_load_weights(arch, f_out, c_in, k, UnrollOrientation::HORIZONTAL);
-    auto expected_ofmap = generate_expected_output(ifmap, weights);
+
+    // cout << "PADDED WEIGHTS" << endl;
+    // cout << padded_weights << endl;
 
     generate_and_load_pe_program(arch, ifmap_h, ifmap_w);
     generate_and_load_ifmap_in_program(arch, padded_weights, ifmap_h, ifmap_w);
-    generate_and_load_psum_program(arch, padded_weights, ifmap_h, ifmap_w);
+    generate_and_load_psum_program(arch, padded_weights, ofmap_h, ofmap_w);
 
     control.set_program(true);
     sc_start(1, SC_NS);
@@ -607,7 +618,19 @@ long sim_and_get_results()
     sc_start(10000, SC_NS);
     auto t2 = high_resolution_clock::now();
     auto ms_int = duration_cast<milliseconds>(t2 - t1);
-    cout << expected_ofmap << endl;
+
+    auto res = dram_store(arch, f_out, ofmap_h, ofmap_w);
+    auto expected_ofmap = generate_expected_output(ifmap, weights);
+    auto valid = validate_expected_output(expected_ofmap, res);
+
+    if(valid)
+    {
+        cout << "ALL TESTS PASS" << endl;
+    }
+    else
+    {
+        cout << "FAIL" << endl;
+    }
     return ms_int.count();
 }
 
@@ -616,8 +639,6 @@ int sc_main(int argc, char *argv[])
 
     auto sim_time = sim_and_get_results<sc_int<32>>();
     std::cout << sim_time << "ms\n";
-
-    cout << "ALL TESTS PASS" << endl;
 
     exit(EXIT_SUCCESS); // avoids expensive de-alloc
 }
