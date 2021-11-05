@@ -67,9 +67,6 @@ struct PeCreator
     sc_trace_file *tf;
 };
 
-
-
-
 template <typename DataType>
 struct Arch : public sc_module
 {
@@ -96,6 +93,37 @@ public:
     int psum_mem_size;
     int ifmap_mem_size;
 
+    void suspend_monitor()
+    {
+        while (1)
+        {
+            while (control->enable())
+            {
+                bool pes_suspended = true;
+                for (auto &pe : pe_array)
+                {
+                    pes_suspended &= (pe.program.at(pe.prog_idx).state == DescriptorState::SUSPENDED);
+                }
+                bool ifmap_generators_suspended = true;
+                for (auto &gen : ifmap_mem.generators)
+                {
+                    ifmap_generators_suspended &= (gen.currentDescriptor().state == DescriptorState::SUSPENDED);
+                }
+                bool psum_generators_suspended = true;
+                for (auto &gen : psum_mem.generators)
+                {
+                    psum_generators_suspended &= (gen.currentDescriptor().state == DescriptorState::SUSPENDED);
+                }
+                if (pes_suspended && ifmap_generators_suspended && psum_generators_suspended)
+                {
+                    sc_stop();
+                }
+                wait();
+            }
+            wait();
+        }
+    }
+
     void update_1x1()
     {
         while (1)
@@ -116,12 +144,13 @@ public:
                         PE<DataType> &next_pe = this->pe_array[filter_row * channel_count + channel_column + 1];
                         if (cur_pe.current_weight.read() != -1)
                         {
+                            cur_pe.active_counter++;
                             next_pe.psum_in = cur_pe.compute(ifmap_mem_read[channel_column][0].read());
                         }
                         else
                         {
                             // bypass
-
+                            cur_pe.inactive_counter++;
                             next_pe.psum_in = cur_pe.psum_in.read();
                         }
                         cur_pe.updateState();
@@ -130,10 +159,12 @@ public:
 
                     if (last_pe.current_weight.read() != -1)
                     {
+                        last_pe.active_counter++;
                         psum_mem_write[filter_row][0] = last_pe.compute(ifmap_mem_read[channel_count - 1][0].read());
                     }
                     else
                     {
+                        last_pe.inactive_counter++;
                         psum_mem_write[filter_row][0] = last_pe.psum_in.read();
                     }
                     last_pe.updateState();
@@ -156,12 +187,12 @@ public:
     Arch(
         sc_module_name name,
         GlobalControlChannel &_control,
-        int filter_count, 
+        int filter_count,
         int channel_count,
         int psum_mem_size,
         int ifmap_mem_size,
         sc_trace_file *_tf) : sc_module(name),
-                              pe_array("pe_array", filter_count*channel_count, PeCreator<DataType>(_tf)),
+                              pe_array("pe_array", filter_count * channel_count, PeCreator<DataType>(_tf)),
                               tf(_tf),
                               psum_mem("psum_mem", _control, filter_count * 2, psum_mem_size, 1, _tf),
                               psum_mem_read("psum_mem_read", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
@@ -208,6 +239,10 @@ public:
         }
 
         SC_THREAD(update_1x1);
+        sensitive << _clk.pos();
+        sensitive << control->reset();
+
+        SC_THREAD(suspend_monitor);
         sensitive << _clk.pos();
         sensitive << control->reset();
         cout << "Arch MODULE: " << name << " has been instantiated " << endl;
@@ -294,9 +329,9 @@ void generate_and_load_pe_program(Arch<DataType> &arch, int ifmap_h, int ifmap_w
 {
     int stream_size = ifmap_h * ifmap_w;
     int delay_offset = 1;
-    for ( int channel_column = 0; channel_column < arch.channel_count; channel_column++)
+    for (int channel_column = 0; channel_column < arch.channel_count; channel_column++)
     {
-        for ( int filter_row = 0; filter_row < arch.filter_count; filter_row++)
+        for (int filter_row = 0; filter_row < arch.filter_count; filter_row++)
         {
             PE<DataType> &cur_pe = arch.pe_array[filter_row * arch.channel_count + channel_column];
             vector<Descriptor_2D> program;
@@ -315,7 +350,6 @@ void generate_and_load_psum_program(Arch<DataType> &arch, xt::xarray<int> padded
     int horizontal_tile_count = padded_weights.shape()[1] / arch.channel_count;
 
     int stream_size = ofmap_h * ofmap_w;
-
 
     xt::xarray<int> run_bitmap = xt::zeros<int>({verticle_tile_count, (int)arch.filter_count});
     for (auto filter_offset = 0; filter_offset < (int)padded_weights.shape()[0]; filter_offset += arch.filter_count)
@@ -369,10 +403,10 @@ void generate_and_load_psum_program(Arch<DataType> &arch, xt::xarray<int> padded
             auto active = run_bitmap(v, (read_gen_idx - arch.filter_count));
             if (active)
             {
-                program.push_back(Descriptor_2D::delay_inst(stream_size - 4*(v == 0) - 1));
+                program.push_back(Descriptor_2D::delay_inst(stream_size - 4 * (v == 0) - 1));
                 for (int h = 1; h < horizontal_tile_count; h++)
                 {
-                    program.push_back(Descriptor_2D::stream_inst((v * arch.filter_count * stream_size) + (read_gen_idx - arch.filter_count) * stream_size, stream_size - 1 , 0));
+                    program.push_back(Descriptor_2D::stream_inst((v * arch.filter_count * stream_size) + (read_gen_idx - arch.filter_count) * stream_size, stream_size - 1, 0));
                 }
             }
         }
@@ -496,9 +530,9 @@ tuple<xt::xarray<int>, xt::xarray<int>> generate_and_load_weights(Arch<DataType>
         }
     }
 
-    for ( int filter_row = 0; filter_row < arch.filter_count; filter_row++)
+    for (int filter_row = 0; filter_row < arch.filter_count; filter_row++)
     {
-        for ( int channel_column = 0; channel_column < arch.channel_count; channel_column++)
+        for (int channel_column = 0; channel_column < arch.channel_count; channel_column++)
         {
             auto &cur_pe = arch.pe_array[filter_row * arch.channel_count + channel_column];
             vector<int> pe_weight_temp(pe_weights[filter_row][channel_column].begin(), pe_weights[filter_row][channel_column].end());
@@ -566,22 +600,22 @@ bool validate_expected_output(xt::xarray<int> expected, xt::xarray<int> result)
     return expected == result;
 }
 
-
 template <typename DataType>
-long sim_and_get_results()
+void sim_and_get_results()
 {
-    int ifmap_h = 10;
-    int ifmap_w = 10;
+    auto t1 = high_resolution_clock::now();
+
+    int ifmap_h = 4;
+    int ifmap_w = 4;
     int k = 1;
     int ofmap_h = (ifmap_h - k + 1);
     int ofmap_w = (ifmap_w - k + 1);
-    int c_in = 16;
+    int c_in = 3;
     int f_out = 16;
     int filter_count = 7;
     int channel_count = 9;
     int ifmap_mem_size = c_in * ifmap_h * ifmap_w;
     int psum_mem_size = f_out * ofmap_h * ofmap_w;
-    int dram_access_cost = 200;
 
     xt::xarray<int> weights, padded_weights;
 
@@ -592,9 +626,9 @@ long sim_and_get_results()
     tf->set_time_unit(100, SC_PS);
 
     GlobalControlChannel control("global_control_channel", sc_time(1, SC_NS), tf);
-    Arch<DataType> arch("arch", control, filter_count,  channel_count, psum_mem_size, ifmap_mem_size, tf);
+    Arch<DataType> arch("arch", control, filter_count, channel_count, psum_mem_size, ifmap_mem_size, tf);
 
-    auto t1 = high_resolution_clock::now();
+    int start_cycle_time = sc_time_stamp().value();
     control.set_reset(true);
     sc_start(10, SC_NS);
     control.set_reset(false);
@@ -617,41 +651,47 @@ long sim_and_get_results()
     sc_start(1, SC_NS);
     control.set_enable(true);
     control.set_program(false);
-    sc_start(10000, SC_NS);
-    auto t2 = high_resolution_clock::now();
-    auto ms_int = duration_cast<milliseconds>(t2 - t1);
+    sc_start();
 
     auto res = dram_store(arch, f_out, ofmap_h, ofmap_w);
     auto expected_ofmap = generate_expected_output(ifmap, weights);
     auto valid = validate_expected_output(expected_ofmap, res);
+    int end_cycle_time = sc_time_stamp().value();
 
-    if(valid)
+    auto t2 = high_resolution_clock::now();
+    auto sim_time = duration_cast<milliseconds>(t2 - t1);
+
+    if (valid)
     {
-        cout << "ALL TESTS PASS" << endl;
-        cout << std::right << "DRAM Access" << std::setw(7) << arch.dram_access_counter << endl;
+        cout << "PASS" << endl;
         int weight_access = 0;
-        for(auto& pe : arch.pe_array)
+        xt::xarray<float> pe_utilization = xt::zeros<float>({1, (int)arch.pe_array.size()});
+        int pe_idx = 0;
+        for (auto &pe : arch.pe_array)
         {
             weight_access += pe.weight_access_counter;
+            pe_utilization(0, pe_idx++) = (float)pe.active_counter / (float)(pe.active_counter + pe.inactive_counter);
         }
-        cout << std::right << "Weight Access" << std::setw(7) << weight_access << endl;
-        cout << std::right << "Psum Access" << std::setw(7) << arch.psum_mem.mem.access_counter << endl;
-        cout << std::right << "Ifmap Access" << std::setw(7) << arch.ifmap_mem.mem.access_counter << endl;
+        float avg_util = xt::average(pe_utilization)(0);
+        cout << std::left << std::setw(20) << "DRAM Access" << arch.dram_access_counter << endl;
+        cout << std::left << std::setw(20) << "Weight Access" << weight_access << endl;
+        cout << std::left << std::setw(20) << "Psum Access" << arch.psum_mem.mem.access_counter << endl;
+        cout << std::left << std::setw(20) << "Ifmap Access" << arch.ifmap_mem.mem.access_counter << endl;
+        cout << std::left << std::setw(20) << "Avg. Pe Util" << std::setprecision(2) << avg_util << endl;
+        cout << std::left << std::setw(20) << "Latency in cycles" << end_cycle_time - start_cycle_time << endl;
+        cout << std::left << std::setw(20) << "Simulated in " << sim_time.count() << "ms\n";
+        exit(EXIT_SUCCESS); // avoids expensive de-alloc
+
     }
     else
     {
         cout << "FAIL" << endl;
     }
-    return ms_int.count();
 }
 
 int sc_main(int argc, char *argv[])
 {
-
-    auto sim_time = sim_and_get_results<sc_int<32>>();
-    std::cout << sim_time << "ms\n";
-
-    exit(EXIT_SUCCESS); // avoids expensive de-alloc
+    sim_and_get_results<sc_int<32>>();
 }
 
 #endif // MEM_HIERARCHY_CPP
