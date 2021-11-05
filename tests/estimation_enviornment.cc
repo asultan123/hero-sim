@@ -91,7 +91,6 @@ public:
     sc_vector<sc_vector<sc_signal<DataType>>> ifmap_mem_write;
 
     unsigned int dram_access_counter{0};
-    unsigned int pe_mem_access_counter{0};
     int filter_count;
     int channel_count;
     int psum_mem_size;
@@ -491,6 +490,7 @@ tuple<xt::xarray<int>, xt::xarray<int>> generate_and_load_weights(Arch<DataType>
                 for (auto j = 0; j < arch.channel_count; j++)
                 {
                     pe_weights[i][j].push_back(tiled_view(i, j));
+                    arch.dram_access_counter++;
                 }
             }
         }
@@ -583,6 +583,8 @@ long sim_and_get_results()
     int psum_mem_size = f_out * ofmap_h * ofmap_w;
     int dram_access_cost = 200;
 
+    xt::xarray<int> weights, padded_weights;
+
     xt::print_options::set_threshold(10000);
     xt::print_options::set_line_width(100);
 
@@ -597,11 +599,11 @@ long sim_and_get_results()
     sc_start(10, SC_NS);
     control.set_reset(false);
     sc_start(1, SC_NS);
+
     auto ifmap = dram_load(arch, c_in, ifmap_h, ifmap_w);
     // cout << ifmap << endl;
 
     set_channel_modes(arch);
-    xt::xarray<int> weights, padded_weights;
     std::tie(weights, padded_weights) = generate_and_load_weights(arch, f_out, c_in, k, UnrollOrientation::HORIZONTAL);
 
     // cout << "PADDED WEIGHTS" << endl;
@@ -626,6 +628,15 @@ long sim_and_get_results()
     if(valid)
     {
         cout << "ALL TESTS PASS" << endl;
+        cout << std::right << "DRAM Access" << std::setw(7) << arch.dram_access_counter << endl;
+        int weight_access = 0;
+        for(auto& pe : arch.pe_array)
+        {
+            weight_access += pe.weight_access_counter;
+        }
+        cout << std::right << "Weight Access" << std::setw(7) << weight_access << endl;
+        cout << std::right << "Psum Access" << std::setw(7) << arch.psum_mem.mem.access_counter << endl;
+        cout << std::right << "Ifmap Access" << std::setw(7) << arch.ifmap_mem.mem.access_counter << endl;
     }
     else
     {

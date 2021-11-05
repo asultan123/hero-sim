@@ -31,6 +31,7 @@ public:
     int prog_idx;
     bool programmed;
     vector<Descriptor_2D> program;
+    int weight_access_counter;
 
     void reset();
 

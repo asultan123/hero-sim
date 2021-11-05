@@ -6,6 +6,7 @@ PE<DataType>::PE(sc_module_name name, sc_trace_file* _tf) : sc_module(name), tf(
     this->resetWeightIdx();
     this->resetWeights();
     this->programmed = false;
+    this->weight_access_counter = 0;
     sc_trace(tf, this->psum_in, (this->psum_in.name()));
     sc_trace(tf, this->current_weight, (this->current_weight.name()));
 }
@@ -47,6 +48,7 @@ template <typename DataType>
 void PE<DataType>::loadWeights(vector<int> &weights)
 {
     this->weights = weights;
+    weight_access_counter += weights.size();
 }
 
 template <typename DataType>
@@ -59,6 +61,7 @@ void PE<DataType>::loadProgram(vector<Descriptor_2D> &_program)
     }
     this->prog_idx = 0;
     this->programmed = true;
+    weight_access_counter += 1;
 }
 
 template <typename DataType>
@@ -77,6 +80,7 @@ void PE<DataType>::updateState()
                 current_desc.x_counter = current_desc.x_count;
                 current_desc.y_counter--;
                 weight_idx+=current_desc.y_modify;
+                weight_access_counter += 1;
             }
             if (current_desc.y_counter < 0)
             {
