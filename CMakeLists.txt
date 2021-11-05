@@ -21,7 +21,7 @@ find_package(PkgConfig REQUIRED)
 find_package(xtl REQUIRED)
 find_package(xtensor REQUIRED)
 find_package(xtensor-blas REQUIRED)
-find_package(Boost 1.77.0 REQUIRED)
+find_package(Boost COMPONENTS program_options REQUIRED)
 
 pkg_check_modules(SYSTEMC REQUIRED IMPORTED_TARGET systemc)
 pkg_check_modules(TLM2 REQUIRED IMPORTED_TARGET tlm)
@@ -43,7 +43,7 @@ target_sources(cnn_processor PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/stringProducer.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/ProcEngine.cc"
 )
-target_link_libraries(cnn_processor PkgConfig::SYSTEMC PkgConfig::TLM2 xtensor xtensor-blas xtensor::optimize xtensor::use_xsimd)
+target_link_libraries(cnn_processor Boost::program_options PkgConfig::SYSTEMC PkgConfig::TLM2 xtensor xtensor-blas xtensor::optimize xtensor::use_xsimd)
 
 enable_testing()
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/tests")
