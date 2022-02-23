@@ -623,7 +623,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     GlobalControlChannel control("global_control_channel", sc_time(1, SC_NS), tf);
     Arch<DataType> arch("arch", control, filter_count, channel_count, psum_mem_size, ifmap_mem_size, tf);
 
-    int start_cycle_time = sc_time_stamp().value();
+    unsigned long int start_cycle_time = sc_time_stamp().value();
     control.set_reset(true);
     sc_start(10, SC_NS);
     control.set_reset(false);
@@ -651,7 +651,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     auto res = dram_store(arch, f_out, ofmap_h, ofmap_w);
     auto expected_ofmap = generate_expected_output(ifmap, weights);
     auto valid = validate_expected_output(expected_ofmap, res);
-    int end_cycle_time = sc_time_stamp().value();
+    unsigned long int end_cycle_time = sc_time_stamp().value();
 
     auto t2 = high_resolution_clock::now();
     auto sim_time = duration_cast<milliseconds>(t2 - t1);

@@ -6,6 +6,7 @@ authors = ["asultan123 <asultan@aucegypt.edu>"]
 
 [tool.poetry.dependencies]
 python = "3.9.5"
+ipykernel = "^6.5.0"
 
 [tool.poetry.dev-dependencies]
 black = {version = "^21.10b0", allow-prereleases = true}

@@ -182,7 +182,7 @@ void AddressGenerator<DataType>::RGENWAITupdateCurrentIndex()
     // }
 }
 
-
+// TODO: Check if x_count and y_count bounds are inclusive or not 
 template <typename DataType>
 void AddressGenerator<DataType>::updateCurrentIndex()
 {
