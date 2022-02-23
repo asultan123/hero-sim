@@ -5,6 +5,8 @@
 #include "hero.hh"
 #include <xtensor/xpad.hpp>
 #include <deque>
+#include <xtensor/xio.hpp>
+#include <xtensor-blas/xlinalg.hpp>
 
 #define PAD -1
 
@@ -26,6 +28,8 @@ namespace LayerGeneration{
 
     template <typename DataType>
     xt::xarray<int> pad_weights(Arch<DataType> &arch, xt::xarray<int> weights, int filter_out_dim, int channel_in_dim, int kernel, UnrollOrientation unroll_orientation);
+
+    bool validate_output_1x1(xt::xarray<int> ifmap, xt::xarray<int> weights, xt::xarray<int> arch_output);
 }
 
 

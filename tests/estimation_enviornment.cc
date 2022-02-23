@@ -274,54 +274,6 @@ void load_padded_weights_into_pes(Arch<DataType> &arch, xt::xarray<int> padded_w
     }
 }
 
-bool validate_output_1x1(xt::xarray<int> ifmap, xt::xarray<int> weights, xt::xarray<int> arch_output)
-{
-    // weights.shape() = F*C*K*K
-    assert(weights.shape().size() == 4);
-    // cout << xt::adapt(weights.shape()) << endl;
-    // ifmap.shape() = C*H*W
-    assert(ifmap.shape().size() == 3);
-    // cout << xt::adapt(ifmap.shape()) << endl;
-    // cout << ifmap << endl;
-    // symmetric kernel
-    assert(weights.shape(3) == weights.shape(2));
-
-    // ifmap channel = weights channel in
-    assert(ifmap.shape(0) == weights.shape(1));
-    int ifmap_w = ifmap.shape(2);
-    int ifmap_h = ifmap.shape(1);
-
-    int kernel = weights.shape(3);
-    assert(ifmap_w >= kernel);
-    assert(ifmap_h >= kernel);
-
-    int ofmap_w = ifmap_w - (kernel - 1);
-    int ofmap_h = ifmap_h - (kernel - 1);
-    int ofmap_c = weights.shape(0);
-
-    xt::xarray<int> ofmap = xt::arange(ofmap_c * ofmap_w * ofmap_h).reshape({ofmap_c, ofmap_h, ofmap_w});
-
-    // conv2d stride 1
-    for (auto f = 0; f < ofmap_c; f++)
-    {
-        auto weight_tensor_view = xt::view(weights, f, xt::all(), xt::all(), xt::all());
-        xt::xarray<int> flatten_weight(xt::flatten(weight_tensor_view));
-        for (auto h = 0; h < ofmap_h; h++)
-        {
-            for (auto w = 0; w < ofmap_w; w++)
-            {
-                auto ifmap_tensor_view = xt::view(ifmap, xt::all(), xt::range(h, h + kernel), xt::range(w, w + kernel));
-                xt::xarray<int> flattened_ifmap(xt::flatten(ifmap_tensor_view));
-                auto val = xt::linalg::dot(flattened_ifmap, flatten_weight);
-                ofmap(f, h, w) = val(0);
-            }
-        }
-    }
-
-    return ofmap == arch_output;
-}
-
-
 template <typename DataType>
 void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, int filter_count, int channel_count)
 {
@@ -373,7 +325,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     sc_start();
 
     auto res = dram_store(arch, f_out, ofmap_h, ofmap_w);
-    auto valid = validate_output_1x1(ifmap, weights,res);
+    auto valid = LayerGeneration::validate_output_1x1(ifmap, weights,res);
     unsigned long int end_cycle_time = sc_time_stamp().value();
 
     auto t2 = high_resolution_clock::now();
