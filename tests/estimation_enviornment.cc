@@ -31,7 +31,6 @@
 #include <xtensor-blas/xlinalg.hpp>
 #include <boost/program_options.hpp>
 
-
 using std::cout;
 using std::deque;
 using std::endl;
@@ -44,25 +43,6 @@ using std::chrono::high_resolution_clock;
 using std::chrono::milliseconds;
 
 namespace po = boost::program_options;
-
-template <typename DataType>
-void set_channel_modes(Arch<DataType> &arch)
-{
-
-    for (int i = 0; i < arch.filter_count; i++)
-    {
-        arch.psum_mem.channels[i].set_mode(MemoryChannelMode::WRITE);
-    }
-    for (int i = arch.filter_count; i < arch.filter_count * 2; i++)
-    {
-        arch.psum_mem.channels[i].set_mode(MemoryChannelMode::READ);
-    }
-
-    for (int i = 0; i < arch.channel_count; i++)
-    {
-        arch.ifmap_mem.channels[i].set_mode(MemoryChannelMode::READ);
-    }
-}
 
 template <typename DataType>
 void dram_load(Arch<DataType> &arch, xt::xarray<int> ifmap, int channel_in, int ifmap_h, int ifmap_w)
@@ -381,7 +361,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     dram_load(arch, ifmap, c_in, ifmap_h, ifmap_w);
     // cout << ifmap << endl;
 
-    set_channel_modes(arch);
+    arch.set_channel_modes();
     weights = LayerGeneration::generate_weights<DataType>(f_out, c_in, k);
     padded_weights = LayerGeneration::pad_weights(arch, weights, f_out, c_in, k, LayerGeneration::UnrollOrientation::HORIZONTAL);
 

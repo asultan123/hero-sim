@@ -55,6 +55,8 @@ public:
 
     void update_1x1();
 
+    void set_channel_modes();
+
     // Constructor
     Arch(
         sc_module_name name,

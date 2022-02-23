@@ -111,6 +111,24 @@ void Arch<DataType>::update_1x1()
 }
 
 template <typename DataType>
+void Arch<DataType>::set_channel_modes()
+{
+    for (int i = 0; i < filter_count; i++)
+    {
+        psum_mem.channels[i].set_mode(MemoryChannelMode::WRITE);
+    }
+    for (int i = filter_count; i < filter_count * 2; i++)
+    {
+        psum_mem.channels[i].set_mode(MemoryChannelMode::READ);
+    }
+
+    for (int i = 0; i < channel_count; i++)
+    {
+        ifmap_mem.channels[i].set_mode(MemoryChannelMode::READ);
+    }
+}
+
+template <typename DataType>
 Arch<DataType>::Arch(
     sc_module_name name,
     GlobalControlChannel &_control,
