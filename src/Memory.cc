@@ -14,6 +14,7 @@ void Memory<DataType>::update()
 {
     if (control->reset())
     {
+        access_counter = 0;
         for (auto& row : ram)
         {
             for (auto& col : row)
@@ -26,6 +27,8 @@ void Memory<DataType>::update()
     }
     else if (control->enable())
     {
+        string comp_name = name();
+
         for (unsigned int channel_idx = 0; channel_idx < channel_count; channel_idx++)
         {
             if (channels[channel_idx]->enabled())
@@ -36,14 +39,21 @@ void Memory<DataType>::update()
                     assert(channels[channel_idx]->get_width() == width);
                     for (unsigned int i = 0; i < width; i++)
                     {
-                        ram[channels[channel_idx]->addr()][i] = channels[channel_idx]->mem_read_data()[i];
+                        access_counter++;
+                        ram.at(channels[channel_idx]->addr()).at(i) = channels[channel_idx]->mem_read_data().at(i);
                     }
                     break;
                 case MemoryChannelMode::READ:
                     assert(channels[channel_idx]->get_width() == width);
-                    channels[channel_idx]->mem_write_data(ram[channels[channel_idx]->addr()]);
+                    access_counter++;
+                    channels[channel_idx]->mem_write_data(ram.at(channels[channel_idx]->addr()));
                     break;
                 }
+
+            }
+            else
+            {
+                channels[channel_idx]->mem_write_data(0);
             }
         }
     }
@@ -76,8 +86,11 @@ Memory<DataType>::Memory(
                             channels("channel", _channel_count),
                             width(_width),
                             length(_length),
-                            channel_count(_channel_count)
+                            channel_count(_channel_count),
+                            access_counter(0)
+                            
 {
+#ifdef MEM_WAVE_TRACE
     for (unsigned int row = 0; row < length; row++)
     {
         for (unsigned int col = 0; col < width; col++)
@@ -85,7 +98,7 @@ Memory<DataType>::Memory(
             sc_trace(tf, ram[row][col], ram[row][col].name());
         }
     }
-
+#endif
     control(_control);
     _clk(control->clk());
 

@@ -12,7 +12,6 @@ sc_vector<DataType>* SAMDataPortCreator<DataType>::operator()(const char* name, 
     return new sc_vector<DataType>(name, width);
 }
 
-
 template <typename DataType>
 void SAM<DataType>::update()
 {
@@ -94,7 +93,9 @@ SAM<DataType>::SAM(sc_module_name name, GlobalControlChannel& _control,
         for (unsigned int data_index = 0; data_index < width; data_index++)
         {
             sensitive << channels[channel_index].get_channel_read_data_bus()[data_index];
+#ifdef TRACE
             sc_trace(tf, read_channel_data[channel_index][data_index], read_channel_data[channel_index][data_index].name());
+#endif
         }
     }
 
