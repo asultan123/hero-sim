@@ -172,7 +172,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     sc_start();
 
     auto res = dram_store(arch, f_out, ofmap_h, ofmap_w);
-    auto valid = LayerGeneration::validate_output_1x1(ifmap, weights,res);
+    auto valid = LayerGeneration::validate_output_1x1(ifmap, weights, res);
     unsigned long int end_cycle_time = sc_time_stamp().value();
 
     auto t2 = high_resolution_clock::now();
@@ -270,13 +270,15 @@ int sc_main(int argc, char *argv[])
     cout << std::left << "Simulating arch with config:" << endl;
     cout << endl;
 
-    cout << std::left << std::setw(20) << "filter_count"  << filter_count << endl;;
-    cout << std::left << std::setw(20) << "channel_count"  << channel_count << endl;;
+    cout << std::left << std::setw(20) << "filter_count" << filter_count << endl;
+    ;
+    cout << std::left << std::setw(20) << "channel_count" << channel_count << endl;
+    ;
     cout << endl;
 
     cout << std::left << "With layer config:" << endl;
     cout << endl;
-    cout << std::left << std::setw(20) << "ifmap_h"  << ifmap_h << endl;
+    cout << std::left << std::setw(20) << "ifmap_h" << ifmap_h << endl;
     cout << std::left << std::setw(20) << "ifmap_w" << ifmap_w << endl;
     cout << std::left << std::setw(20) << "k" << k << endl;
     cout << std::left << std::setw(20) << "c_in" << c_in << endl;

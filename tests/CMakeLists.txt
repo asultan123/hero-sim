@@ -88,15 +88,15 @@ target_compile_options(poly_compute_tb
 )
 
 
-add_executable(estimation_enviornment "")
-target_sources(estimation_enviornment
+add_executable(hero_sim_backend "")
+target_sources(hero_sim_backend
     PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/estimation_enviornment.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/hero_sim_backend.cc"
 )
 
-target_link_libraries(estimation_enviornment cnn_processor PkgConfig::SYSTEMC PkgConfig::TLM2)
+target_link_libraries(hero_sim_backend cnn_processor PkgConfig::SYSTEMC PkgConfig::TLM2)
 
-target_compile_options(estimation_enviornment
+target_compile_options(hero_sim_backend
     PUBLIC -Wall
 )
 
@@ -115,4 +115,4 @@ do_test(Connector_tb "ALL TESTS PASS")
 do_test(Memory_tb "ALL TESTS PASS")
 do_test(sock2sig_tb "ALL TESTS PASS")
 do_test(poly_compute_tb "ALL TESTS PASS")
-do_test(estimation_enviornment "ALL TESTS PASS")
+do_test(hero_sim_backend "ALL TESTS PASS")
