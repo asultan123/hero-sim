@@ -3,6 +3,7 @@
 
 #include <systemc.h>
 #include "hero.hh"
+#include "layer_generation.hh"
 #include "GlobalControl.hh"
 #include <assert.h>
 #include <iostream>
@@ -62,18 +63,6 @@ void set_channel_modes(Arch<DataType> &arch)
     {
         arch.ifmap_mem.channels[i].set_mode(MemoryChannelMode::READ);
     }
-}
-
-template <typename DataType>
-xt::xarray<int> generate_ifmap(Arch<DataType> &arch, int channel_in, int ifmap_h, int ifmap_w)
-{
-    auto input_size = ifmap_h * ifmap_w * channel_in;
-    assert(input_size <= arch.ifmap_mem_size);
-
-    xt::xarray<int> ifmap = xt::arange((int)1, input_size + 1);
-    ifmap.reshape({channel_in, ifmap_h, ifmap_w});
-
-    return ifmap;
 }
 
 template <typename DataType>
@@ -280,16 +269,6 @@ enum UnrollOrientation
 };
 
 template <typename DataType>
-xt::xarray<int> generate_weights(int filter_out_dim, int channel_in_dim, int kernel)
-{
-    int kernel_size = kernel * kernel;
-    xt::xarray<int> weights = xt::arange(1, channel_in_dim * filter_out_dim * kernel_size + 1);
-
-    weights.reshape({filter_out_dim, channel_in_dim, kernel, kernel});
-    return weights;
-}
-
-template <typename DataType>
 xt::xarray<int> generate_and_load_weights(Arch<DataType> &arch, xt::xarray<int> weights, int filter_out_dim, int channel_in_dim, int kernel, UnrollOrientation unroll_orientation)
 {
     int kernel_size = kernel * kernel;
@@ -431,12 +410,12 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     control.set_reset(false);
     sc_start(1, SC_NS);
 
-    auto ifmap = generate_ifmap(arch, c_in, ifmap_h, ifmap_w);
+    auto ifmap = LayerGeneration::generate_ifmap<DataType>(arch, c_in, ifmap_h, ifmap_w);
     dram_load(arch, ifmap, c_in, ifmap_h, ifmap_w);
     // cout << ifmap << endl;
 
     set_channel_modes(arch);
-    weights = generate_weights<DataType>(f_out, c_in, k);
+    weights = LayerGeneration::generate_weights<DataType>(f_out, c_in, k);
     padded_weights = generate_and_load_weights(arch, weights, f_out, c_in, k, UnrollOrientation::HORIZONTAL);
 
     // cout << "PADDED WEIGHTS" << endl;
