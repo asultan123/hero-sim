@@ -36,6 +36,7 @@ target_sources(cnn_processor PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/AddressGenerator.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/hero.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/layer_generation.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/descriptor_compiler.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/bytePrinter.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/GlobalControl.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Memory_Channel.cc"
