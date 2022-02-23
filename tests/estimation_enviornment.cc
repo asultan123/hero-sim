@@ -65,7 +65,7 @@ void set_channel_modes(Arch<DataType> &arch)
 }
 
 template <typename DataType>
-xt::xarray<int> dram_load(Arch<DataType> &arch, int channel_in, int ifmap_h, int ifmap_w)
+xt::xarray<int> generate_ifmap(Arch<DataType> &arch, int channel_in, int ifmap_h, int ifmap_w)
 {
     auto input_size = ifmap_h * ifmap_w * channel_in;
     assert(input_size <= arch.ifmap_mem_size);
@@ -73,8 +73,13 @@ xt::xarray<int> dram_load(Arch<DataType> &arch, int channel_in, int ifmap_h, int
     xt::xarray<int> ifmap = xt::arange((int)1, input_size + 1);
     ifmap.reshape({channel_in, ifmap_h, ifmap_w});
 
-    // cout << "IFMAP" << endl;
-    // cout << ifmap << endl;
+    return ifmap;
+}
+
+template <typename DataType>
+xt::xarray<int> dram_load(Arch<DataType> &arch, int channel_in, int ifmap_h, int ifmap_w)
+{
+    auto ifmap = generate_ifmap(arch, channel_in, ifmap_h, ifmap_w);
 
     for (int c = 0; c < channel_in; c++)
     {
