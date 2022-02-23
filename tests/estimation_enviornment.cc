@@ -31,7 +31,6 @@
 #include <xtensor-blas/xlinalg.hpp>
 #include <boost/program_options.hpp>
 
-#define PAD -1
 
 using std::cout;
 using std::deque;
@@ -262,40 +261,10 @@ void generate_and_load_ifmap_in_program(Arch<DataType> &arch, xt::xarray<int> pa
     }
 }
 
-enum UnrollOrientation
-{
-    HORIZONTAL = 1,
-    VERTICLE = 2
-};
-
 template <typename DataType>
-xt::xarray<int> generate_and_load_weights(Arch<DataType> &arch, xt::xarray<int> weights, int filter_out_dim, int channel_in_dim, int kernel, UnrollOrientation unroll_orientation)
+void load_padded_weights_into_pes(Arch<DataType> &arch, xt::xarray<int> padded_weights)
 {
-    int kernel_size = kernel * kernel;
-    
     vector<vector<deque<int>>> pe_weights(arch.filter_count, vector<deque<int>>(arch.channel_count, deque<int>()));
-
-    long unsigned int verticle_padding;
-    long unsigned int horizontal_padding;
-
-    switch (unroll_orientation)
-    {
-    case UnrollOrientation::HORIZONTAL:
-    {
-        weights.reshape({filter_out_dim, channel_in_dim * kernel_size});
-        verticle_padding = ceil((float)filter_out_dim / arch.filter_count) * arch.filter_count - filter_out_dim;
-        horizontal_padding = ceil((float)(channel_in_dim * kernel_size) / arch.channel_count) * arch.channel_count - (channel_in_dim * kernel_size);
-        break;
-    }
-    default:
-        cout << "INVALID ORIENTATION" << endl;
-        exit(EXIT_FAILURE);
-        break;
-    }
-
-    xt::xarray<int> padded_weights = xt::pad(weights, {{0, verticle_padding}, {0, horizontal_padding}}, xt::pad_mode::constant, PAD);
-
-    // cout << padded_weights << endl;
 
     for (auto filter_offset = 0; filter_offset < (int)padded_weights.shape()[0]; filter_offset += arch.filter_count)
     {
@@ -323,8 +292,6 @@ xt::xarray<int> generate_and_load_weights(Arch<DataType> &arch, xt::xarray<int> 
             cur_pe.loadWeights(pe_weight_temp);
         }
     }
-
-    return padded_weights;
 }
 
 xt::xarray<int> generate_expected_output(xt::xarray<int> ifmap, xt::xarray<int> weights)
@@ -416,7 +383,9 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
 
     set_channel_modes(arch);
     weights = LayerGeneration::generate_weights<DataType>(f_out, c_in, k);
-    padded_weights = generate_and_load_weights(arch, weights, f_out, c_in, k, UnrollOrientation::HORIZONTAL);
+    padded_weights = LayerGeneration::pad_weights(arch, weights, f_out, c_in, k, LayerGeneration::UnrollOrientation::HORIZONTAL);
+
+    load_padded_weights_into_pes(arch, padded_weights);
 
     // cout << "PADDED WEIGHTS" << endl;
     // cout << padded_weights << endl;
@@ -469,8 +438,8 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
 
 int sc_main(int argc, char *argv[])
 {
-    int ifmap_h = 10;
-    int ifmap_w = 10;
+    int ifmap_h = 32;
+    int ifmap_w = 32;
     int k = 1;
     int c_in = 16;
     int f_out = 16;
