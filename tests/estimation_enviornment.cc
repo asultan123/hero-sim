@@ -77,10 +77,8 @@ xt::xarray<int> generate_ifmap(Arch<DataType> &arch, int channel_in, int ifmap_h
 }
 
 template <typename DataType>
-xt::xarray<int> dram_load(Arch<DataType> &arch, int channel_in, int ifmap_h, int ifmap_w)
+void dram_load(Arch<DataType> &arch, xt::xarray<int> ifmap, int channel_in, int ifmap_h, int ifmap_w)
 {
-    auto ifmap = generate_ifmap(arch, channel_in, ifmap_h, ifmap_w);
-
     for (int c = 0; c < channel_in; c++)
     {
         for (int i = 0; i < ifmap_h; i++)
@@ -96,8 +94,6 @@ xt::xarray<int> dram_load(Arch<DataType> &arch, int channel_in, int ifmap_h, int
     }
     sc_start(1, SC_NS);
     cout << "Loaded dram contents into ifmap mem" << endl;
-
-    return ifmap;
 }
 
 template <typename DataType>
@@ -284,10 +280,20 @@ enum UnrollOrientation
 };
 
 template <typename DataType>
-tuple<xt::xarray<int>, xt::xarray<int>> generate_and_load_weights(Arch<DataType> &arch, int filter_out_dim, int channel_in_dim, int kernel, UnrollOrientation unroll_orientation)
+xt::xarray<int> generate_weights(int filter_out_dim, int channel_in_dim, int kernel)
 {
     int kernel_size = kernel * kernel;
     xt::xarray<int> weights = xt::arange(1, channel_in_dim * filter_out_dim * kernel_size + 1);
+
+    weights.reshape({filter_out_dim, channel_in_dim, kernel, kernel});
+    return weights;
+}
+
+template <typename DataType>
+xt::xarray<int> generate_and_load_weights(Arch<DataType> &arch, xt::xarray<int> weights, int filter_out_dim, int channel_in_dim, int kernel, UnrollOrientation unroll_orientation)
+{
+    int kernel_size = kernel * kernel;
+    
     vector<vector<deque<int>>> pe_weights(arch.filter_count, vector<deque<int>>(arch.channel_count, deque<int>()));
 
     long unsigned int verticle_padding;
@@ -339,8 +345,7 @@ tuple<xt::xarray<int>, xt::xarray<int>> generate_and_load_weights(Arch<DataType>
         }
     }
 
-    weights.reshape({filter_out_dim, channel_in_dim, kernel, kernel});
-    return std::make_tuple(weights, padded_weights);
+    return padded_weights;
 }
 
 xt::xarray<int> generate_expected_output(xt::xarray<int> ifmap, xt::xarray<int> weights)
@@ -426,11 +431,13 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     control.set_reset(false);
     sc_start(1, SC_NS);
 
-    auto ifmap = dram_load(arch, c_in, ifmap_h, ifmap_w);
+    auto ifmap = generate_ifmap(arch, c_in, ifmap_h, ifmap_w);
+    dram_load(arch, ifmap, c_in, ifmap_h, ifmap_w);
     // cout << ifmap << endl;
 
     set_channel_modes(arch);
-    std::tie(weights, padded_weights) = generate_and_load_weights(arch, f_out, c_in, k, UnrollOrientation::HORIZONTAL);
+    weights = generate_weights<DataType>(f_out, c_in, k);
+    padded_weights = generate_and_load_weights(arch, weights, f_out, c_in, k, UnrollOrientation::HORIZONTAL);
 
     // cout << "PADDED WEIGHTS" << endl;
     // cout << padded_weights << endl;
