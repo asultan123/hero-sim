@@ -1,106 +1,14 @@
-add_executable(sock2sig_tb "")
-target_sources(sock2sig_tb
+function(compile_test target)
+  add_executable(${target} "")
+  target_sources(${target}
     PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/sock2sig_tb.cc"
-)
-
-target_link_libraries(sock2sig_tb cnn_processor PkgConfig::SYSTEMC PkgConfig::TLM2)
-
-target_compile_options(sock2sig_tb
+    "${CMAKE_CURRENT_SOURCE_DIR}/${target}.cc"
+    )
+  target_link_libraries(${target} cnn_processor PkgConfig::SYSTEMC PkgConfig::TLM2)
+  target_compile_options(${target}
     PUBLIC -Wall
-)
-
-add_executable(SAM_tb "")
-target_sources(SAM_tb
-    PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/SAM_tb.cc"
-)
-
-target_link_libraries(SAM_tb cnn_processor PkgConfig::SYSTEMC PkgConfig::TLM2)
-
-target_compile_options(SAM_tb
-    PUBLIC -Wall
-)
-
-add_executable(AddressGenerator_tb "")
-target_sources(AddressGenerator_tb
-    PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/AddressGenerator_tb.cc"
-)
-
-
-target_link_libraries(AddressGenerator_tb cnn_processor PkgConfig::SYSTEMC PkgConfig::TLM2)
-
-target_compile_options(AddressGenerator_tb
-    PUBLIC -Wall
-)
-
-
-add_executable(Memory_tb "")
-target_sources(Memory_tb
-    PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/Memory_tb.cc"
-)
-
-
-target_link_libraries(Memory_tb cnn_processor PkgConfig::SYSTEMC PkgConfig::TLM2)
-
-target_compile_options(Memory_tb
-    PUBLIC -Wall
-)
-
-
-add_executable(Connector_tb "")
-target_sources(Connector_tb
-    PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/Connector_tb.cc"
-)
-
-
-target_link_libraries(Connector_tb cnn_processor PkgConfig::SYSTEMC PkgConfig::TLM2)
-
-target_compile_options(Connector_tb
-    PUBLIC -Wall
-)
-
-add_executable(axidma_mem_tb "")
-target_sources(axidma_mem_tb
-    PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/axidma_mem_tb.cc"
-)
-
-target_link_libraries(axidma_mem_tb cnn_processor xilinx-modules PkgConfig::SYSTEMC PkgConfig::TLM2)
-
-target_compile_options(axidma_mem_tb
-    PUBLIC -Wall
-)
-
-add_executable(poly_compute_tb "")
-target_sources(poly_compute_tb
-    PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/poly_compute_tb.cc"
-)
-
-target_link_libraries(poly_compute_tb cnn_processor PkgConfig::SYSTEMC PkgConfig::TLM2)
-
-target_compile_options(poly_compute_tb
-    PUBLIC -Wall
-)
-
-
-add_executable(hero_sim_backend "")
-target_sources(hero_sim_backend
-    PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/hero_sim_backend.cc"
-)
-
-target_link_libraries(hero_sim_backend cnn_processor PkgConfig::SYSTEMC PkgConfig::TLM2)
-
-target_compile_options(hero_sim_backend
-    PUBLIC -Wall
-)
-
-
+  )
+endfunction(compile_test)
 
 function(do_test target result)
   add_test(NAME ${target} COMMAND ${target})
@@ -108,6 +16,13 @@ function(do_test target result)
     PROPERTIES PASS_REGULAR_EXPRESSION ${result}
     )
 endfunction(do_test)
+
+compile_test(hero_sim_backend)
+compile_test(poly_compute_tb)
+compile_test(Connector_tb)
+compile_test(Memory_tb)
+compile_test(AddressGenerator_tb)
+compile_test(SAM_tb)
 
 do_test(SAM_tb "ALL TESTS PASS")
 do_test(AddressGenerator_tb "ALL TESTS PASS")
