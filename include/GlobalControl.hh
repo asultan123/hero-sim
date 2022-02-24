@@ -43,5 +43,7 @@ struct GlobalControlChannel : public sc_module, public GlobalControlChannel_IF
     void set_enable(bool val);
 };
 
+// Not a template library but for the sake of consistency
+#include "../src/GlobalControl.cc"
 
 #endif

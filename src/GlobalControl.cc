@@ -1,5 +1,6 @@
-#include "GlobalControl.hh"
-#include <systemc>
+#ifdef __INTELLISENSE__
+#include "../include/GlobalControl.hh"
+#endif
 
 GlobalControlChannel::GlobalControlChannel(sc_module_name name,
                         sc_time time_val,

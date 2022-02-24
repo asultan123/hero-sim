@@ -55,4 +55,6 @@ public:
 
 };
 
+#include "../src/ProcEngine.cc"
+
 #endif

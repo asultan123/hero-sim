@@ -71,4 +71,6 @@ public:
     SC_HAS_PROCESS(Arch);
 };
 
+#include "../src/hero.cc"
+
 #endif 

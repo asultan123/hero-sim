@@ -1,4 +1,6 @@
-#include "Memory.hh"
+#ifdef __INTELLISENSE__
+#include "../include/Memory.hh"
+#endif
 
 template <typename DataType>
 MemoryRowCreator<DataType>::MemoryRowCreator(unsigned int _width, sc_trace_file* _tf) : tf(_tf), width(_width) {}
@@ -110,5 +112,5 @@ Memory<DataType>::Memory(
     cout << "MEMORY MODULE: " << name << " has been instantiated " << endl;
 }
 
-template struct Memory<sc_int<32>>;
-template struct MemoryRowCreator<sc_int<32>>;
+// template struct Memory<sc_int<32>>;
+// template struct MemoryRowCreator<sc_int<32>>;

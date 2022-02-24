@@ -52,4 +52,6 @@ public:
     SC_HAS_PROCESS(Memory);
 };
 
+#include "../src/Memory.cc"
+
 #endif

@@ -1,4 +1,6 @@
-#include "Memory_Channel.hh"
+#ifdef __INTELLISENSE__
+#include "../include/Memory_Channel.hh"
+#endif
 
 template <typename DataType>
 MemoryChannel<DataType>::MemoryChannel(sc_module_name name, unsigned int width, sc_trace_file* tf) : sc_module(name),
@@ -172,5 +174,5 @@ MemoryChannel<DataType>* MemoryChannelCreator<DataType>::operator()(const char* 
     return new MemoryChannel<DataType>(name, width, tf);
 }
 
-template struct MemoryChannel<sc_int<32>>;
-template struct MemoryChannelCreator<sc_int<32>>;
+// template struct MemoryChannel<sc_int<32>>;
+// template struct MemoryChannelCreator<sc_int<32>>;

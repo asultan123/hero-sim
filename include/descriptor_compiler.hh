@@ -22,9 +22,11 @@ namespace GenerateDescriptors1x1
 
 }
 
-namespace GenerateDescriptors3x3
-{
+// namespace GenerateDescriptors3x3
+// {
 
-}
+// }
+
+#include "../src/descriptor_compiler.cc"
 
 #endif

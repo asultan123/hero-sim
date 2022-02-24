@@ -1,5 +1,6 @@
-#include "layer_generation.hh"
-
+#ifdef __INTELLISENSE__
+#include "../include/layer_generation.hh"
+#endif 
 namespace LayerGeneration
 {
 
@@ -102,8 +103,8 @@ namespace LayerGeneration
         return ofmap == arch_output;
     }
 
-    template xt::xarray<int> generate_weights<sc_int<32>>(int filter_out_dim, int channel_in_dim, int kernel);
-    template xt::xarray<int> generate_ifmap<sc_int<32>>(Arch<sc_int<32>> &arch, int channel_in, int ifmap_h, int ifmap_w);
-    template xt::xarray<int> pad_weights<sc_int<32>>(Arch<sc_int<32>> &arch, xt::xarray<int> weights, int filter_out_dim, int channel_in_dim, int kernel, UnrollOrientation unroll_orientation);
+    // template xt::xarray<int> generate_weights<sc_int<32>>(int filter_out_dim, int channel_in_dim, int kernel);
+    // template xt::xarray<int> generate_ifmap<sc_int<32>>(Arch<sc_int<32>> &arch, int channel_in, int ifmap_h, int ifmap_w);
+    // template xt::xarray<int> pad_weights<sc_int<32>>(Arch<sc_int<32>> &arch, xt::xarray<int> weights, int filter_out_dim, int channel_in_dim, int kernel, UnrollOrientation unroll_orientation);
 
 }

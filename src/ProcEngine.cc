@@ -1,4 +1,6 @@
-#include "ProcEngine.hh"
+#ifdef __INTELLISENSE__
+#include "../include/ProcEngine.hh"
+#endif
 
 template <typename DataType>
 PE<DataType>::PE(sc_module_name name, sc_trace_file* _tf) : sc_module(name), tf(_tf), psum_in("psum_in"), current_weight("weight")
@@ -112,6 +114,6 @@ void PE<DataType>::updateState()
     }
 }
 
-template struct PE<int>;
-template struct PE<sc_int<32>>;
+// template struct PE<int>;
+// template struct PE<sc_int<32>>;
 

@@ -1,4 +1,6 @@
-#include "descriptor_compiler.hh"
+#ifdef __INTELLISENSE__
+#include "../include/descriptor_compiler.hh"
+#endif 
 
 namespace GenerateDescriptors1x1
 {
@@ -20,7 +22,7 @@ namespace GenerateDescriptors1x1
             }
         }
     }
-    
+
     template <typename DataType>
     void generate_and_load_psum_program(Arch<DataType> &arch, xt::xarray<int> padded_weights, int ofmap_h, int ofmap_w)
     {
@@ -94,7 +96,6 @@ namespace GenerateDescriptors1x1
         }
     }
 
-
     template <typename DataType>
     void generate_and_load_ifmap_in_program(Arch<DataType> &arch, xt::xarray<int> padded_weights, int ifmap_h, int ifmap_w)
     {
@@ -156,13 +157,13 @@ namespace GenerateDescriptors1x1
             ag_idx++;
         }
     }
-    
-    template void generate_and_load_pe_program<sc_int<32>>(Arch<sc_int<32>> &arch, int ifmap_h, int ifmap_w);
-    template void generate_and_load_psum_program<sc_int<32>>(Arch<sc_int<32>> &arch, xt::xarray<int> padded_weights, int ofmap_h, int ofmap_w);
-    template void generate_and_load_ifmap_in_program<sc_int<32>>(Arch<sc_int<32>> &arch, xt::xarray<int> padded_weights, int ifmap_h, int ifmap_w);
+
+    // template void generate_and_load_pe_program<sc_int<32>>(Arch<sc_int<32>> &arch, int ifmap_h, int ifmap_w);
+    // template void generate_and_load_psum_program<sc_int<32>>(Arch<sc_int<32>> &arch, xt::xarray<int> padded_weights, int ofmap_h, int ofmap_w);
+    // template void generate_and_load_ifmap_in_program<sc_int<32>>(Arch<sc_int<32>> &arch, xt::xarray<int> padded_weights, int ifmap_h, int ifmap_w);
 }
 
-namespace GenerateDescriptors3x3
-{
+// namespace GenerateDescriptors3x3
+// {
 
-}
+// }

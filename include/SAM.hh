@@ -57,4 +57,9 @@ public:
 
     SC_HAS_PROCESS(SAM);
 };
+
+#include "../src/SAM.cc"
+
 #endif
+
+

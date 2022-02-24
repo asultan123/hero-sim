@@ -103,4 +103,6 @@ struct MemoryChannelCreator
     unsigned int width;
 };
 
+#include "../src/Memory_Channel.cc"
+
 #endif

@@ -32,5 +32,6 @@ namespace LayerGeneration{
     bool validate_output_1x1(xt::xarray<int> ifmap, xt::xarray<int> weights, xt::xarray<int> arch_output);
 }
 
+#include "../src/layer_generation.cc"
 
 #endif 

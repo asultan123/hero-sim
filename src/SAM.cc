@@ -1,4 +1,6 @@
-#include "SAM.hh"
+#ifdef __INTELLISENSE__
+#include "../include/SAM.hh"
+#endif
 
 template <typename DataType>
 SAMDataPortCreator<DataType>::SAMDataPortCreator(unsigned int _width, sc_trace_file* _tf)
@@ -98,7 +100,7 @@ SAM<DataType>::SAM(sc_module_name name, GlobalControlChannel& _control,
 #endif
         }
     }
-
+    
     for (unsigned int channel_index = 0; channel_index < channel_count; channel_index++)
     {
         generators[channel_index].channel(channels.at(channel_index));
@@ -109,5 +111,5 @@ SAM<DataType>::SAM(sc_module_name name, GlobalControlChannel& _control,
             << endl;
 }
 
-template struct SAMDataPortCreator<sc_int<32>>;
-template struct SAM<sc_int<32>>;
+// template struct SAMDataPortCreator<sc_int<32>>;
+// template struct SAM<sc_int<32>>;

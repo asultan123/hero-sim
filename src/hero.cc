@@ -1,4 +1,6 @@
-#include "hero.hh"
+#ifdef __INTELLISENSE__
+#include "../include/hero.hh"
+#endif
 
 template <typename DataType>
 SignalVectorCreator<DataType>::SignalVectorCreator(unsigned int _width, sc_trace_file *_tf) : tf(_tf), width(_width) {};
@@ -193,4 +195,4 @@ Arch<DataType>::Arch(
     cout << "Arch MODULE: " << name << " has been instantiated " << endl;
 }
 
-template struct Arch<sc_int<32>>;
+// template struct Arch<sc_int<32>>;
