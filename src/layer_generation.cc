@@ -1,11 +1,11 @@
 #ifdef __INTELLISENSE__
 #include "../include/layer_generation.hh"
-#endif 
+#endif
 namespace LayerGeneration
 {
 
     template <typename DataType>
-    xt::xarray<int> generate_ifmap(Arch<DataType> &arch, int channel_in, int ifmap_h, int ifmap_w)
+    xt::xarray<int> generate_ifmap(Hero::Arch<DataType> &arch, int channel_in, int ifmap_h, int ifmap_w)
     {
         auto input_size = ifmap_h * ifmap_w * channel_in;
         assert(input_size <= arch.ifmap_mem_size);
@@ -27,7 +27,7 @@ namespace LayerGeneration
     }
 
     template <typename DataType>
-    xt::xarray<int> pad_weights(Arch<DataType> &arch, xt::xarray<int> weights, int filter_out_dim, int channel_in_dim, int kernel, UnrollOrientation unroll_orientation)
+    xt::xarray<int> pad_weights(Hero::Arch<DataType> &arch, xt::xarray<int> weights, int filter_out_dim, int channel_in_dim, int kernel, UnrollOrientation unroll_orientation)
     {
         int kernel_size = kernel * kernel;
 

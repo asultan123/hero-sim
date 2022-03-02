@@ -1,11 +1,11 @@
 #ifdef __INTELLISENSE__
 #include "../include/descriptor_compiler.hh"
-#endif 
+#endif
 
 namespace GenerateDescriptors1x1
 {
     template <typename DataType>
-    void generate_and_load_pe_program(Arch<DataType> &arch, int ifmap_h, int ifmap_w)
+    void generate_and_load_pe_program(Hero::Arch<DataType> &arch, int ifmap_h, int ifmap_w)
     {
         int stream_size = ifmap_h * ifmap_w;
         int delay_offset = 1;
@@ -24,7 +24,7 @@ namespace GenerateDescriptors1x1
     }
 
     template <typename DataType>
-    void generate_and_load_psum_program(Arch<DataType> &arch, xt::xarray<int> padded_weights, int ofmap_h, int ofmap_w)
+    void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights, int ofmap_h, int ofmap_w)
     {
         int verticle_tile_count = padded_weights.shape()[0] / arch.filter_count;
         int horizontal_tile_count = padded_weights.shape()[1] / arch.channel_count;
@@ -97,7 +97,7 @@ namespace GenerateDescriptors1x1
     }
 
     template <typename DataType>
-    void generate_and_load_ifmap_in_program(Arch<DataType> &arch, xt::xarray<int> padded_weights, int ifmap_h, int ifmap_w)
+    void generate_and_load_ifmap_in_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights, int ifmap_h, int ifmap_w)
     {
         int verticle_tile_count = padded_weights.shape()[0] / arch.filter_count;
         int horizontal_tile_count = padded_weights.shape()[1] / arch.channel_count;

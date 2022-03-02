@@ -12,13 +12,13 @@ using std::vector;
 namespace GenerateDescriptors1x1
 {
     template <typename DataType>
-    void generate_and_load_pe_program(Arch<DataType> &arch, int ifmap_h, int ifmap_w);
+    void generate_and_load_pe_program(Hero::Arch<DataType> &arch, int ifmap_h, int ifmap_w);
 
     template <typename DataType>
-    void generate_and_load_psum_program(Arch<DataType> &arch, xt::xarray<int> padded_weights, int ofmap_h, int ofmap_w);
+    void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights, int ofmap_h, int ofmap_w);
 
     template <typename DataType>
-    void generate_and_load_ifmap_in_program(Arch<DataType> &arch, xt::xarray<int> padded_weights, int ifmap_h, int ifmap_w);
+    void generate_and_load_ifmap_in_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights, int ifmap_h, int ifmap_w);
 
 }
 

@@ -46,7 +46,7 @@ using std::chrono::milliseconds;
 namespace po = boost::program_options;
 
 template <typename DataType>
-void dram_load(Arch<DataType> &arch, xt::xarray<int> ifmap, int channel_in, int ifmap_h, int ifmap_w)
+void dram_load(Hero::Arch<DataType> &arch, xt::xarray<int> ifmap, int channel_in, int ifmap_h, int ifmap_w)
 {
     for (int c = 0; c < channel_in; c++)
     {
@@ -66,7 +66,7 @@ void dram_load(Arch<DataType> &arch, xt::xarray<int> ifmap, int channel_in, int 
 }
 
 template <typename DataType>
-xt::xarray<int> dram_store(Arch<DataType> &arch, int filter_out, int ofmap_h, int ofmap_w)
+xt::xarray<int> dram_store(Hero::Arch<DataType> &arch, int filter_out, int ofmap_h, int ofmap_w)
 {
     auto output_size = ofmap_h * ofmap_w * filter_out;
     assert(output_size <= arch.psum_mem_size);
@@ -89,7 +89,7 @@ xt::xarray<int> dram_store(Arch<DataType> &arch, int filter_out, int ofmap_h, in
 }
 
 template <typename DataType>
-void load_padded_weights_into_pes(Arch<DataType> &arch, xt::xarray<int> padded_weights)
+void load_padded_weights_into_pes(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights)
 {
     vector<vector<deque<int>>> pe_weights(arch.filter_count, vector<deque<int>>(arch.channel_count, deque<int>()));
 
@@ -140,7 +140,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     tf->set_time_unit(100, SC_PS);
 
     GlobalControlChannel control("global_control_channel", sc_time(1, SC_NS), tf);
-    Arch<DataType> arch("arch", control, filter_count, channel_count, psum_mem_size, ifmap_mem_size, tf);
+    Hero::Arch<DataType> arch("arch", control, filter_count, channel_count, psum_mem_size, ifmap_mem_size, tf);
 
     unsigned long int start_cycle_time = sc_time_stamp().value();
     control.set_reset(true);
