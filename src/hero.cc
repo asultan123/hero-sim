@@ -193,15 +193,19 @@ namespace Hero
         int channel_count,
         int psum_mem_size,
         int ifmap_mem_size,
-        sc_trace_file *_tf) : sc_module(name),
-                              pe_array("pe_array", filter_count * channel_count, PeCreator<DataType>(_tf)),
-                              tf(_tf),
-                              psum_mem("psum_mem", _control, filter_count * 2, psum_mem_size, 1, _tf),
-                              psum_mem_read("psum_mem_read", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
-                              psum_mem_write("psum_mem_write", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
-                              ifmap_mem("ifmap_mem", _control, channel_count, ifmap_mem_size, 1, _tf),
-                              ifmap_mem_read("ifmap_mem_read", channel_count, SignalVectorCreator<DataType>(1, tf)),
-                              ifmap_mem_write("ifmap_mem_write", channel_count, SignalVectorCreator<DataType>(1, tf))
+        sc_trace_file *_tf,
+        KernelMapping kmapping,
+        SimMode mode) : sc_module(name),
+                        pe_array("pe_array", filter_count * channel_count, PeCreator<DataType>(_tf)),
+                        tf(_tf),
+                        psum_mem("psum_mem", _control, filter_count * 2, psum_mem_size, 1, _tf),
+                        psum_mem_read("psum_mem_read", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
+                        psum_mem_write("psum_mem_write", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
+                        ifmap_mem("ifmap_mem", _control, channel_count, ifmap_mem_size, 1, _tf),
+                        ifmap_mem_read("ifmap_mem_read", channel_count, SignalVectorCreator<DataType>(1, tf)),
+                        ifmap_mem_write("ifmap_mem_write", channel_count, SignalVectorCreator<DataType>(1, tf)),
+                        kmapping(kmapping),
+                        mode(mode)
     {
         control(_control);
         _clk(control->clk());
@@ -240,7 +244,19 @@ namespace Hero
             sc_trace(tf, ifmap_mem_read[i][0], (this->ifmap_mem_read[i][0].name()));
         }
 
-        SC_THREAD(update_1x1);
+        if (mode == SimMode::RUN_1x1)
+        {
+            SC_THREAD(update_1x1);
+        }
+        else if (mode == SimMode::RUN_3x3)
+        {
+            SC_THREAD(update_3x3);
+        }
+        else
+        {
+            throw std::invalid_argument("Recevied invalid hero arch operation mode");
+        }
+
         sensitive << _clk.pos();
         sensitive << control->reset();
 

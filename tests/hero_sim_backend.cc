@@ -154,7 +154,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
 
     arch.set_channel_modes();
     weights = LayerGeneration::generate_weights<DataType>(f_out, c_in, k);
-    padded_weights = LayerGeneration::pad_weights(arch, weights, f_out, c_in, k, LayerGeneration::UnrollOrientation::HORIZONTAL);
+    padded_weights = LayerGeneration::pad_weights(arch, weights, f_out, c_in, k);
 
     load_padded_weights_into_pes(arch, padded_weights);
 

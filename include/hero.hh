@@ -6,9 +6,22 @@
 #include "SAM.hh"
 #include "GlobalControl.hh"
 #include "AddressGenerator.hh"
+#include <stdexcept>
 
 namespace Hero
 {
+    enum SimMode
+    {
+        RUN_1x1 = 1,
+        RUN_3x3 = 2
+    };
+
+    enum KernelMapping
+    {
+        HORIZONTAL = 1,
+        VERTICLE = 2
+    };
+
     template <typename DataType>
     struct SignalVectorCreator
     {
@@ -53,6 +66,9 @@ namespace Hero
         int psum_mem_size;
         int ifmap_mem_size;
 
+        KernelMapping kmapping;
+        SimMode mode;
+
         void suspend_monitor();
 
         void update_1x1();
@@ -68,7 +84,9 @@ namespace Hero
             int channel_count,
             int psum_mem_size,
             int ifmap_mem_size,
-            sc_trace_file *_tf);
+            sc_trace_file *_tf,
+            KernelMapping kmapping = KernelMapping::HORIZONTAL,
+            SimMode mode = SimMode::RUN_1x1);
 
         SC_HAS_PROCESS(Arch);
     };

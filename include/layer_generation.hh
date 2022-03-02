@@ -15,13 +15,6 @@ using std::vector;
 
 namespace LayerGeneration
 {
-
-    enum UnrollOrientation
-    {
-        HORIZONTAL = 1,
-        VERTICLE = 2
-    };
-
     template <typename DataType>
     xt::xarray<int> generate_ifmap(Hero::Arch<DataType> &arch, int channel_in, int ifmap_h, int ifmap_w);
 
@@ -29,7 +22,7 @@ namespace LayerGeneration
     xt::xarray<int> generate_weights(int filter_out_dim, int channel_in_dim, int kernel);
 
     template <typename DataType>
-    xt::xarray<int> pad_weights(Hero::Arch<DataType> &arch, xt::xarray<int> weights, int filter_out_dim, int channel_in_dim, int kernel, UnrollOrientation unroll_orientation);
+    xt::xarray<int> pad_weights(Hero::Arch<DataType> &arch, xt::xarray<int> weights, int filter_out_dim, int channel_in_dim, int kernel);
 
     bool validate_output_1x1(xt::xarray<int> ifmap, xt::xarray<int> weights, xt::xarray<int> arch_output);
 }

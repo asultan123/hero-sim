@@ -27,8 +27,9 @@ namespace LayerGeneration
     }
 
     template <typename DataType>
-    xt::xarray<int> pad_weights(Hero::Arch<DataType> &arch, xt::xarray<int> weights, int filter_out_dim, int channel_in_dim, int kernel, UnrollOrientation unroll_orientation)
+    xt::xarray<int> pad_weights(Hero::Arch<DataType> &arch, xt::xarray<int> weights, int filter_out_dim, int channel_in_dim, int kernel)
     {
+        Hero::KernelMapping unroll_orientation = arch.kmapping;
         int kernel_size = kernel * kernel;
 
         vector<vector<deque<int>>> pe_weights(arch.filter_count, vector<deque<int>>(arch.channel_count, deque<int>()));
@@ -38,7 +39,7 @@ namespace LayerGeneration
 
         switch (unroll_orientation)
         {
-        case UnrollOrientation::HORIZONTAL:
+        case Hero::KernelMapping::HORIZONTAL:
         {
             weights.reshape({filter_out_dim, channel_in_dim * kernel_size});
             verticle_padding = ceil((float)filter_out_dim / arch.filter_count) * arch.filter_count - filter_out_dim;
