@@ -150,16 +150,12 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
 
     auto ifmap = LayerGeneration::generate_ifmap<DataType>(arch, c_in, ifmap_h, ifmap_w);
     dram_load(arch, ifmap, c_in, ifmap_h, ifmap_w);
-    // cout << ifmap << endl;
 
     arch.set_channel_modes();
     weights = LayerGeneration::generate_weights<DataType>(f_out, c_in, k);
     padded_weights = LayerGeneration::pad_weights(arch, weights, f_out, c_in, k);
 
     load_padded_weights_into_pes(arch, padded_weights);
-
-    // cout << "PADDED WEIGHTS" << endl;
-    // cout << padded_weights << endl;
 
     GenerateDescriptors1x1::generate_and_load_pe_program(arch, ifmap_h, ifmap_w);
     GenerateDescriptors1x1::generate_and_load_ifmap_in_program(arch, padded_weights, ifmap_h, ifmap_w);
@@ -172,7 +168,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     sc_start();
 
     auto res = dram_store(arch, f_out, ofmap_h, ofmap_w);
-    auto valid = LayerGeneration::validate_output_1x1(ifmap, weights, res);
+    auto valid = LayerGeneration::validate_output(arch, ifmap, weights, res);
     unsigned long int end_cycle_time = sc_time_stamp().value();
 
     auto t2 = high_resolution_clock::now();
@@ -271,9 +267,7 @@ int sc_main(int argc, char *argv[])
     cout << endl;
 
     cout << std::left << std::setw(20) << "filter_count" << filter_count << endl;
-    ;
     cout << std::left << std::setw(20) << "channel_count" << channel_count << endl;
-    ;
     cout << endl;
 
     cout << std::left << "With layer config:" << endl;

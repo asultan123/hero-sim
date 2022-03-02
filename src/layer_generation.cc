@@ -57,6 +57,20 @@ namespace LayerGeneration
         return padded_weights;
     }
 
+    template <typename DataType>
+    bool validate_output(Hero::Arch<DataType> &arch, xt::xarray<int> ifmap, xt::xarray<int> weights, xt::xarray<int> arch_output)
+    {
+        switch (arch.mode)
+        {
+        case Hero::SimMode::RUN_1x1:
+            return validate_output_1x1(ifmap, weights, arch_output);             
+        case Hero::SimMode::RUN_3x3:
+            throw "Validating 3x3 convolution outputs not implemented";
+        default:
+            break;
+        }
+    }
+
     bool validate_output_1x1(xt::xarray<int> ifmap, xt::xarray<int> weights, xt::xarray<int> arch_output)
     {
         // weights.shape() = F*C*K*K
@@ -103,9 +117,4 @@ namespace LayerGeneration
 
         return ofmap == arch_output;
     }
-
-    // template xt::xarray<int> generate_weights<sc_int<32>>(int filter_out_dim, int channel_in_dim, int kernel);
-    // template xt::xarray<int> generate_ifmap<sc_int<32>>(Arch<sc_int<32>> &arch, int channel_in, int ifmap_h, int ifmap_w);
-    // template xt::xarray<int> pad_weights<sc_int<32>>(Arch<sc_int<32>> &arch, xt::xarray<int> weights, int filter_out_dim, int channel_in_dim, int kernel, UnrollOrientation unroll_orientation);
-
 }
