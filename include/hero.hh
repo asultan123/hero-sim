@@ -34,6 +34,20 @@ namespace Hero
     };
 
     template <typename DataType>
+    struct SAMVectorCreator
+    {
+        GlobalControlChannel &control;
+        unsigned int channel_count;
+        unsigned int length;
+        unsigned int width;
+        sc_trace_file *tf;
+
+        SAMVectorCreator(GlobalControlChannel &_control, unsigned int _channel_count, unsigned int _length, unsigned int _width, sc_trace_file *_tf);
+
+        SAM<DataType> *operator()(const char *name, size_t);
+    };
+
+    template <typename DataType>
     struct PeCreator
     {
         sc_trace_file *tf;
@@ -57,6 +71,7 @@ namespace Hero
 
         sc_vector<sc_vector<sc_signal<DataType>>> psum_mem_write;
         SAM<DataType> ifmap_mem;
+        sc_vector<SAM<DataType>> ifmap_reuse_chain;
         sc_vector<sc_vector<sc_signal<DataType>>> ifmap_mem_read;
         sc_vector<sc_vector<sc_signal<DataType>>> ifmap_mem_write;
 

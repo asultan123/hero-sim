@@ -4,7 +4,6 @@
 
 namespace Hero
 {
-
     template <typename DataType>
     SignalVectorCreator<DataType>::SignalVectorCreator(unsigned int _width, sc_trace_file *_tf) : tf(_tf), width(_width){};
 
@@ -21,6 +20,15 @@ namespace Hero
     PE<DataType> *PeCreator<DataType>::operator()(const char *name, size_t)
     {
         return new PE<DataType>(name, this->tf);
+    }
+
+    template <typename DataType>
+    SAMVectorCreator<DataType>::SAMVectorCreator(GlobalControlChannel &_control, unsigned int _channel_count, unsigned int _length, unsigned int _width, sc_trace_file *_tf) : control(_control), channel_count(_channel_count), length(_length), width(_width), tf(_tf) {}
+
+    template <typename DataType>
+    SAM<DataType> *SAMVectorCreator<DataType>::operator()(const char *name, size_t)
+    {
+        return new SAM<DataType>(name, control, channel_count, length, width, tf);
     }
 
     template <typename DataType>
@@ -71,7 +79,7 @@ namespace Hero
                 {
                     for (int channel_column = 0; channel_column < channel_count - 1; channel_column++)
                     {
-
+                        // int channel_group = channel_column / 3;
                         PE<DataType> &cur_pe = this->pe_array[filter_row * channel_count + channel_column];
                         PE<DataType> &next_pe = this->pe_array[filter_row * channel_count + channel_column + 1];
                         if (cur_pe.current_weight.read() != -1)
@@ -88,7 +96,6 @@ namespace Hero
                         cur_pe.updateState();
                     }
                     PE<DataType> &last_pe = this->pe_array[filter_row * channel_count + channel_count - 1];
-
                     if (last_pe.current_weight.read() != -1)
                     {
                         last_pe.active_counter++;
@@ -123,7 +130,6 @@ namespace Hero
                 {
                     for (int channel_column = 0; channel_column < channel_count - 1; channel_column++)
                     {
-
                         PE<DataType> &cur_pe = this->pe_array[filter_row * channel_count + channel_column];
                         PE<DataType> &next_pe = this->pe_array[filter_row * channel_count + channel_column + 1];
                         if (cur_pe.current_weight.read() != -1)
@@ -140,7 +146,6 @@ namespace Hero
                         cur_pe.updateState();
                     }
                     PE<DataType> &last_pe = this->pe_array[filter_row * channel_count + channel_count - 1];
-
                     if (last_pe.current_weight.read() != -1)
                     {
                         last_pe.active_counter++;
@@ -153,14 +158,6 @@ namespace Hero
                     }
                     last_pe.updateState();
                 }
-                // for(int i =0 ; i < 7; i++)
-                // {
-                //     for(int j = 0; j<9; j++)
-                //     {
-                //         cout << this->pe_array[i*9 + j].current_weight.read() << " ";
-                //     }
-                //     cout << endl;
-                // }
                 wait();
             }
             wait();
@@ -202,6 +199,7 @@ namespace Hero
                         psum_mem_read("psum_mem_read", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
                         psum_mem_write("psum_mem_write", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
                         ifmap_mem("ifmap_mem", _control, channel_count, ifmap_mem_size, 1, _tf),
+                        ifmap_reuse_chain("ifmap_reuse_chain"),
                         ifmap_mem_read("ifmap_mem_read", channel_count, SignalVectorCreator<DataType>(1, tf)),
                         ifmap_mem_write("ifmap_mem_write", channel_count, SignalVectorCreator<DataType>(1, tf)),
                         kmapping(kmapping),
@@ -214,12 +212,6 @@ namespace Hero
         this->psum_mem_size = psum_mem_size;
         this->ifmap_mem_size = ifmap_mem_size;
 
-        // for(auto& psum: this->filter_psum_out)
-        // {
-        //     sc_trace(tf, psum, psum.name());
-        // }
-
-        // psum_read/write
         for (int i = 0; i < filter_count * 2; i++)
         {
             psum_mem.read_channel_data[i][0](psum_mem_read[i][0]);
@@ -250,6 +242,15 @@ namespace Hero
         }
         else if (mode == SimMode::RUN_3x3)
         {
+            assert(this->channel_count % 3 == 0);
+            unsigned int kernel_groups_count = this->channel_count / 9;
+            unsigned int total_sams_in_ifmap_chain = kernel_groups_count * 2;
+            ifmap_reuse_chain.init(total_sams_in_ifmap_chain, SAMVectorCreator<DataType>(
+                                                                  _control,
+                                                                  2,   // port count
+                                                                  512, // over estimating length
+                                                                  1,   // width
+                                                                  _tf));
             SC_THREAD(update_3x3);
         }
         else
