@@ -63,11 +63,11 @@ namespace LayerGeneration
         switch (arch.mode)
         {
         case Hero::SimMode::RUN_1x1:
-            return validate_output_1x1(ifmap, weights, arch_output);             
+            return validate_output_1x1(ifmap, weights, arch_output);
         case Hero::SimMode::RUN_3x3:
             throw "Validating 3x3 convolution outputs not implemented";
         default:
-            break;
+            throw "Invalid SimMode used for validating output";
         }
     }
 
