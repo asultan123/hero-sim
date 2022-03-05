@@ -10,7 +10,7 @@
 
 namespace Hero
 {
-    enum SimMode
+    enum OperationMode
     {
         RUN_1x1 = 1,
         RUN_3x3 = 2
@@ -82,7 +82,7 @@ namespace Hero
         int ifmap_mem_size;
 
         KernelMapping kmapping;
-        SimMode mode;
+        OperationMode mode;
 
         void suspend_monitor();
 
@@ -101,7 +101,7 @@ namespace Hero
             int ifmap_mem_size,
             sc_trace_file *_tf,
             KernelMapping kmapping = KernelMapping::HORIZONTAL,
-            SimMode mode = SimMode::RUN_1x1);
+            OperationMode mode = OperationMode::RUN_1x1);
 
         SC_HAS_PROCESS(Arch);
     };

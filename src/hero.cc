@@ -192,7 +192,7 @@ namespace Hero
         int ifmap_mem_size,
         sc_trace_file *_tf,
         KernelMapping kmapping,
-        SimMode mode) : sc_module(name),
+        OperationMode mode) : sc_module(name),
                         pe_array("pe_array", filter_count * channel_count, PeCreator<DataType>(_tf)),
                         tf(_tf),
                         psum_mem("psum_mem", _control, filter_count * 2, psum_mem_size, 1, _tf),
@@ -236,11 +236,11 @@ namespace Hero
             sc_trace(tf, ifmap_mem_read[i][0], (this->ifmap_mem_read[i][0].name()));
         }
 
-        if (mode == SimMode::RUN_1x1)
+        if (mode == OperationMode::RUN_1x1)
         {
             SC_THREAD(update_1x1);
         }
-        else if (mode == SimMode::RUN_3x3)
+        else if (mode == OperationMode::RUN_3x3)
         {
             assert(this->channel_count % 3 == 0);
             unsigned int kernel_groups_count = this->channel_count / 9;
