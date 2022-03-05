@@ -1,16 +1,16 @@
 #if !defined(__ADDRESS_GENERATOR_HH__)
 #define __ADDRESS_GENERATOR_HH__
 
-#include <systemc>
-#include <map>
-#include <vector>
+#include "Descriptor.hh"
 #include "GlobalControl.hh"
-#include "memory.h"
 #include "Memory.hh"
+#include "memory.h"
 #include <assert.h>
 #include <iostream>
+#include <map>
 #include <string>
-#include "Descriptor.hh"
+#include <systemc>
+#include <vector>
 
 using std::cout;
 using std::endl;
@@ -19,18 +19,17 @@ using std::vector;
 using namespace sc_core;
 using namespace sc_dt;
 
-template <typename DataType>
-struct AddressGenerator : public sc_module
+template <typename DataType> struct AddressGenerator : public sc_module
 {
     // Control Signals
-private:
+  private:
     sc_in_clk _clk;
     sc_in<bool> _reset;
 
-public:
+  public:
     sc_port<GlobalControlChannel_IF> control;
     sc_port<MemoryChannel_IF<DataType>> channel;
-    sc_trace_file* tf;
+    sc_trace_file *tf;
 
     // Internal Data
     vector<Descriptor_2D> descriptors;
@@ -47,7 +46,7 @@ public:
 
     void loadInternalCountersFromIndex(unsigned int index);
 
-    void loadProgram(const vector<Descriptor_2D>& newProgram);
+    void loadProgram(const vector<Descriptor_2D> &newProgram);
 
     void resetProgramMemory();
 
@@ -55,29 +54,27 @@ public:
     Descriptor_2D nextDescriptor();
 
     void updateCurrentIndex();
-    
+
     void RGENWAITupdateCurrentIndex();
 
     bool descriptorComplete();
 
     void loadNextDescriptor();
 
-    void update(); 
+    void update();
 
     // Constructor
-    AddressGenerator(sc_module_name name, GlobalControlChannel& _control,
-                     sc_trace_file* _tf);
+    AddressGenerator(sc_module_name name, GlobalControlChannel &_control, sc_trace_file *_tf);
 
     SC_HAS_PROCESS(AddressGenerator);
 };
 
-template <typename DataType>
-struct AddressGeneratorCreator
+template <typename DataType> struct AddressGeneratorCreator
 {
-    AddressGeneratorCreator(GlobalControlChannel& _control, sc_trace_file* _tf);
-    AddressGenerator<DataType>* operator()(const char* name, size_t);
-    sc_trace_file* tf;
-    GlobalControlChannel& control;
+    AddressGeneratorCreator(GlobalControlChannel &_control, sc_trace_file *_tf);
+    AddressGenerator<DataType> *operator()(const char *name, size_t);
+    sc_trace_file *tf;
+    GlobalControlChannel &control;
 };
 
 #include "../src/AddressGenerator.cc"

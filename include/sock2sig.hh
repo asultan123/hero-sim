@@ -18,28 +18,28 @@
 using namespace sc_core;
 using namespace sc_dt;
 
-template <unsigned int BUSWIDTH>
-class Sock2Sig : public sc_module {
-  SC_HAS_PROCESS(Sock2Sig<BUSWIDTH>);
+template <unsigned int BUSWIDTH> class Sock2Sig : public sc_module
+{
+    SC_HAS_PROCESS(Sock2Sig<BUSWIDTH>);
 
- public:
-  Sock2Sig(int readyDelay = 1, sc_module_name moduleName = "sock-2-sig");
+  public:
+    Sock2Sig(int readyDelay = 1, sc_module_name moduleName = "sock-2-sig");
 
-  tlm_utils::simple_target_socket<Sock2Sig, BUSWIDTH> inputSock;
-  sc_out<sc_int<BUSWIDTH>> outputSig;
-  sc_out<bool> dataReady;
-  sc_in<bool> assertRead;
+    tlm_utils::simple_target_socket<Sock2Sig, BUSWIDTH> inputSock;
+    sc_out<sc_int<BUSWIDTH>> outputSig;
+    sc_out<bool> dataReady;
+    sc_in<bool> assertRead;
 
- private:
-  void inputSock_b_transport(tlm::tlm_generic_payload& trans, sc_time& delay);
-  void updateOutput();
+  private:
+    void inputSock_b_transport(tlm::tlm_generic_payload &trans, sc_time &delay);
+    void updateOutput();
 
-  std::unique_ptr<std::vector<uint8_t>> currentData;
-  size_t bitOffset;
-  size_t byteOffset;
-  sc_event dataAvailable;
-  sc_event transComplete;
-  int readyDelay;
+    std::unique_ptr<std::vector<uint8_t>> currentData;
+    size_t bitOffset;
+    size_t byteOffset;
+    sc_event dataAvailable;
+    sc_event transComplete;
+    int readyDelay;
 };
 
-#endif  // __SOCK2SIG_H__
+#endif // __SOCK2SIG_H__

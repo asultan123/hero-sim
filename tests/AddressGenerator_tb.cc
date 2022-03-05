@@ -4,29 +4,26 @@
 using std::cout;
 using std::endl;
 
-template <typename DataType>
-struct AddressGenerator_TB : public sc_module
+template <typename DataType> struct AddressGenerator_TB : public sc_module
 {
 
     const unsigned int mem_channel_width = 4;
 
-    sc_trace_file* tf;
+    sc_trace_file *tf;
     GlobalControlChannel control;
 
     AddressGenerator<DataType> dut;
     MemoryChannel<DataType> mem_channel;
     AddressGenerator_TB(sc_module_name name)
         : sc_module(name), tf(sc_create_vcd_trace_file("ProgTrace")),
-          control("global_control_channel", sc_time(1, SC_NS), tf),
-          dut("dut", control, tf),
+          control("global_control_channel", sc_time(1, SC_NS), tf), dut("dut", control, tf),
           mem_channel("mem_channel", mem_channel_width, tf)
     {
 
         tf->set_time_unit(1, SC_PS);
         dut.channel(mem_channel);
         control.set_reset(false);
-        cout << "Instantiated AddressGenerator TB with name " << this->name()
-             << endl;
+        cout << "Instantiated AddressGenerator TB with name " << this->name() << endl;
     }
     bool validate_reset()
     {
@@ -72,8 +69,7 @@ struct AddressGenerator_TB : public sc_module
     {
         cout << "Validating validate_loadprogram_and_suspended_state" << endl;
 
-        Descriptor_2D suspend_descriptor(0, 0, DescriptorState::SUSPENDED, 0, 0, 0,
-                                         0);
+        Descriptor_2D suspend_descriptor(0, 0, DescriptorState::SUSPENDED, 0, 0, 0, 0);
         vector<Descriptor_2D> temp_program;
         temp_program.push_back(suspend_descriptor);
         dut.loadProgram(temp_program);
@@ -122,8 +118,7 @@ struct AddressGenerator_TB : public sc_module
         sc_start(1, SC_NS);
         Descriptor_2D wait_descriptor_1(1, 0, DescriptorState::WAIT, 2, 2, 0, 0);
         Descriptor_2D wait_descriptor_2(2, 0, DescriptorState::WAIT, 3, 3, 0, 0);
-        Descriptor_2D suspend_descriptor(3, 0, DescriptorState::SUSPENDED, 0, 0, 0,
-                                         0);
+        Descriptor_2D suspend_descriptor(3, 0, DescriptorState::SUSPENDED, 0, 0, 0, 0);
         vector<Descriptor_2D> temp_program;
         temp_program.push_back(wait_descriptor_1);
         temp_program.push_back(wait_descriptor_2);
@@ -145,8 +140,7 @@ struct AddressGenerator_TB : public sc_module
         }
         if (!(dut.x_count_remaining == 2 && dut.y_count_remaining == 0))
         {
-            cout << "dut.x_count_remaining == 2 && dut.y_count_remaining == 0 FAILED!"
-                 << endl;
+            cout << "dut.x_count_remaining == 2 && dut.y_count_remaining == 0 FAILED!" << endl;
             return false;
         }
         cout << "validate success!" << endl;
@@ -163,10 +157,10 @@ struct AddressGenerator_TB : public sc_module
         }
         cout << "validate success!" << endl;
 
-        //load cycle
+        // load cycle
         sc_start(1, SC_NS);
 
-        //first cycle
+        // first cycle
         sc_start(1, SC_NS);
 
         cout << "validate second wait descriptor execution" << endl;
@@ -182,8 +176,8 @@ struct AddressGenerator_TB : public sc_module
         cout << "validate success!" << endl;
 
         cout << "validate final descriptor is suspend" << endl;
-        
-        //load cycle
+
+        // load cycle
         sc_start(1, SC_NS);
         if (!(dut.currentDescriptor() == suspend_descriptor))
         {
@@ -204,12 +198,9 @@ struct AddressGenerator_TB : public sc_module
         control.set_reset(false);
         sc_start(1, SC_NS);
 
-        Descriptor_2D generate_1D_descriptor_1(1, 10, DescriptorState::GENERATE, 10,
-                                               2, 0, 0);
-        Descriptor_2D generate_1D_descriptor_2(2, 20, DescriptorState::GENERATE, 10,
-                                               -1, 0, 0);
-        Descriptor_2D suspend_descriptor(1, 0, DescriptorState::SUSPENDED, 0, 0, 0,
-                                         0);
+        Descriptor_2D generate_1D_descriptor_1(1, 10, DescriptorState::GENERATE, 10, 2, 0, 0);
+        Descriptor_2D generate_1D_descriptor_2(2, 20, DescriptorState::GENERATE, 10, -1, 0, 0);
+        Descriptor_2D suspend_descriptor(1, 0, DescriptorState::SUSPENDED, 0, 0, 0, 0);
         vector<Descriptor_2D> temp_program;
         temp_program.push_back(generate_1D_descriptor_1);
         temp_program.push_back(generate_1D_descriptor_2);
@@ -221,7 +212,7 @@ struct AddressGenerator_TB : public sc_module
         sc_start(1, SC_NS);
         control.set_program(false);
         control.set_enable(true);
-        //first cycle (channel enable cycle)
+        // first cycle (channel enable cycle)
         sc_start(1, SC_NS);
         if (!(mem_channel.addr() == 10))
         {
@@ -230,8 +221,7 @@ struct AddressGenerator_TB : public sc_module
         }
         if (!(dut.currentDescriptor() == generate_1D_descriptor_1))
         {
-            cout << "dut.currentDescriptor() == generate_1D_descriptor_1 FAILED!"
-                 << endl;
+            cout << "dut.currentDescriptor() == generate_1D_descriptor_1 FAILED!" << endl;
             return false;
         }
 
@@ -265,8 +255,7 @@ struct AddressGenerator_TB : public sc_module
         }
         if (!(dut.currentDescriptor() == generate_1D_descriptor_2))
         {
-            cout << "dut.currentDescriptor() == generate_1D_descriptor_2 FAILED!"
-                 << endl;
+            cout << "dut.currentDescriptor() == generate_1D_descriptor_2 FAILED!" << endl;
             return false;
         }
         cout << "validate success!" << endl;
@@ -301,12 +290,9 @@ struct AddressGenerator_TB : public sc_module
         control.set_reset(false);
         sc_start(1, SC_NS);
 
-        Descriptor_2D generate_2D_descriptor_1(1, 10, DescriptorState::GENERATE, 10,
-                                               2, 5, 5);
-        Descriptor_2D generate_2D_descriptor_2(2, 500, DescriptorState::GENERATE,
-                                               10, -1, 5, -5);
-        Descriptor_2D suspend_descriptor(1, 0, DescriptorState::SUSPENDED, 0, 0, 0,
-                                         0);
+        Descriptor_2D generate_2D_descriptor_1(1, 10, DescriptorState::GENERATE, 10, 2, 5, 5);
+        Descriptor_2D generate_2D_descriptor_2(2, 500, DescriptorState::GENERATE, 10, -1, 5, -5);
+        Descriptor_2D suspend_descriptor(1, 0, DescriptorState::SUSPENDED, 0, 0, 0, 0);
         vector<Descriptor_2D> temp_program;
         temp_program.push_back(generate_2D_descriptor_1);
         temp_program.push_back(generate_2D_descriptor_2);
@@ -340,9 +326,7 @@ struct AddressGenerator_TB : public sc_module
                     cout << "\t validate initial condition at first cycle" << endl;
                     if (!(dut.currentDescriptor() == generate_2D_descriptor_1))
                     {
-                        cout
-                            << "dut.currentDescriptor() == generate_2D_descriptor_1 FAILED!"
-                            << endl;
+                        cout << "dut.currentDescriptor() == generate_2D_descriptor_1 FAILED!" << endl;
                         return false;
                     }
                     cout << "\t validate success!" << endl;
@@ -378,22 +362,19 @@ struct AddressGenerator_TB : public sc_module
             {
                 if (first_cycle)
                 {
-                    cout
-                        << "\t validate transition from first generate descriptor to second "
-                           "generate descriptor"
-                        << endl;
+                    cout << "\t validate transition from first generate descriptor to second "
+                            "generate descriptor"
+                         << endl;
                     if (!(dut.currentDescriptor() == generate_2D_descriptor_2))
                     {
-                        cout
-                            << "dut.currentDescriptor() == generate_2D_descriptor_2 FAILED!"
-                            << endl;
+                        cout << "dut.currentDescriptor() == generate_2D_descriptor_2 FAILED!" << endl;
                         return false;
                     }
                     cout << "\t validate success!" << endl;
 
                     first_cycle = false;
                 }
-                if (!(mem_channel.addr() == (unsigned int) index))
+                if (!(mem_channel.addr() == (unsigned int)index))
                 {
                     cout << "mem_channel.addr() == index FAILED!" << endl;
                     return false;
@@ -449,9 +430,12 @@ struct AddressGenerator_TB : public sc_module
 
         return 0;
     }
-    ~AddressGenerator_TB() { sc_close_vcd_trace_file(tf); }
+    ~AddressGenerator_TB()
+    {
+        sc_close_vcd_trace_file(tf);
+    }
 };
-int sc_main(int argc, char* argv[])
+int sc_main(int argc, char *argv[])
 {
     AddressGenerator_TB<sc_int<32>> tb("AddressGenerator_tb");
     return tb.run_tb();

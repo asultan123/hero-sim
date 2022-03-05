@@ -2,20 +2,23 @@
 
 #include <iostream>
 
-BytePrinter::BytePrinter(sc_module_name moduleName) : sc_module(moduleName) {
-  SC_THREAD(printData);
+BytePrinter::BytePrinter(sc_module_name moduleName) : sc_module(moduleName)
+{
+    SC_THREAD(printData);
 }
 
-void BytePrinter::printData() {
-  while (true) {
-    wait(dataReady.posedge_event());
+void BytePrinter::printData()
+{
+    while (true)
+    {
+        wait(dataReady.posedge_event());
 
-    char value = inputSig.read();
+        char value = inputSig.read();
 
-    std::cout << value;
+        std::cout << value;
 
-    assertRead = true;
-    wait(1, SC_NS);
-    assertRead = false;
-  }
+        assertRead = true;
+        wait(1, SC_NS);
+        assertRead = false;
+    }
 }
