@@ -91,7 +91,7 @@ template <typename DataType> void SSM<DataType>::propogate_in_to_out()
 {
     if (output_count > 1)
     {
-        if (out_channel != nullptr)
+        if (out_channel == nullptr)
         {
             throw std::runtime_error(
                 "Something went wrong during SSM instantiation, \"out\" channel should be non null");
@@ -101,7 +101,7 @@ template <typename DataType> void SSM<DataType>::propogate_in_to_out()
     }
     else if (input_count > 1)
     {
-        if (in_channel != nullptr)
+        if (in_channel == nullptr)
         {
             throw std::runtime_error(
                 "Something went wrong during SSM instantiation, \"in\" channel should be non null");
