@@ -5,7 +5,8 @@
 template <typename DataType>
 SSM<DataType>::SSM(sc_module_name name, GlobalControlChannel &_control, unsigned int _input_count,
                    unsigned int _output_count, sc_trace_file *_tf)
-    : sc_module(name), input_count(_input_count), output_count(_output_count), in("in"), out("out")
+    : sc_module(name), input_count(_input_count), output_count(_output_count), in("in"), in_sig("in_sig"), out("out"),
+      out_sig("out_sig")
 {
     if (input_count <= 0 || output_count <= 0)
     {
@@ -24,7 +25,12 @@ SSM<DataType>::SSM(sc_module_name name, GlobalControlChannel &_control, unsigned
     }
 
     in.init(input_count);
+    in_sig.init(input_count);
     out.init(output_count);
+    out_sig.init(output_count);
+
+    in.bind(in_sig);
+    out.bind(out_sig);
 
     if (input_count > 1)
     {
@@ -91,7 +97,7 @@ template <typename DataType> void SSM<DataType>::propogate_in_to_out()
                 "Something went wrong during SSM instantiation, \"out\" channel should be non null");
         }
         auto target_port = out_channel->addr();
-        out.at(target_port).write(in.at(0).read());
+        out_sig.at(target_port).write(in_sig.at(0).read());
     }
     else if (input_count > 1)
     {
@@ -101,7 +107,7 @@ template <typename DataType> void SSM<DataType>::propogate_in_to_out()
                 "Something went wrong during SSM instantiation, \"in\" channel should be non null");
         }
         auto target_port = in_channel->addr();
-        out.at(0).write(in.at(target_port).read());
+        out_sig.at(0).write(in_sig.at(target_port).read());
     }
     else
     {

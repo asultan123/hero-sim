@@ -17,16 +17,13 @@ using std::string;
 // TODO: #1
 template <typename DataType> struct SSM : public sc_module
 {
-    // Member Signals
-  private:
-    sc_in_clk _clk;
-
   public:
-    sc_port<GlobalControlChannel_IF> control;
     unsigned int input_count;
     unsigned int output_count;
     sc_vector<sc_in<DataType>> in;
+    sc_vector<sc_signal<DataType>> in_sig;
     sc_vector<sc_out<DataType>> out;
+    sc_vector<sc_signal<DataType>> out_sig;
     std::unique_ptr<AddressGenerator<DataType>> in_generator;
     std::unique_ptr<AddressGenerator<DataType>> out_generator;
     std::unique_ptr<MemoryChannel<DataType>> in_channel;
