@@ -1,10 +1,12 @@
+
 function(compile target)
-  add_executable(${target} "")
-  target_sources(${target}
-    PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/${target}.cc"
-    )
-  target_link_libraries(${target} cnn_processor)
+add_executable(${target} "")
+target_sources(${target}
+  PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/${target}.cc"
+  )
+target_link_libraries(${target} cnn_processor)
+# set_property(TARGET ${target} PROPERTY CXX_INCLUDE_WHAT_YOU_USE "${iwyu_path};-Xiwyu;--mapping_file=${CMAKE_CURRENT_SOURCE_DIR}/../systemc.imp;-Xiwyu;--cxx14ns")
 endfunction(compile)
 
 function(do_test target result)
@@ -19,8 +21,10 @@ endfunction(do_test)
 compile(Memory_tb)
 compile(AddressGenerator_tb)
 compile(SAM_tb)
+compile(SSM_tb)
 
 do_test(SAM_tb "ALL TESTS PASS")
+do_test(SSM_tb "ALL TESTS PASS")
 do_test(AddressGenerator_tb "ALL TESTS PASS")
 # do_test(Connector_tb "ALL TESTS PASS")
 do_test(Memory_tb "ALL TESTS PASS")

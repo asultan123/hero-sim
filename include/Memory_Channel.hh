@@ -55,10 +55,11 @@ template <typename DataType> struct MemoryChannel : public sc_module, public Mem
 
     MemoryChannel(sc_module_name name, unsigned int width, sc_trace_file *tf);
 
-    const sc_vector<sc_signal<DataType, SC_MANY_WRITERS>> &mem_read_data();
+    const sc_vector<sc_signal<DataType, SC_MANY_WRITERS>>
+        &mem_read_data(); // TODO: #30 Rename confusing access function for Memory objects
 
     void mem_write_data(const sc_vector<sc_signal<DataType>> &_data);
-    void mem_write_data(int _data);
+    void mem_write_data(int _data); // TODO: #29 Remove ability to write int data to a memory channel
 
     const sc_vector<sc_signal<DataType, SC_MANY_WRITERS>> &channel_read_data();
 

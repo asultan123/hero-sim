@@ -16,7 +16,7 @@ using std::vector;
 
 namespace LayerGeneration
 {
-// TODO: enable layer generation with arbitrary DataTypes other than int
+// TODO: #28 enable layer generation with arbitrary DataTypes other than int
 template <typename DataType>
 xt::xarray<int> generate_ifmap(Hero::Arch<DataType> &arch, int channel_in, int ifmap_h, int ifmap_w);
 

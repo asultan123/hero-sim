@@ -7,6 +7,7 @@
 #include <iostream>
 #include <string>
 
+#include "AddressGenerator.hh"
 #include "GlobalControl.hh"
 
 using std::cout;
@@ -26,6 +27,10 @@ template <typename DataType> struct SSM : public sc_module
     unsigned int output_count;
     sc_vector<sc_out<DataType>> in;
     sc_vector<sc_in<DataType>> out;
+    sc_vector<AddressGenerator<DataType>> in_generators;
+    sc_vector<AddressGenerator<DataType>> out_generators;
+    sc_vector<MemoryChannel<DataType>> in_channels;
+    sc_vector<MemoryChannel<DataType>> out_channels;
 
     void update();
 

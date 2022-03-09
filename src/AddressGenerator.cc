@@ -79,6 +79,7 @@ template <typename DataType> void AddressGenerator<DataType>::updateCurrentIndex
     {
         if (y_count_remaining != 0)
         {
+            // TODO: #31 Remove current_ram_index in address generators
             current_ram_index = current_ram_index + currentDescriptor().y_modify;
             // HACK WITH CHANNEL->SET_ADDR
             channel->set_addr(current_ram_index + currentDescriptor().y_modify);
