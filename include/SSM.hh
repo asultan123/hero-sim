@@ -25,14 +25,16 @@ template <typename DataType> struct SSM : public sc_module
     sc_port<GlobalControlChannel_IF> control;
     unsigned int input_count;
     unsigned int output_count;
-    sc_vector<sc_out<DataType>> in;
-    sc_vector<sc_in<DataType>> out;
-    sc_vector<AddressGenerator<DataType>> in_generators;
-    sc_vector<AddressGenerator<DataType>> out_generators;
-    sc_vector<MemoryChannel<DataType>> in_channels;
-    sc_vector<MemoryChannel<DataType>> out_channels;
+    sc_vector<sc_in<DataType>> in;
+    sc_vector<sc_out<DataType>> out;
+    std::unique_ptr<AddressGenerator<DataType>> in_generator;
+    std::unique_ptr<AddressGenerator<DataType>> out_generator;
+    std::unique_ptr<MemoryChannel<DataType>> in_channel;
+    std::unique_ptr<MemoryChannel<DataType>> out_channel;
 
-    void update();
+    void propogate_in_to_out();
+    void load_in_port_program(const vector<Descriptor_2D> &newProgram);
+    void load_out_port_program(const vector<Descriptor_2D> &newProgram);
 
     // Constructor
     SSM(sc_module_name name, GlobalControlChannel &_control, unsigned int input_count, unsigned int output_count,
