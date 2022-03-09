@@ -8,18 +8,19 @@
 using namespace sc_core;
 using namespace sc_dt;
 
-class StringProducer : public sc_module {
-  SC_HAS_PROCESS(StringProducer);
+class StringProducer : public sc_module
+{
+    SC_HAS_PROCESS(StringProducer);
 
- public:
-  StringProducer(sc_module_name moduleName = "string-producer");
+  public:
+    StringProducer(sc_module_name moduleName = "string-producer");
 
-  tlm_utils::simple_initiator_socket<StringProducer, 8> outputSock;
+    tlm_utils::simple_initiator_socket<StringProducer, 8> outputSock;
 
- private:
-  void sendString();
+  private:
+    void sendString();
 
-  tlm::tlm_generic_payload trans;
+    tlm::tlm_generic_payload trans;
 };
 
-#endif  // __STRINGPRODUCER_H__
+#endif // __STRINGPRODUCER_H__

@@ -1,15 +1,15 @@
 #if !defined(__PROCENGINE_CC__)
 #define __PROCENGINE_CC__
 
-#include <systemc>
-#include <map>
-#include <vector>
-#include "GlobalControl.hh"
 #include "AddressGenerator.hh"
+#include "GlobalControl.hh"
 #include <assert.h>
 #include <iostream>
-#include <string>
+#include <map>
 #include <stdexcept>
+#include <string>
+#include <systemc>
+#include <vector>
 
 using std::cout;
 using std::endl;
@@ -18,11 +18,10 @@ using std::vector;
 using namespace sc_core;
 using namespace sc_dt;
 
-template <typename DataType>
-struct PE : public sc_module
+template <typename DataType> struct PE : public sc_module
 {
 
-public:
+  public:
     sc_trace_file *tf;
     vector<int> weights;
     int weight_idx;
@@ -37,7 +36,7 @@ public:
 
     void reset();
 
-    DataType compute(sc_signal<DataType>& input);
+    DataType compute(sc_signal<DataType> &input);
     DataType compute(unsigned long int input);
 
     void resetWeightIdx();
@@ -52,7 +51,6 @@ public:
 
     // Constructor
     PE(sc_module_name name, sc_trace_file *_tf);
-
 };
 
 #include "../src/ProcEngine.cc"

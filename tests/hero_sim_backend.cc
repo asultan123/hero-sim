@@ -1,36 +1,33 @@
 #ifndef __ESTIMATION_ENVIORNMENT_CC
 #define __ESTIMATION_ENVIORNMENT_CC
 
-#include <systemc.h>
+#include "AddressGenerator.hh"
+#include "GlobalControl.hh"
+#include "ProcEngine.hh"
+#include "SAM.hh"
 #include "descriptor_compiler.hh"
 #include "hero.hh"
 #include "layer_generation.hh"
-#include "GlobalControl.hh"
 #include <assert.h>
-#include <iostream>
-#include <string>
-#include <sstream>
-#include "ProcEngine.hh"
-#include "SAM.hh"
+#include <boost/program_options.hpp>
 #include <chrono>
-#include <vector>
-#include <assert.h>
-#include <iomanip>
 #include <cmath>
 #include <deque>
-#include <memory>
-#include <tuple>
-#include "AddressGenerator.hh"
-#include <xtensor/xarray.hpp>
-#include <xtensor/xio.hpp>
-#include <xtensor/xview.hpp>
-#include <xtensor/xaxis_iterator.hpp>
-#include <xtensor/xpad.hpp>
+#include <iomanip>
 #include <iostream>
+#include <memory>
+#include <sstream>
 #include <string>
-#include <xtensor/xadapt.hpp>
+#include <systemc.h>
+#include <tuple>
+#include <vector>
 #include <xtensor-blas/xlinalg.hpp>
-#include <boost/program_options.hpp>
+#include <xtensor/xadapt.hpp>
+#include <xtensor/xarray.hpp>
+#include <xtensor/xaxis_iterator.hpp>
+#include <xtensor/xio.hpp>
+#include <xtensor/xpad.hpp>
+#include <xtensor/xview.hpp>
 
 using std::cout;
 using std::deque;
@@ -95,9 +92,11 @@ void load_padded_weights_into_pes(Hero::Arch<DataType> &arch, xt::xarray<int> pa
 
     for (auto filter_offset = 0; filter_offset < (int)padded_weights.shape()[0]; filter_offset += arch.filter_count)
     {
-        for (auto channel_offset = 0; channel_offset < (int)padded_weights.shape()[1]; channel_offset += arch.channel_count)
+        for (auto channel_offset = 0; channel_offset < (int)padded_weights.shape()[1];
+             channel_offset += arch.channel_count)
         {
-            auto tiled_view = xt::view(padded_weights, xt::range(filter_offset, filter_offset + arch.filter_count), xt::range(channel_offset, channel_offset + arch.channel_count));
+            auto tiled_view = xt::view(padded_weights, xt::range(filter_offset, filter_offset + arch.filter_count),
+                                       xt::range(channel_offset, channel_offset + arch.channel_count));
 
             for (auto i = 0; i < arch.filter_count; i++)
             {
@@ -115,7 +114,8 @@ void load_padded_weights_into_pes(Hero::Arch<DataType> &arch, xt::xarray<int> pa
         for (int channel_column = 0; channel_column < arch.channel_count; channel_column++)
         {
             auto &cur_pe = arch.pe_array[filter_row * arch.channel_count + channel_column];
-            vector<int> pe_weight_temp(pe_weights[filter_row][channel_column].begin(), pe_weights[filter_row][channel_column].end());
+            vector<int> pe_weight_temp(pe_weights[filter_row][channel_column].begin(),
+                                       pe_weights[filter_row][channel_column].end());
             cur_pe.loadWeights(pe_weight_temp);
         }
     }
@@ -214,7 +214,11 @@ int sc_main(int argc, char *argv[])
     try
     {
         po::options_description config("Configuration");
-        config.add_options()("help", "produce help message")("ifmap_h", po::value<int>(), "set input feature map width")("ifmap_w", po::value<int>(), "set input feature map height")("k", po::value<int>(), "set kernel size")("c_in", po::value<int>(), "set ifmap channel count")("f_out", po::value<int>(), "set weight filter count")("filter_count", po::value<int>(), "set arch width")("channel_count", po::value<int>(), "set arch height");
+        config.add_options()("help", "produce help message")("ifmap_h", po::value<int>(),
+                                                             "set input feature map width")(
+            "ifmap_w", po::value<int>(), "set input feature map height")("k", po::value<int>(), "set kernel size")(
+            "c_in", po::value<int>(), "set ifmap channel count")("f_out", po::value<int>(), "set weight filter count")(
+            "filter_count", po::value<int>(), "set arch width")("channel_count", po::value<int>(), "set arch height");
 
         po::variables_map vm;
         po::store(po::parse_command_line(argc, argv, config), vm);
@@ -234,7 +238,8 @@ int sc_main(int argc, char *argv[])
         filter_count = (vm.count("filter_count")) ? vm["filter_count"].as<int>() : filter_count;
         channel_count = (vm.count("channel_count")) ? vm["channel_count"].as<int>() : channel_count;
 
-        if (ifmap_h <= 0 || ifmap_w <= 0 || k <= 0 || c_in <= 0 || f_out <= 0 || filter_count <= 0 || channel_count <= 0)
+        if (ifmap_h <= 0 || ifmap_w <= 0 || k <= 0 || c_in <= 0 || f_out <= 0 || filter_count <= 0 ||
+            channel_count <= 0)
         {
             throw std::invalid_argument("all passed arguments must be positive");
         }

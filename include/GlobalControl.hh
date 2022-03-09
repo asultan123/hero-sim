@@ -8,7 +8,7 @@ using namespace sc_dt;
 
 struct GlobalControlChannel_IF : virtual public sc_interface
 {
-public:
+  public:
     virtual sc_clock &clk() = 0;
     virtual const sc_signal<bool> &reset() = 0;
     virtual const sc_signal<bool> &program() = 0;
@@ -24,12 +24,10 @@ struct GlobalControlChannel : public sc_module, public GlobalControlChannel_IF
     sc_signal<bool> global_reset;
     sc_signal<bool> global_enable;
     sc_signal<bool> global_program;
-    GlobalControlChannel(sc_module_name name,
-                         sc_time time_val,
-                         sc_trace_file *tf);
+    GlobalControlChannel(sc_module_name name, sc_time time_val, sc_trace_file *tf);
 
     sc_clock &clk();
-    
+
     sc_signal<bool> &reset();
 
     sc_signal<bool> &program();

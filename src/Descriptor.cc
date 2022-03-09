@@ -2,9 +2,8 @@
 #include "../include/Descriptor.hh"
 #endif
 
-Descriptor_2D::Descriptor_2D(unsigned int _next, unsigned int _start, DescriptorState _state,
-                             unsigned int _x_count, int _x_modify, unsigned int _y_count,
-                             int _y_modify)
+Descriptor_2D::Descriptor_2D(unsigned int _next, unsigned int _start, DescriptorState _state, unsigned int _x_count,
+                             int _x_modify, unsigned int _y_count, int _y_modify)
 {
     this->next = _next;
     this->start = _start;
@@ -37,16 +36,15 @@ Descriptor_2D Descriptor_2D::default_descriptor()
     return {0, 0, DescriptorState::SUSPENDED, 0, 0, 0, 0};
 }
 
-
-void Descriptor_2D::make_sequential(vector<Descriptor_2D>& program)
+void Descriptor_2D::make_sequential(vector<Descriptor_2D> &program)
 {
     int idx = 1;
-    for(auto& desc : program)
+    for (auto &desc : program)
     {
         desc.next = idx++;
     }
     idx -= 2;
-    program.at(program.size()-1).next = idx;
+    program.at(program.size() - 1).next = idx;
 }
 
 Descriptor_2D Descriptor_2D::delay_inst(int delay_time)
@@ -73,7 +71,6 @@ Descriptor_2D Descriptor_2D::stream_inst(int start_idx, int stream_size, int rep
         /*y_modify*/ -(stream_size));
 }
 
-
 Descriptor_2D Descriptor_2D::genhold_inst(int start_idx, int hold_time, int repeats, int access_offset)
 {
     return Descriptor_2D(
@@ -91,7 +88,6 @@ Descriptor_2D Descriptor_2D::suspend_inst()
     return {0, 0, DescriptorState::SUSPENDED, 0, 0, 0, 0};
 }
 
-
 void Descriptor_2D::x_count_update(int count)
 {
     this->x_count = count;
@@ -106,8 +102,7 @@ void Descriptor_2D::y_count_update(int count)
 
 bool Descriptor_2D::operator==(const Descriptor_2D &rhs)
 {
-    return this->next == rhs.next && this->start == rhs.start &&
-           this->state == rhs.state && this->x_count == rhs.x_count &&
-           this->x_modify == rhs.x_modify && this->y_count == rhs.y_count &&
+    return this->next == rhs.next && this->start == rhs.start && this->state == rhs.state &&
+           this->x_count == rhs.x_count && this->x_modify == rhs.x_modify && this->y_count == rhs.y_count &&
            this->y_modify == rhs.y_modify;
 }

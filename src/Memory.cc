@@ -3,29 +3,29 @@
 #endif
 
 template <typename DataType>
-MemoryRowCreator<DataType>::MemoryRowCreator(unsigned int _width, sc_trace_file* _tf) : tf(_tf), width(_width) {}
+MemoryRowCreator<DataType>::MemoryRowCreator(unsigned int _width, sc_trace_file *_tf) : tf(_tf), width(_width)
+{
+}
 
 template <typename DataType>
-sc_vector<sc_signal<DataType>>* MemoryRowCreator<DataType>::operator()(const char* name, size_t)
+sc_vector<sc_signal<DataType>> *MemoryRowCreator<DataType>::operator()(const char *name, size_t)
 {
     return new sc_vector<sc_signal<DataType>>(name, width);
 }
 
-template <typename DataType>
-void Memory<DataType>::update()
+template <typename DataType> void Memory<DataType>::update()
 {
     if (control->reset())
     {
         access_counter = 0;
-        for (auto& row : ram)
+        for (auto &row : ram)
         {
-            for (auto& col : row)
+            for (auto &col : row)
             {
                 col = 0;
             }
         }
-        std::cout << "@ " << sc_time_stamp() << " " << this->name()
-                    << ":MODULE has been reset" << std::endl;
+        std::cout << "@ " << sc_time_stamp() << " " << this->name() << ":MODULE has been reset" << std::endl;
     }
     else if (control->enable())
     {
@@ -51,7 +51,6 @@ void Memory<DataType>::update()
                     channels[channel_idx]->mem_write_data(ram.at(channels[channel_idx]->addr()));
                     break;
                 }
-
             }
             else
             {
@@ -61,12 +60,11 @@ void Memory<DataType>::update()
     }
 }
 
-template <typename DataType>
-void Memory<DataType>::print_memory_contents()
+template <typename DataType> void Memory<DataType>::print_memory_contents()
 {
-    for (const auto& row : ram)
+    for (const auto &row : ram)
     {
-        for (const auto& col : row)
+        for (const auto &col : row)
         {
             cout << col << " ";
         }
@@ -76,21 +74,12 @@ void Memory<DataType>::print_memory_contents()
 
 // Constructor
 template <typename DataType>
-Memory<DataType>::Memory(
-    sc_module_name name,
-    GlobalControlChannel& _control,
-    unsigned int _channel_count,
-    unsigned int _length,
-    unsigned int _width,
-    sc_trace_file* tf) : sc_module(name),
-                            ram("ram", _length, MemoryRowCreator<DataType>(_width, tf)),
-                            control("control"),
-                            channels("channel", _channel_count),
-                            width(_width),
-                            length(_length),
-                            channel_count(_channel_count),
-                            access_counter(0)
-                            
+Memory<DataType>::Memory(sc_module_name name, GlobalControlChannel &_control, unsigned int _channel_count,
+                         unsigned int _length, unsigned int _width, sc_trace_file *tf)
+    : sc_module(name), ram("ram", _length, MemoryRowCreator<DataType>(_width, tf)), control("control"),
+      channels("channel", _channel_count), width(_width), length(_length), channel_count(_channel_count),
+      access_counter(0)
+
 {
 #ifdef MEM_WAVE_TRACE
     for (unsigned int row = 0; row < length; row++)

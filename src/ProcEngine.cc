@@ -3,7 +3,8 @@
 #endif
 
 template <typename DataType>
-PE<DataType>::PE(sc_module_name name, sc_trace_file* _tf) : sc_module(name), tf(_tf), psum_in("psum_in"), current_weight("weight")
+PE<DataType>::PE(sc_module_name name, sc_trace_file *_tf)
+    : sc_module(name), tf(_tf), psum_in("psum_in"), current_weight("weight")
 {
     this->resetWeightIdx();
     this->resetWeights();
@@ -13,48 +14,40 @@ PE<DataType>::PE(sc_module_name name, sc_trace_file* _tf) : sc_module(name), tf(
     sc_trace(tf, this->current_weight, (this->current_weight.name()));
 }
 
-template <typename DataType>
-DataType PE<DataType>::compute(sc_signal<DataType>& input)
+template <typename DataType> DataType PE<DataType>::compute(sc_signal<DataType> &input)
 {
-    return this->current_weight.read()*input.read()+this->psum_in.read();
+    return this->current_weight.read() * input.read() + this->psum_in.read();
 }
 
-template <typename DataType>
-DataType PE<DataType>::compute(unsigned long int input)
+template <typename DataType> DataType PE<DataType>::compute(unsigned long int input)
 {
-    return this->current_weight.read()*input+this->psum_in.read();
+    return this->current_weight.read() * input + this->psum_in.read();
 }
 
-
-template <typename DataType>
-void PE<DataType>::reset()
+template <typename DataType> void PE<DataType>::reset()
 {
     this->resetWeightIdx();
     this->resetWeights();
     this->programmed = false;
 }
 
-template <typename DataType>
-void PE<DataType>::resetWeightIdx()
+template <typename DataType> void PE<DataType>::resetWeightIdx()
 {
     this->weight_idx = 0;
 }
 
-template <typename DataType>
-void PE<DataType>::resetWeights()
+template <typename DataType> void PE<DataType>::resetWeights()
 {
     this->weights.clear();
 }
 
-template <typename DataType>
-void PE<DataType>::loadWeights(vector<int> &weights)
+template <typename DataType> void PE<DataType>::loadWeights(vector<int> &weights)
 {
     this->weights = weights;
     weight_access_counter += weights.size();
 }
 
-template <typename DataType>
-void PE<DataType>::loadProgram(vector<Descriptor_2D> &_program)
+template <typename DataType> void PE<DataType>::loadProgram(vector<Descriptor_2D> &_program)
 {
     this->program.clear();
     for (auto &desc : _program)
@@ -66,13 +59,12 @@ void PE<DataType>::loadProgram(vector<Descriptor_2D> &_program)
     weight_access_counter += 1;
 }
 
-template <typename DataType>
-void PE<DataType>::updateState()
+template <typename DataType> void PE<DataType>::updateState()
 {
     if (this->programmed)
     {
         Descriptor_2D &current_desc = this->program.at(prog_idx);
-        
+
         if (current_desc.state == DescriptorState::GENHOLD)
         {
             this->current_weight = this->weights[weight_idx];
@@ -81,7 +73,7 @@ void PE<DataType>::updateState()
             {
                 current_desc.x_counter = current_desc.x_count;
                 current_desc.y_counter--;
-                weight_idx+=current_desc.y_modify;
+                weight_idx += current_desc.y_modify;
                 weight_access_counter += 1;
             }
             if (current_desc.y_counter < 0)
@@ -116,4 +108,3 @@ void PE<DataType>::updateState()
 
 // template struct PE<int>;
 // template struct PE<sc_int<32>>;
-

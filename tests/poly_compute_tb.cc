@@ -10,14 +10,13 @@
 using std::cout;
 using std::endl;
 using std::string;
-template <typename DataType>
-struct ComputeBlob : public sc_module
+template <typename DataType> struct ComputeBlob : public sc_module
 {
     // Member Signals
-private:
+  private:
     sc_in_clk _clk;
 
-public:
+  public:
     sc_port<GlobalControlChannel_IF> control;
     sc_vector<sc_signal<DataType>> weight{"weights", 27};
     sc_vector<sc_signal<DataType>> psums{"psums", 28};
@@ -43,7 +42,8 @@ public:
                 // cout << "pe_group[" << pe_group << "]: " << pe_group_in[pe_group].read() << endl;
                 for (int pe = 0; pe < 3; pe++)
                 {
-                    psums[pe_group * 3 + pe + 1] = psums[pe_group * 3 + pe].read() + (weight[pe_group * 3 + pe].read() * pe_group_in[pe_group].read());
+                    psums[pe_group * 3 + pe + 1] = psums[pe_group * 3 + pe].read() +
+                                                   (weight[pe_group * 3 + pe].read() * pe_group_in[pe_group].read());
                 }
             }
         }
@@ -58,11 +58,9 @@ public:
     }
 
     // Constructor
-    ComputeBlob(
-        sc_module_name name,
-        GlobalControlChannel &_control,
-        sc_vector<sc_signal<DataType>> &_pe_group_in,
-        sc_trace_file *_tf) : sc_module(name)
+    ComputeBlob(sc_module_name name, GlobalControlChannel &_control, sc_vector<sc_signal<DataType>> &_pe_group_in,
+                sc_trace_file *_tf)
+        : sc_module(name)
     {
         control(_control);
         _clk(control->clk());
@@ -94,16 +92,15 @@ public:
     SC_HAS_PROCESS(ComputeBlob);
 };
 
-template <typename DataType>
-struct ComputeBlobInjector : public sc_module
+template <typename DataType> struct ComputeBlobInjector : public sc_module
 {
     // Member Signals
-private:
+  private:
     sc_in_clk _clk;
     sc_uint<32> timeval{0};
     sc_port<GlobalControlChannel_IF> control;
 
-public:
+  public:
     sc_vector<sc_signal<DataType>> pe_group_sig;
     ComputeBlob<DataType> blob;
 
@@ -121,7 +118,8 @@ public:
                 std::vector<std::vector<int>> slice(3, std::vector<int>(3, -1));
                 const int bytesTransferred = 80;
                 const int epilogTime = 3 * 8;
-                for (int i1 = 0; i1 < 4; i1++) // 3 filters but 4 prolog/main/epilog periods, last period only has epilog before termination
+                for (int i1 = 0; i1 < 4;
+                     i1++) // 3 filters but 4 prolog/main/epilog periods, last period only has epilog before termination
                 {
                     for (int i2 = 0; i2 < bytesTransferred; i2++)
                     {
@@ -140,16 +138,19 @@ public:
                                     slice[chIdx][grpIdx] = grpIfmapIdx;
                                 }
                                 // prolog/main
-                                if (i1 < 3 && i2 >= (inputId * 3)) // both prolog/main can overlap with epilog, there's an epilog after first i1 but no prolog/main in last 2 i1s
+                                if (i1 < 3 &&
+                                    i2 >= (inputId * 3)) // both prolog/main can overlap with epilog, there's an epilog
+                                                         // after first i1 but no prolog/main in last 2 i1s
                                 {
                                     pe_group_sig[inputId].write(ifmap[grpIfmapIdx]);
                                     slice[chIdx][grpIdx] = grpIfmapIdx;
                                 }
                                 // implied do nothing to stagger start
 
-                                /*bonus, push garbage but get data to come at the right time for main loop, will likely mess up code generation*/
+                                /*bonus, push garbage but get data to come at the right time for main loop, will likely
+                                 * mess up code generation*/
                                 // pe_group_sig[inputId].write(ifmap[grpIfmapIdx]);
-                                // slice[chIdx][grpIdx] = grpIfmapIdx;                            
+                                // slice[chIdx][grpIdx] = grpIfmapIdx;
                             }
                         }
                         for (auto &row : slice)
@@ -182,12 +183,8 @@ public:
     }
 
     // Constructor
-    ComputeBlobInjector(
-        sc_module_name name,
-        GlobalControlChannel &_control,
-        sc_trace_file *tf) : sc_module(name),
-                             pe_group_sig("pe_group_sig", 9),
-                             blob("blob", _control, pe_group_sig, tf)
+    ComputeBlobInjector(sc_module_name name, GlobalControlChannel &_control, sc_trace_file *tf)
+        : sc_module(name), pe_group_sig("pe_group_sig", 9), blob("blob", _control, pe_group_sig, tf)
     {
         control(_control);
         _clk(control->clk());
@@ -200,8 +197,7 @@ public:
     SC_HAS_PROCESS(ComputeBlobInjector);
 };
 
-template <typename DataType>
-struct ComputeBlob_TB : public sc_module
+template <typename DataType> struct ComputeBlob_TB : public sc_module
 {
     sc_trace_file *tf{sc_create_vcd_trace_file("computeblob")};
     GlobalControlChannel control{"global_control_channel", sc_time(1, SC_NS), tf};
@@ -249,7 +245,12 @@ struct ComputeBlob_TB : public sc_module
     {
         cout << "Validating injection" << endl;
         control.set_enable(true);
-        float expected_output[64] = {15678, 15813, 15948, 16083, 16218, 16353, 16488, 16623, 17028, 17163, 17298, 17433, 17568, 17703, 17838, 17973, 18378, 18513, 18648, 18783, 18918, 19053, 19188, 19323, 19728, 19863, 19998, 20133, 20268, 20403, 20538, 20673, 21078, 21213, 21348, 21483, 21618, 21753, 21888, 22023, 22428, 22563, 22698, 22833, 22968, 23103, 23238, 23373, 23778, 23913, 24048, 24183, 24318, 24453, 24588, 24723, 25128, 25263, 25398, 25533, 25668, 25803, 25938, 26073};
+        float expected_output[64] = {15678, 15813, 15948, 16083, 16218, 16353, 16488, 16623, 17028, 17163, 17298,
+                                     17433, 17568, 17703, 17838, 17973, 18378, 18513, 18648, 18783, 18918, 19053,
+                                     19188, 19323, 19728, 19863, 19998, 20133, 20268, 20403, 20538, 20673, 21078,
+                                     21213, 21348, 21483, 21618, 21753, 21888, 22023, 22428, 22563, 22698, 22833,
+                                     22968, 23103, 23238, 23373, 23778, 23913, 24048, 24183, 24318, 24453, 24588,
+                                     24723, 25128, 25263, 25398, 25533, 25668, 25803, 25938, 26073};
         int success_count = 0;
         for (int filter = 0; filter < 3; filter++)
         {

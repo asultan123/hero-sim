@@ -2,16 +2,13 @@
 #include "../include/AddressGenerator.hh"
 #endif
 
-
-template <typename DataType>
-void AddressGenerator<DataType>::resetIndexingCounters()
+template <typename DataType> void AddressGenerator<DataType>::resetIndexingCounters()
 {
     x_count_remaining = descriptors[execute_index].x_count;
     y_count_remaining = descriptors[execute_index].y_count;
 }
 
-template <typename DataType>
-void AddressGenerator<DataType>::loadInternalCountersFromIndex(unsigned int index)
+template <typename DataType> void AddressGenerator<DataType>::loadInternalCountersFromIndex(unsigned int index)
 {
     current_ram_index = descriptors.at(index).start;
     x_count_remaining = descriptors.at(index).x_count;
@@ -19,35 +16,30 @@ void AddressGenerator<DataType>::loadInternalCountersFromIndex(unsigned int inde
     repeat = descriptors.at(index).repeat;
 }
 
-template <typename DataType>
-void AddressGenerator<DataType>::loadProgram(const vector<Descriptor_2D> &newProgram)
+template <typename DataType> void AddressGenerator<DataType>::loadProgram(const vector<Descriptor_2D> &newProgram)
 {
     descriptors.clear();
     copy(newProgram.begin(), newProgram.end(), std::back_inserter(descriptors));
 }
 
-template <typename DataType>
-void AddressGenerator<DataType>::resetProgramMemory()
+template <typename DataType> void AddressGenerator<DataType>::resetProgramMemory()
 {
     execute_index = 0;
     descriptors.clear();
     descriptors.push_back(Descriptor_2D::default_descriptor());
 }
 
-template <typename DataType>
-Descriptor_2D AddressGenerator<DataType>::currentDescriptor()
+template <typename DataType> Descriptor_2D AddressGenerator<DataType>::currentDescriptor()
 {
     return descriptors.at(execute_index);
 }
 
-template <typename DataType>
-Descriptor_2D AddressGenerator<DataType>::nextDescriptor()
+template <typename DataType> Descriptor_2D AddressGenerator<DataType>::nextDescriptor()
 {
     return descriptors.at(descriptors[execute_index].next);
 }
 
-template <typename DataType>
-void AddressGenerator<DataType>::RGENWAITupdateCurrentIndex()
+template <typename DataType> void AddressGenerator<DataType>::RGENWAITupdateCurrentIndex()
 {
     // TODO: NOT IMPLEMENTED!
     assert(0);
@@ -75,9 +67,8 @@ void AddressGenerator<DataType>::RGENWAITupdateCurrentIndex()
     // }
 }
 
-// TODO: Check if x_count and y_count bounds are inclusive or not 
-template <typename DataType>
-void AddressGenerator<DataType>::updateCurrentIndex()
+// TODO: Check if x_count and y_count bounds are inclusive or not
+template <typename DataType> void AddressGenerator<DataType>::updateCurrentIndex()
 {
     if (x_count_remaining != 0)
     {
@@ -88,6 +79,7 @@ void AddressGenerator<DataType>::updateCurrentIndex()
     {
         if (y_count_remaining != 0)
         {
+            // TODO: #31 Remove current_ram_index in address generators
             current_ram_index = current_ram_index + currentDescriptor().y_modify;
             // HACK WITH CHANNEL->SET_ADDR
             channel->set_addr(current_ram_index + currentDescriptor().y_modify);
@@ -103,22 +95,19 @@ void AddressGenerator<DataType>::updateCurrentIndex()
     }
 }
 
-template <typename DataType>
-bool AddressGenerator<DataType>::descriptorComplete()
+template <typename DataType> bool AddressGenerator<DataType>::descriptorComplete()
 {
     return (x_count_remaining == 0 && y_count_remaining == 0 && repeat == 0);
 }
 
-template <typename DataType>
-void AddressGenerator<DataType>::loadNextDescriptor()
+template <typename DataType> void AddressGenerator<DataType>::loadNextDescriptor()
 {
     execute_index = currentDescriptor().next;
     loadInternalCountersFromIndex(currentDescriptor().next);
     channel->set_addr(nextDescriptor().start);
 }
 
-template <typename DataType>
-void AddressGenerator<DataType>::update()
+template <typename DataType> void AddressGenerator<DataType>::update()
 {
     if (control->reset())
     {
@@ -127,8 +116,7 @@ void AddressGenerator<DataType>::update()
         programmed = false;
         first_cycle = false;
         channel->reset();
-        std::cout << "@ " << sc_time_stamp() << " " << this->name()
-                  << ":MODULE has been reset" << std::endl;
+        std::cout << "@ " << sc_time_stamp() << " " << this->name() << ":MODULE has been reset" << std::endl;
     }
     else if (control->program())
     {
@@ -138,8 +126,7 @@ void AddressGenerator<DataType>::update()
         channel->set_addr(descriptors.at(0).start);
         programmed = true;
         first_cycle = true;
-        std::cout << "@ " << sc_time_stamp() << " " << this->name()
-                  << ":MODULE has been programmed" << std::endl;
+        std::cout << "@ " << sc_time_stamp() << " " << this->name() << ":MODULE has been programmed" << std::endl;
     }
     else if (control->enable() && programmed)
     {
@@ -148,7 +135,7 @@ void AddressGenerator<DataType>::update()
                              currentDescriptor().state == DescriptorState::WAIT ||
                              currentDescriptor().state == DescriptorState::RGENWAIT))
         {
-            if(currentDescriptor().state == DescriptorState::RGENWAIT)
+            if (currentDescriptor().state == DescriptorState::RGENWAIT)
             {
                 RGENWAITupdateCurrentIndex();
             }
@@ -156,7 +143,7 @@ void AddressGenerator<DataType>::update()
             {
                 updateCurrentIndex();
             }
-            
+
             if (descriptorComplete())
             {
                 loadNextDescriptor();
@@ -166,7 +153,7 @@ void AddressGenerator<DataType>::update()
         }
         else
         {
-            first_cycle = false;
+            first_cycle = false; // TODO: #33 Remove ugly first cycle logic
         }
 
         if (!descriptorComplete())
@@ -186,8 +173,8 @@ void AddressGenerator<DataType>::update()
             }
             default:
             {
-                std::cout << "@ " << sc_time_stamp() << " " << this->name()
-                          << ": Is in an invalid state! ... exitting" << std::endl;
+                std::cout << "@ " << sc_time_stamp() << " " << this->name() << ": Is in an invalid state! ... exitting"
+                          << std::endl;
                 exit(-1);
             }
             }
@@ -222,20 +209,16 @@ void AddressGenerator<DataType>::update()
 
 // Constructor
 template <typename DataType>
-AddressGenerator<DataType>::AddressGenerator(sc_module_name name, GlobalControlChannel &_control,
-                                             sc_trace_file *_tf)
-    : sc_module(name), control("control"), channel("channel"), tf(_tf),
-      execute_index("execute_index"),
-      current_ram_index("current_ram_index"),
-      x_count_remaining("x_count_remaining"),
-      y_count_remaining("y_count_remaining"),
-      repeat("repeat")
+AddressGenerator<DataType>::AddressGenerator(sc_module_name name, GlobalControlChannel &_control, sc_trace_file *_tf)
+    : sc_module(name), control("control"), channel("channel"), tf(_tf), execute_index("execute_index"),
+      current_ram_index("current_ram_index"), x_count_remaining("x_count_remaining"),
+      y_count_remaining("y_count_remaining"), repeat("repeat")
 {
     control(_control);
     _clk(control->clk());
     _reset(control->reset());
     execute_index = 0;
-// sc_trace(tf, this->execute_index, (this->execute_index.name()));
+    // sc_trace(tf, this->execute_index, (this->execute_index.name()));
     sc_trace(tf, this->execute_index, (this->execute_index.name()));
     sc_trace(tf, this->current_ram_index, (this->current_ram_index.name()));
     sc_trace(tf, this->x_count_remaining, (this->x_count_remaining.name()));
@@ -247,12 +230,14 @@ AddressGenerator<DataType>::AddressGenerator(sc_module_name name, GlobalControlC
     sensitive << _reset.pos();
 
     // connect signals
-    std::cout << "ADDRESS_GENERATOR MODULE: " << name
-              << " has been instantiated " << std::endl;
+    std::cout << "ADDRESS_GENERATOR MODULE: " << name << " has been instantiated " << std::endl;
 }
 
 template <typename DataType>
-AddressGeneratorCreator<DataType>::AddressGeneratorCreator(GlobalControlChannel &_control, sc_trace_file *_tf) : tf(_tf), control(_control) {}
+AddressGeneratorCreator<DataType>::AddressGeneratorCreator(GlobalControlChannel &_control, sc_trace_file *_tf)
+    : tf(_tf), control(_control)
+{
+}
 
 template <typename DataType>
 AddressGenerator<DataType> *AddressGeneratorCreator<DataType>::operator()(const char *name, size_t)
