@@ -53,6 +53,7 @@ void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> 
     // cout << padded_weights << endl;
     // cout << run_bitmap << endl;
 
+    // TODO: #32
     for (int write_gen_idx = 0; write_gen_idx < arch.filter_count; write_gen_idx++)
     {
         vector<Descriptor_2D> program;
@@ -76,6 +77,7 @@ void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> 
         arch.psum_mem.generators.at(write_gen_idx).loadProgram(program);
     }
 
+    // TODO: #32
     for (int read_gen_idx = arch.filter_count; read_gen_idx < arch.filter_count * 2; read_gen_idx++)
     {
         vector<Descriptor_2D> program;
@@ -131,7 +133,8 @@ void generate_and_load_ifmap_in_program(Hero::Arch<DataType> &arch, xt::xarray<i
     // cout << padded_weights << endl;
 
     // cout << run_bitmap << endl;
-
+    // TODO: #32 Separate loading descriptors into hero arch from compilation and provide programming api in hero
+    // implementation
     int ag_idx = 0;
     for (auto &ag : arch.ifmap_mem.generators)
     {
