@@ -11,7 +11,7 @@ template <typename DataType> struct SSM_TB : public sc_module
     GlobalControlChannel control;
     SSM<DataType> dut;
     SSM_TB(sc_module_name name)
-        : sc_module(name), tf(sc_create_vcd_trace_file("SSM_TB.vcd")),
+        : sc_module(name), tf(sc_create_vcd_trace_file("SSM_TB")),
           control("global_control_channel", sc_time(1, SC_NS), tf), dut("dut", control, input_size, output_size, tf)
     {
         tf->set_time_unit(1, SC_PS);
