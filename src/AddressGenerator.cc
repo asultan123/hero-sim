@@ -153,7 +153,7 @@ template <typename DataType> void AddressGenerator<DataType>::update()
         }
         else
         {
-            first_cycle = false;
+            first_cycle = false; // TODO: #33 Remove ugly first cycle logic
         }
 
         if (!descriptorComplete())
