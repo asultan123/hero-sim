@@ -59,6 +59,18 @@ Descriptor_2D Descriptor_2D::delay_inst(int delay_time)
         /*y_modify*/ 0);
 }
 
+Descriptor_2D Descriptor_2D::delay_inst(int start, int delay_time)
+{
+    return Descriptor_2D(
+        /*next*/ 0,
+        /*start*/ start,
+        /*state*/ DescriptorState::WAIT,
+        /*x_count*/ delay_time,
+        /*x_modify*/ 0,
+        /*y_count*/ 0,
+        /*y_modify*/ 0);
+}
+
 Descriptor_2D Descriptor_2D::stream_inst(int start_idx, int stream_size, int repeats)
 {
     return Descriptor_2D(

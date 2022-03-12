@@ -30,7 +30,6 @@ template <typename DataType> struct AddressGenerator_TB : public sc_module
         cout << "Validating Reset" << endl;
         control.set_program(false);
         control.set_reset(false);
-        control.set_reset(false);
         sc_start(1, SC_NS);
         control.set_reset(true);
         sc_start(1, SC_NS);

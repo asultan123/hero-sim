@@ -54,6 +54,7 @@ struct Descriptor_2D
     static void make_sequential(vector<Descriptor_2D> &program);
 
     static Descriptor_2D delay_inst(int delay_time);
+    static Descriptor_2D delay_inst(int start, int delay_time);
     static Descriptor_2D stream_inst(int start_idx, int stream_size, int repeats);
     static Descriptor_2D genhold_inst(int start_idx, int hold_time, int repeats, int access_offset);
     static Descriptor_2D suspend_inst();

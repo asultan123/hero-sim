@@ -21,9 +21,7 @@ template <typename DataType> struct SSM : public sc_module
     unsigned int input_count;
     unsigned int output_count;
     sc_vector<sc_in<DataType>> in;
-    sc_vector<sc_signal<DataType>> in_sig;
     sc_vector<sc_out<DataType>> out;
-    sc_vector<sc_signal<DataType>> out_sig;
     std::unique_ptr<AddressGenerator<DataType>> in_generator;
     std::unique_ptr<AddressGenerator<DataType>> out_generator;
     std::unique_ptr<MemoryChannel<DataType>> in_channel;
