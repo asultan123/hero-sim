@@ -1,3 +1,5 @@
 .vscode/
 build/
-ProgTrace.vcd
+*.vcd
+tests/*.vcd
+.venv/
