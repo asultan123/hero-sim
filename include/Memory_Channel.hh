@@ -44,7 +44,7 @@ template <typename DataType> struct MemoryChannel_IF : virtual public sc_interfa
     virtual const unsigned int &get_width() = 0;
 };
 
-template <typename DataType> struct MemoryChannel : public sc_module, public MemoryChannel_IF<DataType>
+template <typename DataType> struct MemoryChannel : public sc_channel, public MemoryChannel_IF<DataType>
 {
     sc_vector<sc_signal<DataType, SC_MANY_WRITERS>> read_channel_data;
     sc_vector<sc_signal<DataType, SC_MANY_WRITERS>> write_channel_data;
