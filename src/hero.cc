@@ -85,6 +85,8 @@ template <typename DataType> void Arch<DataType>::update_3x3()
     {
         while (control->enable())
         {
+            // unsigned int kernel_groups_count = this->channel_count / 9;
+
             for (int filter_row = 0; filter_row < filter_count; filter_row++)
             {
                 PE<DataType> &first_pe_in_row = this->pe_array[filter_row * channel_count];
@@ -204,6 +206,7 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
       psum_mem_read("psum_mem_read", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
       psum_mem_write("psum_mem_write", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
       ifmap_mem("ifmap_mem", _control, channel_count, ifmap_mem_size, 1, _tf), ifmap_reuse_chain("ifmap_reuse_chain"),
+      ifmap_reuse_chain_read("ifmap_reuse_chain_read"),
       ifmap_mem_read("ifmap_mem_read", channel_count, SignalVectorCreator<DataType>(1, tf)),
       ifmap_mem_write("ifmap_mem_write", channel_count, SignalVectorCreator<DataType>(1, tf)), ssm("ssm"),
       kmapping(kmapping), mode(mode)
@@ -253,10 +256,53 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
                                                                                      512, // over estimating length
                                                                                      1,   // width
                                                                                      _tf));
+        // create enough signals for for all tails in the  different reuse chains
+        ifmap_reuse_chain_read.init(kernel_groups_count, SignalVectorCreator<DataType>(1, tf));
+
         ssm.init(kernel_groups_count, SSMVectorCreator<DataType>(_control,
                                                                  9, // input_count
                                                                  1, // output_count
                                                                  _tf));
+
+        // bind ifmap channel memory read ports to SSM input ports for each kernel group
+        for (int ifmap_read_signal_idx = 0; ifmap_read_signal_idx < channel_count; ifmap_read_signal_idx++)
+        {
+            int ssm_idx = ifmap_read_signal_idx / 9;
+            int ssm_port_idx = ifmap_read_signal_idx % 9;
+            auto &ssm_in_port = ssm.at(ssm_idx).in.at(ssm_port_idx);
+            ssm_in_port.bind(ifmap_mem_read[ifmap_read_signal_idx][0]);
+        }
+
+        // bind ssm out port to head of ifmap reuse chain
+        for (unsigned int ssm_idx = 0; ssm_idx < kernel_groups_count; ssm_idx++)
+        {
+            auto &head_of_chain = ifmap_reuse_chain.at(ssm_idx * 2);
+            auto &ssm_output_port = ssm.at(ssm_idx).out.at(0);
+            head_of_chain.write_channel_data[0][0].bind(ssm_output_port);
+        }
+
+        // bind tail of chain input port to head output port
+        for (unsigned int kernel_group_idx = 0; kernel_group_idx < kernel_groups_count; kernel_group_idx++)
+        {
+            auto &head_of_chain = ifmap_reuse_chain.at(kernel_group_idx * 2);
+            auto &tail_of_chain = ifmap_reuse_chain.at(kernel_group_idx * 2 + 1);
+            tail_of_chain.write_channel_data[0][0].bind(head_of_chain.read_channel_data[0][0]);
+        }
+
+        // bind tail read ports to signals to prevent simulator from failing bind assertion
+        // May be avoidable if I can pass a template argument to port constructor and set
+        // number of interfaces it can be bound to to 0
+        for (unsigned int kernel_group_idx = 0; kernel_group_idx < kernel_groups_count; kernel_group_idx++)
+        {
+            auto &tail_of_chain = ifmap_reuse_chain.at(kernel_group_idx * 2 + 1);
+            tail_of_chain.write_channel_data[0][0].bind(ifmap_reuse_chain_read[kernel_group_idx][0]);
+        }
+
+        for (auto &ifmap_reuse_chain_sam : ifmap_reuse_chain)
+        {
+            ifmap_reuse_chain_sam.channels.at(0).set_mode(MemoryChannelMode::WRITE);
+            ifmap_reuse_chain_sam.channels.at(1).set_mode(MemoryChannelMode::READ);
+        }
 
         SC_THREAD(update_3x3);
     }
@@ -274,5 +320,4 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
     cout << "Arch MODULE: " << name << " has been instantiated " << endl;
 }
 
-// template struct Arch<sc_int<32>>;
 } // namespace Hero
