@@ -83,6 +83,7 @@ template <typename DataType> struct Arch : public sc_module
     sc_vector<sc_vector<sc_signal<DataType>>> psum_mem_write;
     SAM<DataType> ifmap_mem;
     sc_vector<SAM<DataType>> ifmap_reuse_chain;
+    sc_vector<sc_vector<sc_signal<DataType>>> ifmap_reuse_chain_read;
     sc_vector<sc_vector<sc_signal<DataType>>> ifmap_mem_read;
     sc_vector<sc_vector<sc_signal<DataType>>> ifmap_mem_write;
     sc_vector<SSM<DataType>> ssm;

@@ -28,10 +28,13 @@ template <typename DataType> void SAM<DataType>::in_port_propogate()
     {
         for (unsigned int channel_index = 0; channel_index < channel_count; channel_index++)
         {
-            for (unsigned int bus_index = 0; bus_index < width; bus_index++)
+            if (channels[channel_index].mode() == MemoryChannelMode::WRITE)
             {
-                channels[channel_index].channel_write_data_element(write_channel_data[channel_index][bus_index].read(),
-                                                                   bus_index);
+                for (unsigned int bus_index = 0; bus_index < width; bus_index++)
+                {
+                    channels[channel_index].channel_write_data_element(
+                        write_channel_data[channel_index][bus_index].read(), bus_index);
+                }
             }
         }
     }
@@ -43,10 +46,13 @@ template <typename DataType> void SAM<DataType>::out_port_propogate()
     {
         for (unsigned int channel_index = 0; channel_index < channel_count; channel_index++)
         {
-            for (unsigned int bus_index = 0; bus_index < width; bus_index++)
+            if (channels[channel_index].mode() == MemoryChannelMode::READ)
             {
-                read_channel_data[channel_index][bus_index] =
-                    channels[channel_index].get_channel_read_data_bus()[bus_index];
+                for (unsigned int bus_index = 0; bus_index < width; bus_index++)
+                {
+                    read_channel_data[channel_index][bus_index] =
+                        channels[channel_index].get_channel_read_data_bus()[bus_index];
+                }
             }
         }
     }
