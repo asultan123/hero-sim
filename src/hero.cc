@@ -5,7 +5,9 @@
 namespace Hero
 {
 template <typename DataType>
-SignalVectorCreator<DataType>::SignalVectorCreator(unsigned int _width, sc_trace_file *_tf) : tf(_tf), width(_width){};
+SignalVectorCreator<DataType>::SignalVectorCreator(unsigned int _width, sc_trace_file *_tf) : tf(_tf), width(_width)
+{
+}
 
 template <typename DataType>
 sc_vector<sc_signal<DataType>> *SignalVectorCreator<DataType>::operator()(const char *name, size_t)
@@ -32,6 +34,18 @@ SAMVectorCreator<DataType>::SAMVectorCreator(GlobalControlChannel &_control, uns
 template <typename DataType> SAM<DataType> *SAMVectorCreator<DataType>::operator()(const char *name, size_t)
 {
     return new SAM<DataType>(name, control, channel_count, length, width, tf);
+}
+
+template <typename DataType>
+SSMVectorCreator<DataType>::SSMVectorCreator(GlobalControlChannel &_control, unsigned int input_count,
+                                             unsigned int output_count, sc_trace_file *_tf)
+    : control(_control), input_count(input_count), output_count(output_count), tf(_tf)
+{
+}
+
+template <typename DataType> SSM<DataType> *SSMVectorCreator<DataType>::operator()(const char *name, size_t)
+{
+    return new SSM<DataType>(name, control, input_count, output_count, tf);
 }
 
 template <typename DataType> void Arch<DataType>::suspend_monitor()
@@ -191,8 +205,8 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
       psum_mem_write("psum_mem_write", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
       ifmap_mem("ifmap_mem", _control, channel_count, ifmap_mem_size, 1, _tf), ifmap_reuse_chain("ifmap_reuse_chain"),
       ifmap_mem_read("ifmap_mem_read", channel_count, SignalVectorCreator<DataType>(1, tf)),
-      ifmap_mem_write("ifmap_mem_write", channel_count, SignalVectorCreator<DataType>(1, tf)), kmapping(kmapping),
-      mode(mode)
+      ifmap_mem_write("ifmap_mem_write", channel_count, SignalVectorCreator<DataType>(1, tf)), ssm("ssm"),
+      kmapping(kmapping), mode(mode)
 {
     control(_control);
     _clk(control->clk());
@@ -239,6 +253,11 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
                                                                                      512, // over estimating length
                                                                                      1,   // width
                                                                                      _tf));
+        ssm.init(kernel_groups_count, SSMVectorCreator<DataType>(_control,
+                                                                 9, // input_count
+                                                                 1, // output_count
+                                                                 _tf));
+
         SC_THREAD(update_3x3);
     }
     else

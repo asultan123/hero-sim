@@ -5,6 +5,7 @@
 #include "GlobalControl.hh"
 #include "ProcEngine.hh"
 #include "SAM.hh"
+#include "SSM.hh"
 #include <stdexcept>
 #include <systemc.h>
 
@@ -46,6 +47,19 @@ template <typename DataType> struct SAMVectorCreator
     SAM<DataType> *operator()(const char *name, size_t);
 };
 
+template <typename DataType> struct SSMVectorCreator
+{
+    GlobalControlChannel &control;
+    unsigned int input_count;
+    unsigned int output_count;
+    sc_trace_file *tf;
+
+    SSMVectorCreator(GlobalControlChannel &_control, unsigned int input_count, unsigned int output_count,
+                     sc_trace_file *_tf);
+
+    SSM<DataType> *operator()(const char *name, size_t);
+};
+
 template <typename DataType> struct PeCreator
 {
     sc_trace_file *tf;
@@ -71,6 +85,7 @@ template <typename DataType> struct Arch : public sc_module
     sc_vector<SAM<DataType>> ifmap_reuse_chain;
     sc_vector<sc_vector<sc_signal<DataType>>> ifmap_mem_read;
     sc_vector<sc_vector<sc_signal<DataType>>> ifmap_mem_write;
+    sc_vector<SSM<DataType>> ssm;
 
     unsigned int dram_access_counter{0};
     int filter_count;
