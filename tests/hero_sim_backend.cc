@@ -63,11 +63,11 @@ void dram_load(Hero::Arch<DataType> &arch, xt::xarray<int> ifmap, int channel_in
 }
 
 template <typename DataType>
-xt::xarray<int> dram_store(Hero::Arch<DataType> &arch, int filter_out, int ofmap_h, int ofmap_w)
+xt::xarray<DataType> dram_store(Hero::Arch<DataType> &arch, int filter_out, int ofmap_h, int ofmap_w)
 {
     auto output_size = ofmap_h * ofmap_w * filter_out;
     assert(output_size <= arch.psum_mem_size);
-    xt::xarray<int> result = xt::zeros<int>({filter_out, ofmap_h, ofmap_w});
+    xt::xarray<DataType> result = xt::zeros<int>({filter_out, ofmap_h, ofmap_w});
     for (int f = 0; f < filter_out; f++)
     {
         for (int i = 0; i < ofmap_h; i++)
@@ -166,8 +166,8 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     control.set_program(false);
     sc_start();
 
-    auto res = dram_store(arch, f_out, ofmap_h, ofmap_w);
-    auto valid = LayerGeneration::validate_output(arch, ifmap, weights, res);
+    auto arch_output = dram_store(arch, f_out, ofmap_h, ofmap_w);
+    auto valid = LayerGeneration::validate_output(ifmap, weights, arch_output);
     unsigned long int end_cycle_time = sc_time_stamp().value();
 
     auto t2 = high_resolution_clock::now();
