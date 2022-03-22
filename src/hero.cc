@@ -199,6 +199,15 @@ template <typename DataType> void Arch<DataType>::set_channel_modes()
     {
         ifmap_mem.channels[i].set_mode(MemoryChannelMode::READ);
     }
+
+    if (mode == OperationMode::RUN_3x3)
+    {
+        for (auto &ifmap_reuse_chain_sam : ifmap_reuse_chain)
+        {
+            ifmap_reuse_chain_sam.channels.at(0).set_mode(MemoryChannelMode::WRITE);
+            ifmap_reuse_chain_sam.channels.at(1).set_mode(MemoryChannelMode::READ);
+        }
+    }
 }
 
 template <typename DataType>
@@ -229,18 +238,15 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
     }
     for (int i = 0; i < filter_count; i++)
     {
-        psum_mem.channels[i].set_mode(MemoryChannelMode::WRITE);
         sc_trace(tf, psum_mem_write[i][0], (this->psum_mem_write[i][0].name()));
     }
     for (int i = filter_count; i < filter_count * 2; i++)
     {
-        psum_mem.channels[i].set_mode(MemoryChannelMode::READ);
         sc_trace(tf, psum_mem_read[i][0], (this->psum_mem_read[i][0].name()));
     }
 
     for (int i = 0; i < channel_count; i++)
     {
-        ifmap_mem.channels[i].set_mode(MemoryChannelMode::READ);
         ifmap_mem.read_channel_data[i][0](ifmap_mem_read[i][0]);
         ifmap_mem.write_channel_data[i][0](ifmap_mem_write[i][0]);
         sc_trace(tf, ifmap_mem_read[i][0], (this->ifmap_mem_read[i][0].name()));
@@ -305,12 +311,6 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
             auto &tail_of_chain = ifmap_reuse_chain.at(kernel_group_idx * 2 + 1);
             auto &chain_signal = ifmap_reuse_chain_signals.at(kernel_group_idx).at(0);
             tail_of_chain.write_channel_data[0][0].bind(chain_signal);
-        }
-
-        for (auto &ifmap_reuse_chain_sam : ifmap_reuse_chain)
-        {
-            ifmap_reuse_chain_sam.channels.at(0).set_mode(MemoryChannelMode::WRITE);
-            ifmap_reuse_chain_sam.channels.at(1).set_mode(MemoryChannelMode::READ);
         }
 
         SC_THREAD(update_3x3);
