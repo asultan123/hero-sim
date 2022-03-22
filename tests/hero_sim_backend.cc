@@ -152,17 +152,15 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     auto ifmap = LayerGeneration::generate_ifmap<DataType>(arch, c_in, ifmap_h, ifmap_w);
     dram_load(arch, ifmap, c_in, ifmap_h, ifmap_w);
 
-    arch.set_channel_modes();
     weights = LayerGeneration::generate_weights<DataType>(f_out, c_in, k);
     padded_weights = LayerGeneration::pad_weights(arch, weights, f_out, c_in, k);
 
     load_padded_weights_into_pes(arch, padded_weights);
 
-    GenerateDescriptors1x1::generate_and_load_pe_program(arch, ifmap_h, ifmap_w);
-    GenerateDescriptors1x1::generate_and_load_ifmap_in_program(arch, padded_weights, ifmap_h, ifmap_w);
-    GenerateDescriptors1x1::generate_and_load_psum_program(arch, padded_weights, ofmap_h, ofmap_w);
+    GenerateDescriptors::generate_and_load_arch_descriptors(arch, ifmap_h, ifmap_w, padded_weights, ofmap_h, ofmap_w);
 
     control.set_program(true);
+    arch.set_channel_modes();
     sc_start(1, SC_NS);
     control.set_enable(true);
     control.set_program(false);
