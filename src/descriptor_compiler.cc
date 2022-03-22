@@ -99,7 +99,6 @@ void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> 
         arch.psum_mem.generators.at(write_gen_idx).loadProgram(program);
     }
 
-    // TODO: #32
     for (int read_gen_idx = arch.filter_count; read_gen_idx < arch.filter_count * 2; read_gen_idx++)
     {
         vector<Descriptor_2D> program;
