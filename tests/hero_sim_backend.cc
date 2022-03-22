@@ -210,7 +210,6 @@ int sc_main(int argc, char *argv[])
     int f_out = 16;
     int filter_count = 7;
     int channel_count = 9;
-    auto operation_mode = Hero::OperationMode::RUN_1x1;
 
     try
     {
@@ -250,9 +249,9 @@ int sc_main(int argc, char *argv[])
             throw std::invalid_argument("total ifmap sizes below 11 currently unsupported");
         }
 
-        if (k > 1)
+        if (k != 1 && k != 3)
         {
-            throw std::invalid_argument("kernel sizes greater than 1 currently unsupported");
+            throw std::invalid_argument("kernel sizes not equal to 1x1 or 3x3");
         }
     }
     catch (std::exception &e)
@@ -284,6 +283,7 @@ int sc_main(int argc, char *argv[])
     cout << std::left << std::setw(20) << "c_in" << c_in << endl;
     cout << std::left << std::setw(20) << "f_out" << f_out << endl;
 
+    auto operation_mode = (k == 1) ? Hero::OperationMode::RUN_1x1 : Hero::OperationMode::RUN_3x3;
     sim_and_get_results<sc_int<32>>(ifmap_h, ifmap_w, k, c_in, f_out, filter_count, channel_count, operation_mode);
 
     return 0;
