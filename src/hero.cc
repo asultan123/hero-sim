@@ -203,8 +203,8 @@ template <typename DataType> void Arch<DataType>::set_channel_modes()
 
 template <typename DataType>
 Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int filter_count, int channel_count,
-                     int psum_mem_size, int ifmap_mem_size, sc_trace_file *_tf, KernelMapping kmapping,
-                     OperationMode mode)
+                     int psum_mem_size, int ifmap_mem_size, sc_trace_file *_tf, OperationMode mode,
+                     KernelMapping kmapping)
     : sc_module(name), pe_array("pe_array", filter_count * channel_count, PeCreator<DataType>(_tf)), tf(_tf),
       psum_mem("psum_mem", _control, filter_count * 2, psum_mem_size, 1, _tf),
       psum_mem_read("psum_mem_read", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),

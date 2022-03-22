@@ -122,7 +122,8 @@ void load_padded_weights_into_pes(Hero::Arch<DataType> &arch, xt::xarray<int> pa
 }
 
 template <typename DataType>
-void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, int filter_count, int channel_count)
+void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, int filter_count, int channel_count,
+                         Hero::OperationMode op_mode)
 {
     auto t1 = high_resolution_clock::now();
 
@@ -140,7 +141,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     tf->set_time_unit(100, SC_PS);
 
     GlobalControlChannel control("global_control_channel", sc_time(1, SC_NS), tf);
-    Hero::Arch<DataType> arch("arch", control, filter_count, channel_count, psum_mem_size, ifmap_mem_size, tf);
+    Hero::Arch<DataType> arch("arch", control, filter_count, channel_count, psum_mem_size, ifmap_mem_size, tf, op_mode);
 
     unsigned long int start_cycle_time = sc_time_stamp().value();
     control.set_reset(true);
@@ -211,6 +212,8 @@ int sc_main(int argc, char *argv[])
     int f_out = 16;
     int filter_count = 7;
     int channel_count = 9;
+    auto operation_mode = Hero::OperationMode::RUN_1x1;
+
     try
     {
         po::options_description config("Configuration");
@@ -283,7 +286,7 @@ int sc_main(int argc, char *argv[])
     cout << std::left << std::setw(20) << "c_in" << c_in << endl;
     cout << std::left << std::setw(20) << "f_out" << f_out << endl;
 
-    sim_and_get_results<sc_int<32>>(ifmap_h, ifmap_w, k, c_in, f_out, filter_count, channel_count);
+    sim_and_get_results<sc_int<32>>(ifmap_h, ifmap_w, k, c_in, f_out, filter_count, channel_count, operation_mode);
 
     return 0;
 }
