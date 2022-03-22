@@ -3,6 +3,50 @@
 #endif
 namespace LayerGeneration
 {
+namespace
+{
+xt::xarray<int> evaluate_expected_output(xt::xarray<int> ifmap, xt::xarray<int> weights)
+{
+    assert(weights.shape().size() == 4);
+    assert(ifmap.shape().size() == 3);
+    assert(weights.shape(3) == weights.shape(2));
+
+    // ifmap channel = weights channel in
+    assert(ifmap.shape(0) == weights.shape(1));
+    int ifmap_w = ifmap.shape(2);
+    int ifmap_h = ifmap.shape(1);
+
+    int kernel = weights.shape(3);
+    assert(ifmap_w >= kernel);
+    assert(ifmap_h >= kernel);
+
+    int ofmap_w = ifmap_w - (kernel - 1);
+    int ofmap_h = ifmap_h - (kernel - 1);
+    int ofmap_c = weights.shape(0);
+
+    xt::xarray<int> ofmap = xt::arange(ofmap_c * ofmap_w * ofmap_h).reshape({ofmap_c, ofmap_h, ofmap_w});
+
+    // conv2d stride 1
+    for (auto f = 0; f < ofmap_c; f++)
+    {
+        auto weight_tensor_view = xt::view(weights, f, xt::all(), xt::all(), xt::all());
+        xt::xarray<int> flatten_weight(xt::flatten(weight_tensor_view));
+        for (auto h = 0; h < ofmap_h; h++)
+        {
+            for (auto w = 0; w < ofmap_w; w++)
+            {
+                auto ifmap_tensor_view = xt::view(ifmap, xt::all(), xt::range(h, h + kernel), xt::range(w, w + kernel));
+                xt::xarray<int> flattened_ifmap(xt::flatten(ifmap_tensor_view));
+                auto val = xt::linalg::dot(flattened_ifmap, flatten_weight);
+                ofmap(f, h, w) = val(0);
+            }
+        }
+    }
+
+    return ofmap;
+}
+
+} // namespace
 
 template <typename DataType>
 xt::xarray<int> generate_ifmap(Hero::Arch<DataType> &arch, int channel_in, int ifmap_h, int ifmap_w)
@@ -60,65 +104,10 @@ xt::xarray<int> pad_weights(Hero::Arch<DataType> &arch, xt::xarray<int> weights,
 }
 
 template <typename DataType>
-bool validate_output(Hero::Arch<DataType> &arch, xt::xarray<int> ifmap, xt::xarray<int> weights,
-                     xt::xarray<int> arch_output)
+bool validate_output(xt::xarray<int> ifmap, xt::xarray<int> weights, xt::xarray<DataType> arch_output)
 {
-    switch (arch.mode)
-    {
-    case Hero::OperationMode::RUN_1x1:
-        return validate_output_1x1(ifmap, weights, arch_output);
-    case Hero::OperationMode::RUN_3x3:
-        // TODO #9
-        throw "Validating 3x3 convolution outputs not implemented";
-    default:
-        throw "Invalid OperationMode used for validating output";
-    }
+    auto expected_output = evaluate_expected_output(ifmap, weights);
+    return expected_output == arch_output;
 }
 
-bool validate_output_1x1(xt::xarray<int> ifmap, xt::xarray<int> weights, xt::xarray<int> arch_output)
-{
-    // weights.shape() = F*C*K*K
-    assert(weights.shape().size() == 4);
-    // cout << xt::adapt(weights.shape()) << endl;
-    // ifmap.shape() = C*H*W
-    assert(ifmap.shape().size() == 3);
-    // cout << xt::adapt(ifmap.shape()) << endl;
-    // cout << ifmap << endl;
-    // symmetric kernel
-    assert(weights.shape(3) == weights.shape(2));
-
-    // ifmap channel = weights channel in
-    assert(ifmap.shape(0) == weights.shape(1));
-    int ifmap_w = ifmap.shape(2);
-    int ifmap_h = ifmap.shape(1);
-
-    int kernel = weights.shape(3);
-    assert(ifmap_w >= kernel);
-    assert(ifmap_h >= kernel);
-
-    int ofmap_w = ifmap_w - (kernel - 1);
-    int ofmap_h = ifmap_h - (kernel - 1);
-    int ofmap_c = weights.shape(0);
-
-    xt::xarray<int> ofmap = xt::arange(ofmap_c * ofmap_w * ofmap_h).reshape({ofmap_c, ofmap_h, ofmap_w});
-
-    // conv2d stride 1
-    for (auto f = 0; f < ofmap_c; f++)
-    {
-        auto weight_tensor_view = xt::view(weights, f, xt::all(), xt::all(), xt::all());
-        xt::xarray<int> flatten_weight(xt::flatten(weight_tensor_view));
-        for (auto h = 0; h < ofmap_h; h++)
-        {
-            for (auto w = 0; w < ofmap_w; w++)
-            {
-                auto ifmap_tensor_view = xt::view(ifmap, xt::all(), xt::range(h, h + kernel), xt::range(w, w + kernel));
-                xt::xarray<int> flattened_ifmap(xt::flatten(ifmap_tensor_view));
-                auto val = xt::linalg::dot(flattened_ifmap, flatten_weight);
-                ofmap(f, h, w) = val(0);
-            }
-        }
-    }
-
-    return ofmap == arch_output;
-}
 } // namespace LayerGeneration

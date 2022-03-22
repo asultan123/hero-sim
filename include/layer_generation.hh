@@ -27,9 +27,8 @@ xt::xarray<int> pad_weights(Hero::Arch<DataType> &arch, xt::xarray<int> weights,
                             int kernel);
 
 template <typename DataType>
-bool validate_output(Hero::Arch<DataType> &arch, xt::xarray<int> ifmap, xt::xarray<int> weights,
-                     xt::xarray<int> arch_output);
-bool validate_output_1x1(xt::xarray<int> ifmap, xt::xarray<int> weights, xt::xarray<int> arch_output);
+bool validate_output(xt::xarray<int> ifmap, xt::xarray<int> weights, xt::xarray<int> arch_output);
+
 } // namespace LayerGeneration
 
 #include "../src/layer_generation.cc"
