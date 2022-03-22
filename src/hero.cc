@@ -85,8 +85,6 @@ template <typename DataType> void Arch<DataType>::update_3x3()
     {
         while (control->enable())
         {
-            // unsigned int kernel_groups_count = this->channel_count / 9;
-
             for (int filter_row = 0; filter_row < filter_count; filter_row++)
             {
                 PE<DataType> &first_pe_in_row = this->pe_array[filter_row * channel_count];
@@ -96,13 +94,15 @@ template <typename DataType> void Arch<DataType>::update_3x3()
             {
                 for (int channel_column = 0; channel_column < channel_count - 1; channel_column++)
                 {
-                    // int channel_group = channel_column / 3;
                     PE<DataType> &cur_pe = this->pe_array[filter_row * channel_count + channel_column];
                     PE<DataType> &next_pe = this->pe_array[filter_row * channel_count + channel_column + 1];
                     if (cur_pe.current_weight.read() != -1)
                     {
+                        unsigned int kernel_group = channel_column / 9;
+                        unsigned int kernel_row = channel_column % 3;
+                        auto &ifmap_pixel = ifmap_reuse_chain_signals.at(kernel_group).at(kernel_row);
                         cur_pe.active_counter++;
-                        next_pe.psum_in = cur_pe.compute(ifmap_mem_read[channel_column][0].read());
+                        next_pe.psum_in = cur_pe.compute(ifmap_pixel.read());
                     }
                     else
                     {
@@ -116,7 +116,11 @@ template <typename DataType> void Arch<DataType>::update_3x3()
                 if (last_pe.current_weight.read() != -1)
                 {
                     last_pe.active_counter++;
-                    psum_mem_write[filter_row][0] = last_pe.compute(ifmap_mem_read[channel_count - 1][0].read());
+                    unsigned int channel_column = channel_count - 1;
+                    unsigned int kernel_group = channel_column / 9;
+                    unsigned int kernel_row = 3;
+                    auto &ifmap_pixel = ifmap_reuse_chain_signals.at(kernel_group).at(kernel_row);
+                    psum_mem_write[filter_row][0] = last_pe.compute(ifmap_pixel);
                 }
                 else
                 {
@@ -206,7 +210,7 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
       psum_mem_read("psum_mem_read", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
       psum_mem_write("psum_mem_write", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
       ifmap_mem("ifmap_mem", _control, channel_count, ifmap_mem_size, 1, _tf), ifmap_reuse_chain("ifmap_reuse_chain"),
-      ifmap_reuse_chain_read("ifmap_reuse_chain_read"),
+      ifmap_reuse_chain_signals("ifmap_reuse_chain_signals"),
       ifmap_mem_read("ifmap_mem_read", channel_count, SignalVectorCreator<DataType>(1, tf)),
       ifmap_mem_write("ifmap_mem_write", channel_count, SignalVectorCreator<DataType>(1, tf)), ssm("ssm"),
       kmapping(kmapping), mode(mode)
@@ -257,7 +261,7 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
                                                                                      1,   // width
                                                                                      _tf));
         // create enough signals for for all tails in the  different reuse chains
-        ifmap_reuse_chain_read.init(kernel_groups_count, SignalVectorCreator<DataType>(1, tf));
+        ifmap_reuse_chain_signals.init(kernel_groups_count, SignalVectorCreator<DataType>(3, tf));
 
         ssm.init(kernel_groups_count, SSMVectorCreator<DataType>(_control,
                                                                  9, // input_count
@@ -274,11 +278,13 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
         }
 
         // bind ssm out port to head of ifmap reuse chain
-        for (unsigned int ssm_idx = 0; ssm_idx < kernel_groups_count; ssm_idx++)
+        for (unsigned int kernel_group_idx = 0; kernel_group_idx < kernel_groups_count; kernel_group_idx++)
         {
-            auto &head_of_chain = ifmap_reuse_chain.at(ssm_idx * 2);
-            auto &ssm_output_port = ssm.at(ssm_idx).out.at(0);
-            head_of_chain.write_channel_data[0][0].bind(ssm_output_port);
+            auto &head_of_chain = ifmap_reuse_chain.at(kernel_group_idx * 2);
+            auto &ssm_output_port = ssm.at(kernel_group_idx).out.at(0);
+            auto &chain_signal = ifmap_reuse_chain_signals.at(kernel_group_idx).at(2);
+            ssm_output_port.bind(chain_signal);
+            head_of_chain.write_channel_data[0][0].bind(chain_signal);
         }
 
         // bind tail of chain input port to head output port
@@ -286,7 +292,9 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
         {
             auto &head_of_chain = ifmap_reuse_chain.at(kernel_group_idx * 2);
             auto &tail_of_chain = ifmap_reuse_chain.at(kernel_group_idx * 2 + 1);
-            tail_of_chain.write_channel_data[0][0].bind(head_of_chain.read_channel_data[0][0]);
+            auto &chain_signal = ifmap_reuse_chain_signals.at(kernel_group_idx).at(1);
+            head_of_chain.read_channel_data[0][0].bind(chain_signal);
+            tail_of_chain.write_channel_data[0][0].bind(chain_signal);
         }
 
         // bind tail read ports to signals to prevent simulator from failing bind assertion
@@ -295,7 +303,8 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
         for (unsigned int kernel_group_idx = 0; kernel_group_idx < kernel_groups_count; kernel_group_idx++)
         {
             auto &tail_of_chain = ifmap_reuse_chain.at(kernel_group_idx * 2 + 1);
-            tail_of_chain.write_channel_data[0][0].bind(ifmap_reuse_chain_read[kernel_group_idx][0]);
+            auto &chain_signal = ifmap_reuse_chain_signals.at(kernel_group_idx).at(0);
+            tail_of_chain.write_channel_data[0][0].bind(chain_signal);
         }
 
         for (auto &ifmap_reuse_chain_sam : ifmap_reuse_chain)
