@@ -122,7 +122,8 @@ void load_padded_weights_into_pes(Hero::Arch<DataType> &arch, xt::xarray<int> pa
 }
 
 template <typename DataType>
-void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, int filter_count, int channel_count)
+void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, int filter_count, int channel_count,
+                         Hero::OperationMode op_mode)
 {
     auto t1 = high_resolution_clock::now();
 
@@ -140,7 +141,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     tf->set_time_unit(100, SC_PS);
 
     GlobalControlChannel control("global_control_channel", sc_time(1, SC_NS), tf);
-    Hero::Arch<DataType> arch("arch", control, filter_count, channel_count, psum_mem_size, ifmap_mem_size, tf);
+    Hero::Arch<DataType> arch("arch", control, filter_count, channel_count, psum_mem_size, ifmap_mem_size, tf, op_mode);
 
     unsigned long int start_cycle_time = sc_time_stamp().value();
     control.set_reset(true);
@@ -151,17 +152,15 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     auto ifmap = LayerGeneration::generate_ifmap<DataType>(arch, c_in, ifmap_h, ifmap_w);
     dram_load(arch, ifmap, c_in, ifmap_h, ifmap_w);
 
-    arch.set_channel_modes();
     weights = LayerGeneration::generate_weights<DataType>(f_out, c_in, k);
     padded_weights = LayerGeneration::pad_weights(arch, weights, f_out, c_in, k);
 
     load_padded_weights_into_pes(arch, padded_weights);
 
-    GenerateDescriptors1x1::generate_and_load_pe_program(arch, ifmap_h, ifmap_w);
-    GenerateDescriptors1x1::generate_and_load_ifmap_in_program(arch, padded_weights, ifmap_h, ifmap_w);
-    GenerateDescriptors1x1::generate_and_load_psum_program(arch, padded_weights, ofmap_h, ofmap_w);
+    GenerateDescriptors::generate_and_load_arch_descriptors(arch, ifmap_h, ifmap_w, padded_weights, ofmap_h, ofmap_w);
 
     control.set_program(true);
+    arch.set_channel_modes();
     sc_start(1, SC_NS);
     control.set_enable(true);
     control.set_program(false);
@@ -211,6 +210,8 @@ int sc_main(int argc, char *argv[])
     int f_out = 16;
     int filter_count = 7;
     int channel_count = 9;
+    auto operation_mode = Hero::OperationMode::RUN_1x1;
+
     try
     {
         po::options_description config("Configuration");
@@ -283,7 +284,7 @@ int sc_main(int argc, char *argv[])
     cout << std::left << std::setw(20) << "c_in" << c_in << endl;
     cout << std::left << std::setw(20) << "f_out" << f_out << endl;
 
-    sim_and_get_results<sc_int<32>>(ifmap_h, ifmap_w, k, c_in, f_out, filter_count, channel_count);
+    sim_and_get_results<sc_int<32>>(ifmap_h, ifmap_w, k, c_in, f_out, filter_count, channel_count, operation_mode);
 
     return 0;
 }

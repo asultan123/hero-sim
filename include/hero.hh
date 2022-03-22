@@ -106,8 +106,8 @@ template <typename DataType> struct Arch : public sc_module
 
     // Constructor
     Arch(sc_module_name name, GlobalControlChannel &_control, int filter_count, int channel_count, int psum_mem_size,
-         int ifmap_mem_size, sc_trace_file *_tf, KernelMapping kmapping = KernelMapping::HORIZONTAL,
-         OperationMode mode = OperationMode::RUN_1x1);
+         int ifmap_mem_size, sc_trace_file *_tf, OperationMode mode = OperationMode::RUN_1x1,
+         KernelMapping kmapping = KernelMapping::HORIZONTAL);
 
     SC_HAS_PROCESS(Arch);
 };

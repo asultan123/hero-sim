@@ -68,6 +68,7 @@ bool validate_output(Hero::Arch<DataType> &arch, xt::xarray<int> ifmap, xt::xarr
     case Hero::OperationMode::RUN_1x1:
         return validate_output_1x1(ifmap, weights, arch_output);
     case Hero::OperationMode::RUN_3x3:
+        // TODO #9
         throw "Validating 3x3 convolution outputs not implemented";
     default:
         throw "Invalid OperationMode used for validating output";

@@ -199,12 +199,21 @@ template <typename DataType> void Arch<DataType>::set_channel_modes()
     {
         ifmap_mem.channels[i].set_mode(MemoryChannelMode::READ);
     }
+
+    if (mode == OperationMode::RUN_3x3)
+    {
+        for (auto &ifmap_reuse_chain_sam : ifmap_reuse_chain)
+        {
+            ifmap_reuse_chain_sam.channels.at(0).set_mode(MemoryChannelMode::WRITE);
+            ifmap_reuse_chain_sam.channels.at(1).set_mode(MemoryChannelMode::READ);
+        }
+    }
 }
 
 template <typename DataType>
 Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int filter_count, int channel_count,
-                     int psum_mem_size, int ifmap_mem_size, sc_trace_file *_tf, KernelMapping kmapping,
-                     OperationMode mode)
+                     int psum_mem_size, int ifmap_mem_size, sc_trace_file *_tf, OperationMode mode,
+                     KernelMapping kmapping)
     : sc_module(name), pe_array("pe_array", filter_count * channel_count, PeCreator<DataType>(_tf)), tf(_tf),
       psum_mem("psum_mem", _control, filter_count * 2, psum_mem_size, 1, _tf),
       psum_mem_read("psum_mem_read", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
@@ -229,18 +238,15 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
     }
     for (int i = 0; i < filter_count; i++)
     {
-        psum_mem.channels[i].set_mode(MemoryChannelMode::WRITE);
         sc_trace(tf, psum_mem_write[i][0], (this->psum_mem_write[i][0].name()));
     }
     for (int i = filter_count; i < filter_count * 2; i++)
     {
-        psum_mem.channels[i].set_mode(MemoryChannelMode::READ);
         sc_trace(tf, psum_mem_read[i][0], (this->psum_mem_read[i][0].name()));
     }
 
     for (int i = 0; i < channel_count; i++)
     {
-        ifmap_mem.channels[i].set_mode(MemoryChannelMode::READ);
         ifmap_mem.read_channel_data[i][0](ifmap_mem_read[i][0]);
         ifmap_mem.write_channel_data[i][0](ifmap_mem_write[i][0]);
         sc_trace(tf, ifmap_mem_read[i][0], (this->ifmap_mem_read[i][0].name()));
@@ -305,12 +311,6 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
             auto &tail_of_chain = ifmap_reuse_chain.at(kernel_group_idx * 2 + 1);
             auto &chain_signal = ifmap_reuse_chain_signals.at(kernel_group_idx).at(0);
             tail_of_chain.write_channel_data[0][0].bind(chain_signal);
-        }
-
-        for (auto &ifmap_reuse_chain_sam : ifmap_reuse_chain)
-        {
-            ifmap_reuse_chain_sam.channels.at(0).set_mode(MemoryChannelMode::WRITE);
-            ifmap_reuse_chain_sam.channels.at(1).set_mode(MemoryChannelMode::READ);
         }
 
         SC_THREAD(update_3x3);

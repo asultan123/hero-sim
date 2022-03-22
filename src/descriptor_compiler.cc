@@ -2,6 +2,28 @@
 #include "../include/descriptor_compiler.hh"
 #endif
 
+namespace GenerateDescriptors
+{
+template <typename DataType>
+void generate_and_load_arch_descriptors(Hero::Arch<DataType> &arch, int ifmap_h, int ifmap_w,
+                                        xt::xarray<int> padded_weights, int ofmap_h, int ofmap_w)
+{
+    if (arch.mode == Hero::OperationMode::RUN_1x1)
+    {
+        GenerateDescriptors1x1::generate_and_load_pe_program(arch, ifmap_h, ifmap_w);
+        GenerateDescriptors1x1::generate_and_load_ifmap_in_program(arch, padded_weights, ifmap_h, ifmap_w);
+        GenerateDescriptors1x1::generate_and_load_psum_program(arch, padded_weights, ofmap_h, ofmap_w);
+    }
+    else
+    {
+        GenerateDescriptors3x3::generate_and_load_pe_program(arch, ifmap_h, ifmap_w);
+        GenerateDescriptors3x3::generate_and_load_ifmap_in_program(arch, padded_weights, ifmap_h, ifmap_w);
+        GenerateDescriptors3x3::generate_and_load_psum_program(arch, padded_weights, ofmap_h, ofmap_w);
+    }
+}
+
+} // namespace GenerateDescriptors
+
 namespace GenerateDescriptors1x1
 {
 template <typename DataType> void generate_and_load_pe_program(Hero::Arch<DataType> &arch, int ifmap_h, int ifmap_w)
@@ -169,13 +191,27 @@ void generate_and_load_ifmap_in_program(Hero::Arch<DataType> &arch, xt::xarray<i
     }
 }
 
-// template void generate_and_load_pe_program<sc_int<32>>(Arch<sc_int<32>> &arch, int ifmap_h, int ifmap_w);
-// template void generate_and_load_psum_program<sc_int<32>>(Arch<sc_int<32>> &arch, xt::xarray<int> padded_weights, int
-// ofmap_h, int ofmap_w); template void generate_and_load_ifmap_in_program<sc_int<32>>(Arch<sc_int<32>> &arch,
-// xt::xarray<int> padded_weights, int ifmap_h, int ifmap_w);
 } // namespace GenerateDescriptors1x1
 
-// namespace GenerateDescriptors3x3
-// {
+namespace GenerateDescriptors3x3
+{
+template <typename DataType> void generate_and_load_pe_program(Hero::Arch<DataType> &arch, int ifmap_h, int ifmap_w)
+{
+    throw "Not implemented";
+}
 
-// }
+template <typename DataType>
+void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights, int ofmap_h,
+                                    int ofmap_w)
+{
+    throw "Not implemented";
+}
+
+template <typename DataType>
+void generate_and_load_ifmap_in_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights, int ifmap_h,
+                                        int ifmap_w)
+{
+    throw "Not implemented";
+}
+
+} // namespace GenerateDescriptors3x3
