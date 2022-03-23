@@ -192,9 +192,7 @@ namespace GenerateDescriptors3x3
 
 template <typename DataType> void generate_and_load_ssm_program(Hero::Arch<DataType> &arch, int ifmap_h, int ifmap_w)
 {
-    auto run_bitmap = get_ifmap_mem_run_bitmap(arch, padded_weights);
-    int verticle_tile_count = padded_weights.shape()[0] / arch.filter_count;
-    int horizontal_tile_count = padded_weights.shape()[1] / arch.channel_count;
+    // TODO: #41
 
     throw "Not implemented";
 }
@@ -215,7 +213,43 @@ template <typename DataType>
 void generate_and_load_ifmap_in_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights, int ifmap_h,
                                         int ifmap_w)
 {
-    throw "Not implemented";
+    auto run_bitmap = get_ifmap_mem_run_bitmap(arch, padded_weights);
+    int verticle_tile_count = padded_weights.shape()[0] / arch.filter_count;
+    int horizontal_tile_count = padded_weights.shape()[1] / arch.channel_count;
+
+    int ag_idx = 0;
+    for (auto &ag : arch.ifmap_mem.generators)
+    {
+        std::deque<Descriptor_2D> program;
+        auto systolic_delay = Descriptor_2D::delay_inst(ag_idx);
+        program.push_back(systolic_delay);
+        for (int v = 0; v < verticle_tile_count; v++)
+        {
+            for (int h = 0; h < horizontal_tile_count; h++)
+            {
+                int active = run_bitmap(v, h, ag_idx);
+                int stream_size = ifmap_h * ifmap_w;
+                int stream_start_idx = h * arch.channel_count * stream_size + ag_idx * stream_size;
+
+                if (active)
+                {
+                    // TODO #42
+                    auto stream_inst = Descriptor_2D::stream_inst(stream_start_idx, stream_size - 1, 0);
+                    program.push_back(stream_inst);
+                }
+                else
+                {
+                    auto delay_inst = Descriptor_2D::delay_inst(stream_size - 1);
+                    program.push_back(delay_inst);
+                }
+            }
+        }
+        program.push_back(Descriptor_2D::suspend_inst());
+        vector<Descriptor_2D> prog_vec(program.begin(), program.end());
+        Descriptor_2D::make_sequential(prog_vec);
+        ag.loadProgram(prog_vec);
+        ag_idx++;
+    }
 }
 
 template <typename DataType>
