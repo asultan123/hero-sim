@@ -227,6 +227,7 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
 {
     control(_control);
     _clk(control->clk());
+
     this->filter_count = filter_count;
     this->channel_count = channel_count;
     this->psum_mem_size = psum_mem_size;
@@ -270,6 +271,14 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
 
         ifmap_reuse_chain_signals.init(kernel_groups_count, SignalVectorCreator<DataType>(3, tf));
         unused_ifmap_reuse_chain_signals.init(kernel_groups_count, SignalVectorCreator<DataType>(3, tf));
+
+        for (auto &signal_group : ifmap_reuse_chain_signals)
+        {
+            for (auto &signal : signal_group)
+            {
+                sc_trace(tf, signal, signal.name());
+            }
+        }
 
         ssm.init(kernel_groups_count, SSMVectorCreator<DataType>(_control,
                                                                  9, // input_count
