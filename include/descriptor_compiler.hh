@@ -35,6 +35,8 @@ void generate_and_load_ifmap_in_program(Hero::Arch<DataType> &arch, xt::xarray<i
 
 namespace GenerateDescriptors3x3
 {
+template <typename DataType> void generate_and_load_ssm_program(Hero::Arch<DataType> &arch, int ifmap_h, int ifmap_w);
+
 template <typename DataType> void generate_and_load_pe_program(Hero::Arch<DataType> &arch, int ifmap_h, int ifmap_w);
 
 template <typename DataType>
@@ -44,6 +46,11 @@ void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> 
 template <typename DataType>
 void generate_and_load_ifmap_in_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights, int ifmap_h,
                                         int ifmap_w);
+
+template <typename DataType>
+void generate_and_load_ifmap_channel_to_reuse_chain_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights,
+                                                            int ifmap_h, int ifmap_w);
+
 } // namespace GenerateDescriptors3x3
 
 #include "../src/descriptor_compiler.cc"
