@@ -220,6 +220,7 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
       psum_mem_write("psum_mem_write", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
       ifmap_mem("ifmap_mem", _control, channel_count, ifmap_mem_size, 1, _tf), ifmap_reuse_chain("ifmap_reuse_chain"),
       ifmap_reuse_chain_signals("ifmap_reuse_chain_signals"),
+      unused_ifmap_reuse_chain_signals("unused_ifmap_reuse_chain_signals"),
       ifmap_mem_read("ifmap_mem_read", channel_count, SignalVectorCreator<DataType>(1, tf)),
       ifmap_mem_write("ifmap_mem_write", channel_count, SignalVectorCreator<DataType>(1, tf)), ssm("ssm"),
       kmapping(kmapping), mode(mode)
@@ -266,8 +267,9 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
                                                                                      512, // over estimating length
                                                                                      1,   // width
                                                                                      _tf));
-        // create enough signals for for all tails in the  different reuse chains
+
         ifmap_reuse_chain_signals.init(kernel_groups_count, SignalVectorCreator<DataType>(3, tf));
+        unused_ifmap_reuse_chain_signals.init(kernel_groups_count, SignalVectorCreator<DataType>(3, tf));
 
         ssm.init(kernel_groups_count, SSMVectorCreator<DataType>(_control,
                                                                  9, // input_count
@@ -289,8 +291,10 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
             auto &head_of_chain = ifmap_reuse_chain.at(kernel_group_idx * 2);
             auto &ssm_output_port = ssm.at(kernel_group_idx).out.at(0);
             auto &chain_signal = ifmap_reuse_chain_signals.at(kernel_group_idx).at(2);
+            auto &tie_down_signal = unused_ifmap_reuse_chain_signals.at(kernel_group_idx).at(2);
             ssm_output_port.bind(chain_signal);
             head_of_chain.write_channel_data[0][0].bind(chain_signal);
+            head_of_chain.read_channel_data[0][0].bind(tie_down_signal);
         }
 
         // bind tail of chain input port to head output port
@@ -299,8 +303,12 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
             auto &head_of_chain = ifmap_reuse_chain.at(kernel_group_idx * 2);
             auto &tail_of_chain = ifmap_reuse_chain.at(kernel_group_idx * 2 + 1);
             auto &chain_signal = ifmap_reuse_chain_signals.at(kernel_group_idx).at(1);
-            head_of_chain.read_channel_data[0][0].bind(chain_signal);
+            auto &tie_down_signal = unused_ifmap_reuse_chain_signals.at(kernel_group_idx).at(1);
+            head_of_chain.read_channel_data[1][0].bind(chain_signal);
             tail_of_chain.write_channel_data[0][0].bind(chain_signal);
+
+            head_of_chain.write_channel_data[1][0].bind(tie_down_signal);
+            tail_of_chain.read_channel_data[0][0].bind(tie_down_signal);
         }
 
         // bind tail read ports to signals to prevent simulator from failing bind assertion
@@ -310,7 +318,9 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
         {
             auto &tail_of_chain = ifmap_reuse_chain.at(kernel_group_idx * 2 + 1);
             auto &chain_signal = ifmap_reuse_chain_signals.at(kernel_group_idx).at(0);
-            tail_of_chain.write_channel_data[0][0].bind(chain_signal);
+            auto &tie_down_signal = unused_ifmap_reuse_chain_signals.at(kernel_group_idx).at(0);
+            tail_of_chain.read_channel_data[1][0].bind(chain_signal);
+            tail_of_chain.write_channel_data[1][0].bind(tie_down_signal);
         }
 
         SC_THREAD(update_3x3);
