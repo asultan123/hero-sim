@@ -45,6 +45,7 @@ namespace po = boost::program_options;
 template <typename DataType>
 void dram_load(Hero::Arch<DataType> &arch, xt::xarray<int> ifmap, int channel_in, int ifmap_h, int ifmap_w)
 {
+    // TODO #42
     for (int c = 0; c < channel_in; c++)
     {
         for (int i = 0; i < ifmap_h; i++)
@@ -206,10 +207,10 @@ int sc_main(int argc, char *argv[])
     int ifmap_h = 32;
     int ifmap_w = 32;
     int k = 3;
-    int c_in = 16;
+    int c_in = 3;
     int f_out = 16;
     int filter_count = 7;
-    int channel_count = 9;
+    int channel_count = 18;
 
     try
     {

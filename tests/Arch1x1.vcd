@@ -1,5 +1,5 @@
 $date
-     Mar 23, 2022       02:41:16
+     Mar 23, 2022       03:50:26
 $end
 
 $version
@@ -12,228 +12,442 @@ $end
 
 $scope module SystemC $end
 $scope module arch $end
-$var wire   32  aaanw  psum_mem_write_0_0 [31:0]  $end
-$var wire   32  aaanx  psum_mem_write_1_0 [31:0]  $end
-$var wire   32  aaany  psum_mem_write_2_0 [31:0]  $end
-$var wire   32  aaanz  psum_mem_write_3_0 [31:0]  $end
-$var wire   32  aaaoa  psum_mem_write_4_0 [31:0]  $end
-$var wire   32  aaaob  psum_mem_write_5_0 [31:0]  $end
-$var wire   32  aaaoc  psum_mem_write_6_0 [31:0]  $end
-$var wire   32  aaaod  psum_mem_read_7_0 [31:0]  $end
-$var wire   32  aaaoe  psum_mem_read_8_0 [31:0]  $end
-$var wire   32  aaaof  psum_mem_read_9_0 [31:0]  $end
-$var wire   32  aaaog  psum_mem_read_10_0 [31:0]  $end
-$var wire   32  aaaoh  psum_mem_read_11_0 [31:0]  $end
-$var wire   32  aaaoi  psum_mem_read_12_0 [31:0]  $end
-$var wire   32  aaaoj  psum_mem_read_13_0 [31:0]  $end
-$var wire   32  aaaok  ifmap_mem_read_0_0 [31:0]  $end
-$var wire   32  aaaol  ifmap_mem_read_1_0 [31:0]  $end
-$var wire   32  aaaom  ifmap_mem_read_2_0 [31:0]  $end
-$var wire   32  aaaon  ifmap_mem_read_3_0 [31:0]  $end
-$var wire   32  aaaoo  ifmap_mem_read_4_0 [31:0]  $end
-$var wire   32  aaaop  ifmap_mem_read_5_0 [31:0]  $end
-$var wire   32  aaaoq  ifmap_mem_read_6_0 [31:0]  $end
-$var wire   32  aaaor  ifmap_mem_read_7_0 [31:0]  $end
-$var wire   32  aaaos  ifmap_mem_read_8_0 [31:0]  $end
+$var wire   32  aaawe  psum_mem_write_0_0 [31:0]  $end
+$var wire   32  aaawf  psum_mem_write_1_0 [31:0]  $end
+$var wire   32  aaawg  psum_mem_write_2_0 [31:0]  $end
+$var wire   32  aaawh  psum_mem_write_3_0 [31:0]  $end
+$var wire   32  aaawi  psum_mem_write_4_0 [31:0]  $end
+$var wire   32  aaawj  psum_mem_write_5_0 [31:0]  $end
+$var wire   32  aaawk  psum_mem_write_6_0 [31:0]  $end
+$var wire   32  aaawl  psum_mem_read_7_0 [31:0]  $end
+$var wire   32  aaawm  psum_mem_read_8_0 [31:0]  $end
+$var wire   32  aaawn  psum_mem_read_9_0 [31:0]  $end
+$var wire   32  aaawo  psum_mem_read_10_0 [31:0]  $end
+$var wire   32  aaawp  psum_mem_read_11_0 [31:0]  $end
+$var wire   32  aaawq  psum_mem_read_12_0 [31:0]  $end
+$var wire   32  aaawr  psum_mem_read_13_0 [31:0]  $end
+$var wire   32  aaaws  ifmap_mem_read_0_0 [31:0]  $end
+$var wire   32  aaawt  ifmap_mem_read_1_0 [31:0]  $end
+$var wire   32  aaawu  ifmap_mem_read_2_0 [31:0]  $end
+$var wire   32  aaawv  ifmap_mem_read_3_0 [31:0]  $end
+$var wire   32  aaaww  ifmap_mem_read_4_0 [31:0]  $end
+$var wire   32  aaawx  ifmap_mem_read_5_0 [31:0]  $end
+$var wire   32  aaawy  ifmap_mem_read_6_0 [31:0]  $end
+$var wire   32  aaawz  ifmap_mem_read_7_0 [31:0]  $end
+$var wire   32  aaaxa  ifmap_mem_read_8_0 [31:0]  $end
+$var wire   32  aaaxb  ifmap_mem_read_9_0 [31:0]  $end
+$var wire   32  aaaxc  ifmap_mem_read_10_0 [31:0]  $end
+$var wire   32  aaaxd  ifmap_mem_read_11_0 [31:0]  $end
+$var wire   32  aaaxe  ifmap_mem_read_12_0 [31:0]  $end
+$var wire   32  aaaxf  ifmap_mem_read_13_0 [31:0]  $end
+$var wire   32  aaaxg  ifmap_mem_read_14_0 [31:0]  $end
+$var wire   32  aaaxh  ifmap_mem_read_15_0 [31:0]  $end
+$var wire   32  aaaxi  ifmap_mem_read_16_0 [31:0]  $end
+$var wire   32  aaaxj  ifmap_mem_read_17_0 [31:0]  $end
+$var wire   32  aabam  ifmap_reuse_chain_signals_0_0 [31:0]  $end
+$var wire   32  aaban  ifmap_reuse_chain_signals_0_1 [31:0]  $end
+$var wire   32  aabao  ifmap_reuse_chain_signals_0_2 [31:0]  $end
+$var wire   32  aabap  ifmap_reuse_chain_signals_1_0 [31:0]  $end
+$var wire   32  aabaq  ifmap_reuse_chain_signals_1_1 [31:0]  $end
+$var wire   32  aabar  ifmap_reuse_chain_signals_1_2 [31:0]  $end
 $scope module ifmap_mem $end
-$var wire   32  aaarf  write_channel_data_8_0 [31:0]  $end
-$var wire   32  aaarg  write_channel_data_7_0 [31:0]  $end
-$var wire   32  aaarh  write_channel_data_6_0 [31:0]  $end
-$var wire   32  aaari  write_channel_data_5_0 [31:0]  $end
-$var wire   32  aaarj  write_channel_data_4_0 [31:0]  $end
-$var wire   32  aaark  write_channel_data_3_0 [31:0]  $end
-$var wire   32  aaarl  write_channel_data_2_0 [31:0]  $end
-$var wire   32  aaarm  write_channel_data_1_0 [31:0]  $end
-$var wire   32  aaarn  write_channel_data_0_0 [31:0]  $end
+$var wire   32  aabco  write_channel_data_17_0 [31:0]  $end
+$var wire   32  aabcp  write_channel_data_16_0 [31:0]  $end
+$var wire   32  aabcq  write_channel_data_15_0 [31:0]  $end
+$var wire   32  aabcr  write_channel_data_14_0 [31:0]  $end
+$var wire   32  aabcs  write_channel_data_13_0 [31:0]  $end
+$var wire   32  aabct  write_channel_data_12_0 [31:0]  $end
+$var wire   32  aabcu  write_channel_data_11_0 [31:0]  $end
+$var wire   32  aabcv  write_channel_data_10_0 [31:0]  $end
+$var wire   32  aabcw  write_channel_data_9_0 [31:0]  $end
+$var wire   32  aabcx  write_channel_data_8_0 [31:0]  $end
+$var wire   32  aabcy  write_channel_data_7_0 [31:0]  $end
+$var wire   32  aabcz  write_channel_data_6_0 [31:0]  $end
+$var wire   32  aabda  write_channel_data_5_0 [31:0]  $end
+$var wire   32  aabdb  write_channel_data_4_0 [31:0]  $end
+$var wire   32  aabdc  write_channel_data_3_0 [31:0]  $end
+$var wire   32  aabdd  write_channel_data_2_0 [31:0]  $end
+$var wire   32  aabde  write_channel_data_1_0 [31:0]  $end
+$var wire   32  aabdf  write_channel_data_0_0 [31:0]  $end
 $scope module channels_0 $end
-$var wire   32  aaamd  read_channel_data_0 [31:0]  $end
-$var wire   32  aaame  write_channel_data_0 [31:0]  $end
-$var wire   32  aaamf  addr [31:0]  $end
-$var wire    1  aaamg  enabled       $end
-$var wire   32  aaamh  mode [31:0]  $end
+$var wire   32  aaass  read_channel_data_0 [31:0]  $end
+$var wire   32  aaast  write_channel_data_0 [31:0]  $end
+$var wire   32  aaasu  addr [31:0]  $end
+$var wire    1  aaasv  enabled       $end
+$var wire   32  aaasw  mode [31:0]  $end
 $upscope $end
 $scope module channels_1 $end
-$var wire   32  aaami  read_channel_data_0 [31:0]  $end
-$var wire   32  aaamj  write_channel_data_0 [31:0]  $end
-$var wire   32  aaamk  addr [31:0]  $end
-$var wire    1  aaaml  enabled       $end
-$var wire   32  aaamm  mode [31:0]  $end
+$var wire   32  aaasx  read_channel_data_0 [31:0]  $end
+$var wire   32  aaasy  write_channel_data_0 [31:0]  $end
+$var wire   32  aaasz  addr [31:0]  $end
+$var wire    1  aaata  enabled       $end
+$var wire   32  aaatb  mode [31:0]  $end
+$upscope $end
+$scope module channels_10 $end
+$var wire   32  aaauq  read_channel_data_0 [31:0]  $end
+$var wire   32  aaaur  write_channel_data_0 [31:0]  $end
+$var wire   32  aaaus  addr [31:0]  $end
+$var wire    1  aaaut  enabled       $end
+$var wire   32  aaauu  mode [31:0]  $end
+$upscope $end
+$scope module channels_11 $end
+$var wire   32  aaauv  read_channel_data_0 [31:0]  $end
+$var wire   32  aaauw  write_channel_data_0 [31:0]  $end
+$var wire   32  aaaux  addr [31:0]  $end
+$var wire    1  aaauy  enabled       $end
+$var wire   32  aaauz  mode [31:0]  $end
+$upscope $end
+$scope module channels_12 $end
+$var wire   32  aaava  read_channel_data_0 [31:0]  $end
+$var wire   32  aaavb  write_channel_data_0 [31:0]  $end
+$var wire   32  aaavc  addr [31:0]  $end
+$var wire    1  aaavd  enabled       $end
+$var wire   32  aaave  mode [31:0]  $end
+$upscope $end
+$scope module channels_13 $end
+$var wire   32  aaavf  read_channel_data_0 [31:0]  $end
+$var wire   32  aaavg  write_channel_data_0 [31:0]  $end
+$var wire   32  aaavh  addr [31:0]  $end
+$var wire    1  aaavi  enabled       $end
+$var wire   32  aaavj  mode [31:0]  $end
+$upscope $end
+$scope module channels_14 $end
+$var wire   32  aaavk  read_channel_data_0 [31:0]  $end
+$var wire   32  aaavl  write_channel_data_0 [31:0]  $end
+$var wire   32  aaavm  addr [31:0]  $end
+$var wire    1  aaavn  enabled       $end
+$var wire   32  aaavo  mode [31:0]  $end
+$upscope $end
+$scope module channels_15 $end
+$var wire   32  aaavp  read_channel_data_0 [31:0]  $end
+$var wire   32  aaavq  write_channel_data_0 [31:0]  $end
+$var wire   32  aaavr  addr [31:0]  $end
+$var wire    1  aaavs  enabled       $end
+$var wire   32  aaavt  mode [31:0]  $end
+$upscope $end
+$scope module channels_16 $end
+$var wire   32  aaavu  read_channel_data_0 [31:0]  $end
+$var wire   32  aaavv  write_channel_data_0 [31:0]  $end
+$var wire   32  aaavw  addr [31:0]  $end
+$var wire    1  aaavx  enabled       $end
+$var wire   32  aaavy  mode [31:0]  $end
+$upscope $end
+$scope module channels_17 $end
+$var wire   32  aaavz  read_channel_data_0 [31:0]  $end
+$var wire   32  aaawa  write_channel_data_0 [31:0]  $end
+$var wire   32  aaawb  addr [31:0]  $end
+$var wire    1  aaawc  enabled       $end
+$var wire   32  aaawd  mode [31:0]  $end
 $upscope $end
 $scope module channels_2 $end
-$var wire   32  aaamn  read_channel_data_0 [31:0]  $end
-$var wire   32  aaamo  write_channel_data_0 [31:0]  $end
-$var wire   32  aaamp  addr [31:0]  $end
-$var wire    1  aaamq  enabled       $end
-$var wire   32  aaamr  mode [31:0]  $end
+$var wire   32  aaatc  read_channel_data_0 [31:0]  $end
+$var wire   32  aaatd  write_channel_data_0 [31:0]  $end
+$var wire   32  aaate  addr [31:0]  $end
+$var wire    1  aaatf  enabled       $end
+$var wire   32  aaatg  mode [31:0]  $end
 $upscope $end
 $scope module channels_3 $end
-$var wire   32  aaams  read_channel_data_0 [31:0]  $end
-$var wire   32  aaamt  write_channel_data_0 [31:0]  $end
-$var wire   32  aaamu  addr [31:0]  $end
-$var wire    1  aaamv  enabled       $end
-$var wire   32  aaamw  mode [31:0]  $end
+$var wire   32  aaath  read_channel_data_0 [31:0]  $end
+$var wire   32  aaati  write_channel_data_0 [31:0]  $end
+$var wire   32  aaatj  addr [31:0]  $end
+$var wire    1  aaatk  enabled       $end
+$var wire   32  aaatl  mode [31:0]  $end
 $upscope $end
 $scope module channels_4 $end
-$var wire   32  aaamx  read_channel_data_0 [31:0]  $end
-$var wire   32  aaamy  write_channel_data_0 [31:0]  $end
-$var wire   32  aaamz  addr [31:0]  $end
-$var wire    1  aaana  enabled       $end
-$var wire   32  aaanb  mode [31:0]  $end
+$var wire   32  aaatm  read_channel_data_0 [31:0]  $end
+$var wire   32  aaatn  write_channel_data_0 [31:0]  $end
+$var wire   32  aaato  addr [31:0]  $end
+$var wire    1  aaatp  enabled       $end
+$var wire   32  aaatq  mode [31:0]  $end
 $upscope $end
 $scope module channels_5 $end
-$var wire   32  aaanc  read_channel_data_0 [31:0]  $end
-$var wire   32  aaand  write_channel_data_0 [31:0]  $end
-$var wire   32  aaane  addr [31:0]  $end
-$var wire    1  aaanf  enabled       $end
-$var wire   32  aaang  mode [31:0]  $end
+$var wire   32  aaatr  read_channel_data_0 [31:0]  $end
+$var wire   32  aaats  write_channel_data_0 [31:0]  $end
+$var wire   32  aaatt  addr [31:0]  $end
+$var wire    1  aaatu  enabled       $end
+$var wire   32  aaatv  mode [31:0]  $end
 $upscope $end
 $scope module channels_6 $end
-$var wire   32  aaanh  read_channel_data_0 [31:0]  $end
-$var wire   32  aaani  write_channel_data_0 [31:0]  $end
-$var wire   32  aaanj  addr [31:0]  $end
-$var wire    1  aaank  enabled       $end
-$var wire   32  aaanl  mode [31:0]  $end
+$var wire   32  aaatw  read_channel_data_0 [31:0]  $end
+$var wire   32  aaatx  write_channel_data_0 [31:0]  $end
+$var wire   32  aaaty  addr [31:0]  $end
+$var wire    1  aaatz  enabled       $end
+$var wire   32  aaaua  mode [31:0]  $end
 $upscope $end
 $scope module channels_7 $end
-$var wire   32  aaanm  read_channel_data_0 [31:0]  $end
-$var wire   32  aaann  write_channel_data_0 [31:0]  $end
-$var wire   32  aaano  addr [31:0]  $end
-$var wire    1  aaanp  enabled       $end
-$var wire   32  aaanq  mode [31:0]  $end
+$var wire   32  aaaub  read_channel_data_0 [31:0]  $end
+$var wire   32  aaauc  write_channel_data_0 [31:0]  $end
+$var wire   32  aaaud  addr [31:0]  $end
+$var wire    1  aaaue  enabled       $end
+$var wire   32  aaauf  mode [31:0]  $end
 $upscope $end
 $scope module channels_8 $end
-$var wire   32  aaanr  read_channel_data_0 [31:0]  $end
-$var wire   32  aaans  write_channel_data_0 [31:0]  $end
-$var wire   32  aaant  addr [31:0]  $end
-$var wire    1  aaanu  enabled       $end
-$var wire   32  aaanv  mode [31:0]  $end
+$var wire   32  aaaug  read_channel_data_0 [31:0]  $end
+$var wire   32  aaauh  write_channel_data_0 [31:0]  $end
+$var wire   32  aaaui  addr [31:0]  $end
+$var wire    1  aaauj  enabled       $end
+$var wire   32  aaauk  mode [31:0]  $end
+$upscope $end
+$scope module channels_9 $end
+$var wire   32  aaaul  read_channel_data_0 [31:0]  $end
+$var wire   32  aaaum  write_channel_data_0 [31:0]  $end
+$var wire   32  aaaun  addr [31:0]  $end
+$var wire    1  aaauo  enabled       $end
+$var wire   32  aaaup  mode [31:0]  $end
 $upscope $end
 $scope module generator_0 $end
-$var wire   32  aaakk  execute_index [31:0]  $end
-$var wire   32  aaakl  current_ram_index [31:0]  $end
-$var wire   32  aaakm  x_count_remaining [31:0]  $end
-$var wire   32  aaakn  y_count_remaining [31:0]  $end
-$var wire   32  aaako  repeat [31:0]  $end
+$var wire   32  aaapg  execute_index [31:0]  $end
+$var wire   32  aaaph  current_ram_index [31:0]  $end
+$var wire   32  aaapi  x_count_remaining [31:0]  $end
+$var wire   32  aaapj  y_count_remaining [31:0]  $end
+$var wire   32  aaapk  repeat [31:0]  $end
 $upscope $end
 $scope module generator_1 $end
-$var wire   32  aaakp  execute_index [31:0]  $end
-$var wire   32  aaakq  current_ram_index [31:0]  $end
-$var wire   32  aaakr  x_count_remaining [31:0]  $end
-$var wire   32  aaaks  y_count_remaining [31:0]  $end
-$var wire   32  aaakt  repeat [31:0]  $end
+$var wire   32  aaapl  execute_index [31:0]  $end
+$var wire   32  aaapm  current_ram_index [31:0]  $end
+$var wire   32  aaapn  x_count_remaining [31:0]  $end
+$var wire   32  aaapo  y_count_remaining [31:0]  $end
+$var wire   32  aaapp  repeat [31:0]  $end
+$upscope $end
+$scope module generator_10 $end
+$var wire   32  aaare  execute_index [31:0]  $end
+$var wire   32  aaarf  current_ram_index [31:0]  $end
+$var wire   32  aaarg  x_count_remaining [31:0]  $end
+$var wire   32  aaarh  y_count_remaining [31:0]  $end
+$var wire   32  aaari  repeat [31:0]  $end
+$upscope $end
+$scope module generator_11 $end
+$var wire   32  aaarj  execute_index [31:0]  $end
+$var wire   32  aaark  current_ram_index [31:0]  $end
+$var wire   32  aaarl  x_count_remaining [31:0]  $end
+$var wire   32  aaarm  y_count_remaining [31:0]  $end
+$var wire   32  aaarn  repeat [31:0]  $end
+$upscope $end
+$scope module generator_12 $end
+$var wire   32  aaaro  execute_index [31:0]  $end
+$var wire   32  aaarp  current_ram_index [31:0]  $end
+$var wire   32  aaarq  x_count_remaining [31:0]  $end
+$var wire   32  aaarr  y_count_remaining [31:0]  $end
+$var wire   32  aaars  repeat [31:0]  $end
+$upscope $end
+$scope module generator_13 $end
+$var wire   32  aaart  execute_index [31:0]  $end
+$var wire   32  aaaru  current_ram_index [31:0]  $end
+$var wire   32  aaarv  x_count_remaining [31:0]  $end
+$var wire   32  aaarw  y_count_remaining [31:0]  $end
+$var wire   32  aaarx  repeat [31:0]  $end
+$upscope $end
+$scope module generator_14 $end
+$var wire   32  aaary  execute_index [31:0]  $end
+$var wire   32  aaarz  current_ram_index [31:0]  $end
+$var wire   32  aaasa  x_count_remaining [31:0]  $end
+$var wire   32  aaasb  y_count_remaining [31:0]  $end
+$var wire   32  aaasc  repeat [31:0]  $end
+$upscope $end
+$scope module generator_15 $end
+$var wire   32  aaasd  execute_index [31:0]  $end
+$var wire   32  aaase  current_ram_index [31:0]  $end
+$var wire   32  aaasf  x_count_remaining [31:0]  $end
+$var wire   32  aaasg  y_count_remaining [31:0]  $end
+$var wire   32  aaash  repeat [31:0]  $end
+$upscope $end
+$scope module generator_16 $end
+$var wire   32  aaasi  execute_index [31:0]  $end
+$var wire   32  aaasj  current_ram_index [31:0]  $end
+$var wire   32  aaask  x_count_remaining [31:0]  $end
+$var wire   32  aaasl  y_count_remaining [31:0]  $end
+$var wire   32  aaasm  repeat [31:0]  $end
+$upscope $end
+$scope module generator_17 $end
+$var wire   32  aaasn  execute_index [31:0]  $end
+$var wire   32  aaaso  current_ram_index [31:0]  $end
+$var wire   32  aaasp  x_count_remaining [31:0]  $end
+$var wire   32  aaasq  y_count_remaining [31:0]  $end
+$var wire   32  aaasr  repeat [31:0]  $end
 $upscope $end
 $scope module generator_2 $end
-$var wire   32  aaaku  execute_index [31:0]  $end
-$var wire   32  aaakv  current_ram_index [31:0]  $end
-$var wire   32  aaakw  x_count_remaining [31:0]  $end
-$var wire   32  aaakx  y_count_remaining [31:0]  $end
-$var wire   32  aaaky  repeat [31:0]  $end
+$var wire   32  aaapq  execute_index [31:0]  $end
+$var wire   32  aaapr  current_ram_index [31:0]  $end
+$var wire   32  aaaps  x_count_remaining [31:0]  $end
+$var wire   32  aaapt  y_count_remaining [31:0]  $end
+$var wire   32  aaapu  repeat [31:0]  $end
 $upscope $end
 $scope module generator_3 $end
-$var wire   32  aaakz  execute_index [31:0]  $end
-$var wire   32  aaala  current_ram_index [31:0]  $end
-$var wire   32  aaalb  x_count_remaining [31:0]  $end
-$var wire   32  aaalc  y_count_remaining [31:0]  $end
-$var wire   32  aaald  repeat [31:0]  $end
+$var wire   32  aaapv  execute_index [31:0]  $end
+$var wire   32  aaapw  current_ram_index [31:0]  $end
+$var wire   32  aaapx  x_count_remaining [31:0]  $end
+$var wire   32  aaapy  y_count_remaining [31:0]  $end
+$var wire   32  aaapz  repeat [31:0]  $end
 $upscope $end
 $scope module generator_4 $end
-$var wire   32  aaale  execute_index [31:0]  $end
-$var wire   32  aaalf  current_ram_index [31:0]  $end
-$var wire   32  aaalg  x_count_remaining [31:0]  $end
-$var wire   32  aaalh  y_count_remaining [31:0]  $end
-$var wire   32  aaali  repeat [31:0]  $end
+$var wire   32  aaaqa  execute_index [31:0]  $end
+$var wire   32  aaaqb  current_ram_index [31:0]  $end
+$var wire   32  aaaqc  x_count_remaining [31:0]  $end
+$var wire   32  aaaqd  y_count_remaining [31:0]  $end
+$var wire   32  aaaqe  repeat [31:0]  $end
 $upscope $end
 $scope module generator_5 $end
-$var wire   32  aaalj  execute_index [31:0]  $end
-$var wire   32  aaalk  current_ram_index [31:0]  $end
-$var wire   32  aaall  x_count_remaining [31:0]  $end
-$var wire   32  aaalm  y_count_remaining [31:0]  $end
-$var wire   32  aaaln  repeat [31:0]  $end
+$var wire   32  aaaqf  execute_index [31:0]  $end
+$var wire   32  aaaqg  current_ram_index [31:0]  $end
+$var wire   32  aaaqh  x_count_remaining [31:0]  $end
+$var wire   32  aaaqi  y_count_remaining [31:0]  $end
+$var wire   32  aaaqj  repeat [31:0]  $end
 $upscope $end
 $scope module generator_6 $end
-$var wire   32  aaalo  execute_index [31:0]  $end
-$var wire   32  aaalp  current_ram_index [31:0]  $end
-$var wire   32  aaalq  x_count_remaining [31:0]  $end
-$var wire   32  aaalr  y_count_remaining [31:0]  $end
-$var wire   32  aaals  repeat [31:0]  $end
+$var wire   32  aaaqk  execute_index [31:0]  $end
+$var wire   32  aaaql  current_ram_index [31:0]  $end
+$var wire   32  aaaqm  x_count_remaining [31:0]  $end
+$var wire   32  aaaqn  y_count_remaining [31:0]  $end
+$var wire   32  aaaqo  repeat [31:0]  $end
 $upscope $end
 $scope module generator_7 $end
-$var wire   32  aaalt  execute_index [31:0]  $end
-$var wire   32  aaalu  current_ram_index [31:0]  $end
-$var wire   32  aaalv  x_count_remaining [31:0]  $end
-$var wire   32  aaalw  y_count_remaining [31:0]  $end
-$var wire   32  aaalx  repeat [31:0]  $end
+$var wire   32  aaaqp  execute_index [31:0]  $end
+$var wire   32  aaaqq  current_ram_index [31:0]  $end
+$var wire   32  aaaqr  x_count_remaining [31:0]  $end
+$var wire   32  aaaqs  y_count_remaining [31:0]  $end
+$var wire   32  aaaqt  repeat [31:0]  $end
 $upscope $end
 $scope module generator_8 $end
-$var wire   32  aaaly  execute_index [31:0]  $end
-$var wire   32  aaalz  current_ram_index [31:0]  $end
-$var wire   32  aaama  x_count_remaining [31:0]  $end
-$var wire   32  aaamb  y_count_remaining [31:0]  $end
-$var wire   32  aaamc  repeat [31:0]  $end
+$var wire   32  aaaqu  execute_index [31:0]  $end
+$var wire   32  aaaqv  current_ram_index [31:0]  $end
+$var wire   32  aaaqw  x_count_remaining [31:0]  $end
+$var wire   32  aaaqx  y_count_remaining [31:0]  $end
+$var wire   32  aaaqy  repeat [31:0]  $end
+$upscope $end
+$scope module generator_9 $end
+$var wire   32  aaaqz  execute_index [31:0]  $end
+$var wire   32  aaara  current_ram_index [31:0]  $end
+$var wire   32  aaarb  x_count_remaining [31:0]  $end
+$var wire   32  aaarc  y_count_remaining [31:0]  $end
+$var wire   32  aaard  repeat [31:0]  $end
 $upscope $end
 $upscope $end
 $scope module ifmap_reuse_chain_0 $end
-$var wire   32  aaard  write_channel_data_1_0 [31:0]  $end
-$var wire   32  aaare  write_channel_data_0_0 [31:0]  $end
+$var wire   32  aabcm  write_channel_data_1_0 [31:0]  $end
+$var wire   32  aabcn  write_channel_data_0_0 [31:0]  $end
 $scope module channels_0 $end
-$var wire   32  aaapd  read_channel_data_0 [31:0]  $end
-$var wire   32  aaape  write_channel_data_0 [31:0]  $end
-$var wire   32  aaapf  addr [31:0]  $end
-$var wire    1  aaapg  enabled       $end
-$var wire   32  aaaph  mode [31:0]  $end
+$var wire   32  aaaxu  read_channel_data_0 [31:0]  $end
+$var wire   32  aaaxv  write_channel_data_0 [31:0]  $end
+$var wire   32  aaaxw  addr [31:0]  $end
+$var wire    1  aaaxx  enabled       $end
+$var wire   32  aaaxy  mode [31:0]  $end
 $upscope $end
 $scope module channels_1 $end
-$var wire   32  aaapi  read_channel_data_0 [31:0]  $end
-$var wire   32  aaapj  write_channel_data_0 [31:0]  $end
-$var wire   32  aaapk  addr [31:0]  $end
-$var wire    1  aaapl  enabled       $end
-$var wire   32  aaapm  mode [31:0]  $end
+$var wire   32  aaaxz  read_channel_data_0 [31:0]  $end
+$var wire   32  aaaya  write_channel_data_0 [31:0]  $end
+$var wire   32  aaayb  addr [31:0]  $end
+$var wire    1  aaayc  enabled       $end
+$var wire   32  aaayd  mode [31:0]  $end
 $upscope $end
 $scope module generator_0 $end
-$var wire   32  aaaot  execute_index [31:0]  $end
-$var wire   32  aaaou  current_ram_index [31:0]  $end
-$var wire   32  aaaov  x_count_remaining [31:0]  $end
-$var wire   32  aaaow  y_count_remaining [31:0]  $end
-$var wire   32  aaaox  repeat [31:0]  $end
+$var wire   32  aaaxk  execute_index [31:0]  $end
+$var wire   32  aaaxl  current_ram_index [31:0]  $end
+$var wire   32  aaaxm  x_count_remaining [31:0]  $end
+$var wire   32  aaaxn  y_count_remaining [31:0]  $end
+$var wire   32  aaaxo  repeat [31:0]  $end
 $upscope $end
 $scope module generator_1 $end
-$var wire   32  aaaoy  execute_index [31:0]  $end
-$var wire   32  aaaoz  current_ram_index [31:0]  $end
-$var wire   32  aaapa  x_count_remaining [31:0]  $end
-$var wire   32  aaapb  y_count_remaining [31:0]  $end
-$var wire   32  aaapc  repeat [31:0]  $end
+$var wire   32  aaaxp  execute_index [31:0]  $end
+$var wire   32  aaaxq  current_ram_index [31:0]  $end
+$var wire   32  aaaxr  x_count_remaining [31:0]  $end
+$var wire   32  aaaxs  y_count_remaining [31:0]  $end
+$var wire   32  aaaxt  repeat [31:0]  $end
 $upscope $end
 $upscope $end
 $scope module ifmap_reuse_chain_1 $end
-$var wire   32  aaarb  write_channel_data_1_0 [31:0]  $end
-$var wire   32  aaarc  write_channel_data_0_0 [31:0]  $end
+$var wire   32  aabck  write_channel_data_1_0 [31:0]  $end
+$var wire   32  aabcl  write_channel_data_0_0 [31:0]  $end
 $scope module channels_0 $end
-$var wire   32  aaapx  read_channel_data_0 [31:0]  $end
-$var wire   32  aaapy  write_channel_data_0 [31:0]  $end
-$var wire   32  aaapz  addr [31:0]  $end
-$var wire    1  aaaqa  enabled       $end
-$var wire   32  aaaqb  mode [31:0]  $end
+$var wire   32  aaayo  read_channel_data_0 [31:0]  $end
+$var wire   32  aaayp  write_channel_data_0 [31:0]  $end
+$var wire   32  aaayq  addr [31:0]  $end
+$var wire    1  aaayr  enabled       $end
+$var wire   32  aaays  mode [31:0]  $end
 $upscope $end
 $scope module channels_1 $end
-$var wire   32  aaaqc  read_channel_data_0 [31:0]  $end
-$var wire   32  aaaqd  write_channel_data_0 [31:0]  $end
-$var wire   32  aaaqe  addr [31:0]  $end
-$var wire    1  aaaqf  enabled       $end
-$var wire   32  aaaqg  mode [31:0]  $end
+$var wire   32  aaayt  read_channel_data_0 [31:0]  $end
+$var wire   32  aaayu  write_channel_data_0 [31:0]  $end
+$var wire   32  aaayv  addr [31:0]  $end
+$var wire    1  aaayw  enabled       $end
+$var wire   32  aaayx  mode [31:0]  $end
 $upscope $end
 $scope module generator_0 $end
-$var wire   32  aaapn  execute_index [31:0]  $end
-$var wire   32  aaapo  current_ram_index [31:0]  $end
-$var wire   32  aaapp  x_count_remaining [31:0]  $end
-$var wire   32  aaapq  y_count_remaining [31:0]  $end
-$var wire   32  aaapr  repeat [31:0]  $end
+$var wire   32  aaaye  execute_index [31:0]  $end
+$var wire   32  aaayf  current_ram_index [31:0]  $end
+$var wire   32  aaayg  x_count_remaining [31:0]  $end
+$var wire   32  aaayh  y_count_remaining [31:0]  $end
+$var wire   32  aaayi  repeat [31:0]  $end
 $upscope $end
 $scope module generator_1 $end
-$var wire   32  aaaps  execute_index [31:0]  $end
-$var wire   32  aaapt  current_ram_index [31:0]  $end
-$var wire   32  aaapu  x_count_remaining [31:0]  $end
-$var wire   32  aaapv  y_count_remaining [31:0]  $end
-$var wire   32  aaapw  repeat [31:0]  $end
+$var wire   32  aaayj  execute_index [31:0]  $end
+$var wire   32  aaayk  current_ram_index [31:0]  $end
+$var wire   32  aaayl  x_count_remaining [31:0]  $end
+$var wire   32  aaaym  y_count_remaining [31:0]  $end
+$var wire   32  aaayn  repeat [31:0]  $end
+$upscope $end
+$upscope $end
+$scope module ifmap_reuse_chain_2 $end
+$var wire   32  aabci  write_channel_data_1_0 [31:0]  $end
+$var wire   32  aabcj  write_channel_data_0_0 [31:0]  $end
+$scope module channels_0 $end
+$var wire   32  aaazi  read_channel_data_0 [31:0]  $end
+$var wire   32  aaazj  write_channel_data_0 [31:0]  $end
+$var wire   32  aaazk  addr [31:0]  $end
+$var wire    1  aaazl  enabled       $end
+$var wire   32  aaazm  mode [31:0]  $end
+$upscope $end
+$scope module channels_1 $end
+$var wire   32  aaazn  read_channel_data_0 [31:0]  $end
+$var wire   32  aaazo  write_channel_data_0 [31:0]  $end
+$var wire   32  aaazp  addr [31:0]  $end
+$var wire    1  aaazq  enabled       $end
+$var wire   32  aaazr  mode [31:0]  $end
+$upscope $end
+$scope module generator_0 $end
+$var wire   32  aaayy  execute_index [31:0]  $end
+$var wire   32  aaayz  current_ram_index [31:0]  $end
+$var wire   32  aaaza  x_count_remaining [31:0]  $end
+$var wire   32  aaazb  y_count_remaining [31:0]  $end
+$var wire   32  aaazc  repeat [31:0]  $end
+$upscope $end
+$scope module generator_1 $end
+$var wire   32  aaazd  execute_index [31:0]  $end
+$var wire   32  aaaze  current_ram_index [31:0]  $end
+$var wire   32  aaazf  x_count_remaining [31:0]  $end
+$var wire   32  aaazg  y_count_remaining [31:0]  $end
+$var wire   32  aaazh  repeat [31:0]  $end
+$upscope $end
+$upscope $end
+$scope module ifmap_reuse_chain_3 $end
+$var wire   32  aabcg  write_channel_data_1_0 [31:0]  $end
+$var wire   32  aabch  write_channel_data_0_0 [31:0]  $end
+$scope module channels_0 $end
+$var wire   32  aabac  read_channel_data_0 [31:0]  $end
+$var wire   32  aabad  write_channel_data_0 [31:0]  $end
+$var wire   32  aabae  addr [31:0]  $end
+$var wire    1  aabaf  enabled       $end
+$var wire   32  aabag  mode [31:0]  $end
+$upscope $end
+$scope module channels_1 $end
+$var wire   32  aabah  read_channel_data_0 [31:0]  $end
+$var wire   32  aabai  write_channel_data_0 [31:0]  $end
+$var wire   32  aabaj  addr [31:0]  $end
+$var wire    1  aabak  enabled       $end
+$var wire   32  aabal  mode [31:0]  $end
+$upscope $end
+$scope module generator_0 $end
+$var wire   32  aaazs  execute_index [31:0]  $end
+$var wire   32  aaazt  current_ram_index [31:0]  $end
+$var wire   32  aaazu  x_count_remaining [31:0]  $end
+$var wire   32  aaazv  y_count_remaining [31:0]  $end
+$var wire   32  aaazw  repeat [31:0]  $end
+$upscope $end
+$scope module generator_1 $end
+$var wire   32  aaazx  execute_index [31:0]  $end
+$var wire   32  aaazy  current_ram_index [31:0]  $end
+$var wire   32  aaazz  x_count_remaining [31:0]  $end
+$var wire   32  aabaa  y_count_remaining [31:0]  $end
+$var wire   32  aabab  repeat [31:0]  $end
 $upscope $end
 $upscope $end
 $scope module pe_array_0 $end
@@ -248,13 +462,117 @@ $scope module pe_array_10 $end
 $var wire   32  aaaay  psum_in [31:0]  $end
 $var wire   32  aaaaz  weight [31:0]  $end
 $upscope $end
+$scope module pe_array_100 $end
+$var wire   32  aaahw  psum_in [31:0]  $end
+$var wire   32  aaahx  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_101 $end
+$var wire   32  aaahy  psum_in [31:0]  $end
+$var wire   32  aaahz  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_102 $end
+$var wire   32  aaaia  psum_in [31:0]  $end
+$var wire   32  aaaib  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_103 $end
+$var wire   32  aaaic  psum_in [31:0]  $end
+$var wire   32  aaaid  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_104 $end
+$var wire   32  aaaie  psum_in [31:0]  $end
+$var wire   32  aaaif  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_105 $end
+$var wire   32  aaaig  psum_in [31:0]  $end
+$var wire   32  aaaih  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_106 $end
+$var wire   32  aaaii  psum_in [31:0]  $end
+$var wire   32  aaaij  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_107 $end
+$var wire   32  aaaik  psum_in [31:0]  $end
+$var wire   32  aaail  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_108 $end
+$var wire   32  aaaim  psum_in [31:0]  $end
+$var wire   32  aaain  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_109 $end
+$var wire   32  aaaio  psum_in [31:0]  $end
+$var wire   32  aaaip  weight [31:0]  $end
+$upscope $end
 $scope module pe_array_11 $end
 $var wire   32  aaaba  psum_in [31:0]  $end
 $var wire   32  aaabb  weight [31:0]  $end
 $upscope $end
+$scope module pe_array_110 $end
+$var wire   32  aaaiq  psum_in [31:0]  $end
+$var wire   32  aaair  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_111 $end
+$var wire   32  aaais  psum_in [31:0]  $end
+$var wire   32  aaait  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_112 $end
+$var wire   32  aaaiu  psum_in [31:0]  $end
+$var wire   32  aaaiv  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_113 $end
+$var wire   32  aaaiw  psum_in [31:0]  $end
+$var wire   32  aaaix  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_114 $end
+$var wire   32  aaaiy  psum_in [31:0]  $end
+$var wire   32  aaaiz  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_115 $end
+$var wire   32  aaaja  psum_in [31:0]  $end
+$var wire   32  aaajb  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_116 $end
+$var wire   32  aaajc  psum_in [31:0]  $end
+$var wire   32  aaajd  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_117 $end
+$var wire   32  aaaje  psum_in [31:0]  $end
+$var wire   32  aaajf  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_118 $end
+$var wire   32  aaajg  psum_in [31:0]  $end
+$var wire   32  aaajh  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_119 $end
+$var wire   32  aaaji  psum_in [31:0]  $end
+$var wire   32  aaajj  weight [31:0]  $end
+$upscope $end
 $scope module pe_array_12 $end
 $var wire   32  aaabc  psum_in [31:0]  $end
 $var wire   32  aaabd  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_120 $end
+$var wire   32  aaajk  psum_in [31:0]  $end
+$var wire   32  aaajl  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_121 $end
+$var wire   32  aaajm  psum_in [31:0]  $end
+$var wire   32  aaajn  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_122 $end
+$var wire   32  aaajo  psum_in [31:0]  $end
+$var wire   32  aaajp  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_123 $end
+$var wire   32  aaajq  psum_in [31:0]  $end
+$var wire   32  aaajr  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_124 $end
+$var wire   32  aaajs  psum_in [31:0]  $end
+$var wire   32  aaajt  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_125 $end
+$var wire   32  aaaju  psum_in [31:0]  $end
+$var wire   32  aaajv  weight [31:0]  $end
 $upscope $end
 $scope module pe_array_13 $end
 $var wire   32  aaabe  psum_in [31:0]  $end
@@ -476,254 +794,428 @@ $scope module pe_array_62 $end
 $var wire   32  aaaey  psum_in [31:0]  $end
 $var wire   32  aaaez  weight [31:0]  $end
 $upscope $end
+$scope module pe_array_63 $end
+$var wire   32  aaafa  psum_in [31:0]  $end
+$var wire   32  aaafb  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_64 $end
+$var wire   32  aaafc  psum_in [31:0]  $end
+$var wire   32  aaafd  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_65 $end
+$var wire   32  aaafe  psum_in [31:0]  $end
+$var wire   32  aaaff  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_66 $end
+$var wire   32  aaafg  psum_in [31:0]  $end
+$var wire   32  aaafh  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_67 $end
+$var wire   32  aaafi  psum_in [31:0]  $end
+$var wire   32  aaafj  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_68 $end
+$var wire   32  aaafk  psum_in [31:0]  $end
+$var wire   32  aaafl  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_69 $end
+$var wire   32  aaafm  psum_in [31:0]  $end
+$var wire   32  aaafn  weight [31:0]  $end
+$upscope $end
 $scope module pe_array_7 $end
 $var wire   32  aaaas  psum_in [31:0]  $end
 $var wire   32  aaaat  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_70 $end
+$var wire   32  aaafo  psum_in [31:0]  $end
+$var wire   32  aaafp  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_71 $end
+$var wire   32  aaafq  psum_in [31:0]  $end
+$var wire   32  aaafr  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_72 $end
+$var wire   32  aaafs  psum_in [31:0]  $end
+$var wire   32  aaaft  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_73 $end
+$var wire   32  aaafu  psum_in [31:0]  $end
+$var wire   32  aaafv  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_74 $end
+$var wire   32  aaafw  psum_in [31:0]  $end
+$var wire   32  aaafx  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_75 $end
+$var wire   32  aaafy  psum_in [31:0]  $end
+$var wire   32  aaafz  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_76 $end
+$var wire   32  aaaga  psum_in [31:0]  $end
+$var wire   32  aaagb  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_77 $end
+$var wire   32  aaagc  psum_in [31:0]  $end
+$var wire   32  aaagd  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_78 $end
+$var wire   32  aaage  psum_in [31:0]  $end
+$var wire   32  aaagf  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_79 $end
+$var wire   32  aaagg  psum_in [31:0]  $end
+$var wire   32  aaagh  weight [31:0]  $end
 $upscope $end
 $scope module pe_array_8 $end
 $var wire   32  aaaau  psum_in [31:0]  $end
 $var wire   32  aaaav  weight [31:0]  $end
 $upscope $end
+$scope module pe_array_80 $end
+$var wire   32  aaagi  psum_in [31:0]  $end
+$var wire   32  aaagj  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_81 $end
+$var wire   32  aaagk  psum_in [31:0]  $end
+$var wire   32  aaagl  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_82 $end
+$var wire   32  aaagm  psum_in [31:0]  $end
+$var wire   32  aaagn  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_83 $end
+$var wire   32  aaago  psum_in [31:0]  $end
+$var wire   32  aaagp  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_84 $end
+$var wire   32  aaagq  psum_in [31:0]  $end
+$var wire   32  aaagr  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_85 $end
+$var wire   32  aaags  psum_in [31:0]  $end
+$var wire   32  aaagt  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_86 $end
+$var wire   32  aaagu  psum_in [31:0]  $end
+$var wire   32  aaagv  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_87 $end
+$var wire   32  aaagw  psum_in [31:0]  $end
+$var wire   32  aaagx  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_88 $end
+$var wire   32  aaagy  psum_in [31:0]  $end
+$var wire   32  aaagz  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_89 $end
+$var wire   32  aaaha  psum_in [31:0]  $end
+$var wire   32  aaahb  weight [31:0]  $end
+$upscope $end
 $scope module pe_array_9 $end
 $var wire   32  aaaaw  psum_in [31:0]  $end
 $var wire   32  aaaax  weight [31:0]  $end
 $upscope $end
+$scope module pe_array_90 $end
+$var wire   32  aaahc  psum_in [31:0]  $end
+$var wire   32  aaahd  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_91 $end
+$var wire   32  aaahe  psum_in [31:0]  $end
+$var wire   32  aaahf  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_92 $end
+$var wire   32  aaahg  psum_in [31:0]  $end
+$var wire   32  aaahh  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_93 $end
+$var wire   32  aaahi  psum_in [31:0]  $end
+$var wire   32  aaahj  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_94 $end
+$var wire   32  aaahk  psum_in [31:0]  $end
+$var wire   32  aaahl  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_95 $end
+$var wire   32  aaahm  psum_in [31:0]  $end
+$var wire   32  aaahn  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_96 $end
+$var wire   32  aaaho  psum_in [31:0]  $end
+$var wire   32  aaahp  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_97 $end
+$var wire   32  aaahq  psum_in [31:0]  $end
+$var wire   32  aaahr  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_98 $end
+$var wire   32  aaahs  psum_in [31:0]  $end
+$var wire   32  aaaht  weight [31:0]  $end
+$upscope $end
+$scope module pe_array_99 $end
+$var wire   32  aaahu  psum_in [31:0]  $end
+$var wire   32  aaahv  weight [31:0]  $end
+$upscope $end
 $scope module psum_mem $end
-$var wire   32  aaaro  write_channel_data_13_0 [31:0]  $end
-$var wire   32  aaarp  write_channel_data_12_0 [31:0]  $end
-$var wire   32  aaarq  write_channel_data_11_0 [31:0]  $end
-$var wire   32  aaarr  write_channel_data_10_0 [31:0]  $end
-$var wire   32  aaars  write_channel_data_9_0 [31:0]  $end
-$var wire   32  aaart  write_channel_data_8_0 [31:0]  $end
-$var wire   32  aaaru  write_channel_data_7_0 [31:0]  $end
-$var wire   32  aaarv  write_channel_data_6_0 [31:0]  $end
-$var wire   32  aaarw  write_channel_data_5_0 [31:0]  $end
-$var wire   32  aaarx  write_channel_data_4_0 [31:0]  $end
-$var wire   32  aaary  write_channel_data_3_0 [31:0]  $end
-$var wire   32  aaarz  write_channel_data_2_0 [31:0]  $end
-$var wire   32  aaasa  write_channel_data_1_0 [31:0]  $end
-$var wire   32  aaasb  write_channel_data_0_0 [31:0]  $end
+$var wire   32  aabdg  write_channel_data_13_0 [31:0]  $end
+$var wire   32  aabdh  write_channel_data_12_0 [31:0]  $end
+$var wire   32  aabdi  write_channel_data_11_0 [31:0]  $end
+$var wire   32  aabdj  write_channel_data_10_0 [31:0]  $end
+$var wire   32  aabdk  write_channel_data_9_0 [31:0]  $end
+$var wire   32  aabdl  write_channel_data_8_0 [31:0]  $end
+$var wire   32  aabdm  write_channel_data_7_0 [31:0]  $end
+$var wire   32  aabdn  write_channel_data_6_0 [31:0]  $end
+$var wire   32  aabdo  write_channel_data_5_0 [31:0]  $end
+$var wire   32  aabdp  write_channel_data_4_0 [31:0]  $end
+$var wire   32  aabdq  write_channel_data_3_0 [31:0]  $end
+$var wire   32  aabdr  write_channel_data_2_0 [31:0]  $end
+$var wire   32  aabds  write_channel_data_1_0 [31:0]  $end
+$var wire   32  aabdt  write_channel_data_0_0 [31:0]  $end
 $scope module channels_0 $end
-$var wire   32  aaahs  read_channel_data_0 [31:0]  $end
-$var wire   32  aaaht  write_channel_data_0 [31:0]  $end
-$var wire   32  aaahu  addr [31:0]  $end
-$var wire    1  aaahv  enabled       $end
-$var wire   32  aaahw  mode [31:0]  $end
+$var wire   32  aaamo  read_channel_data_0 [31:0]  $end
+$var wire   32  aaamp  write_channel_data_0 [31:0]  $end
+$var wire   32  aaamq  addr [31:0]  $end
+$var wire    1  aaamr  enabled       $end
+$var wire   32  aaams  mode [31:0]  $end
 $upscope $end
 $scope module channels_1 $end
-$var wire   32  aaahx  read_channel_data_0 [31:0]  $end
-$var wire   32  aaahy  write_channel_data_0 [31:0]  $end
-$var wire   32  aaahz  addr [31:0]  $end
-$var wire    1  aaaia  enabled       $end
-$var wire   32  aaaib  mode [31:0]  $end
+$var wire   32  aaamt  read_channel_data_0 [31:0]  $end
+$var wire   32  aaamu  write_channel_data_0 [31:0]  $end
+$var wire   32  aaamv  addr [31:0]  $end
+$var wire    1  aaamw  enabled       $end
+$var wire   32  aaamx  mode [31:0]  $end
 $upscope $end
 $scope module channels_10 $end
-$var wire   32  aaajq  read_channel_data_0 [31:0]  $end
-$var wire   32  aaajr  write_channel_data_0 [31:0]  $end
-$var wire   32  aaajs  addr [31:0]  $end
-$var wire    1  aaajt  enabled       $end
-$var wire   32  aaaju  mode [31:0]  $end
+$var wire   32  aaaom  read_channel_data_0 [31:0]  $end
+$var wire   32  aaaon  write_channel_data_0 [31:0]  $end
+$var wire   32  aaaoo  addr [31:0]  $end
+$var wire    1  aaaop  enabled       $end
+$var wire   32  aaaoq  mode [31:0]  $end
 $upscope $end
 $scope module channels_11 $end
-$var wire   32  aaajv  read_channel_data_0 [31:0]  $end
-$var wire   32  aaajw  write_channel_data_0 [31:0]  $end
-$var wire   32  aaajx  addr [31:0]  $end
-$var wire    1  aaajy  enabled       $end
-$var wire   32  aaajz  mode [31:0]  $end
+$var wire   32  aaaor  read_channel_data_0 [31:0]  $end
+$var wire   32  aaaos  write_channel_data_0 [31:0]  $end
+$var wire   32  aaaot  addr [31:0]  $end
+$var wire    1  aaaou  enabled       $end
+$var wire   32  aaaov  mode [31:0]  $end
 $upscope $end
 $scope module channels_12 $end
-$var wire   32  aaaka  read_channel_data_0 [31:0]  $end
-$var wire   32  aaakb  write_channel_data_0 [31:0]  $end
-$var wire   32  aaakc  addr [31:0]  $end
-$var wire    1  aaakd  enabled       $end
-$var wire   32  aaake  mode [31:0]  $end
+$var wire   32  aaaow  read_channel_data_0 [31:0]  $end
+$var wire   32  aaaox  write_channel_data_0 [31:0]  $end
+$var wire   32  aaaoy  addr [31:0]  $end
+$var wire    1  aaaoz  enabled       $end
+$var wire   32  aaapa  mode [31:0]  $end
 $upscope $end
 $scope module channels_13 $end
-$var wire   32  aaakf  read_channel_data_0 [31:0]  $end
-$var wire   32  aaakg  write_channel_data_0 [31:0]  $end
-$var wire   32  aaakh  addr [31:0]  $end
-$var wire    1  aaaki  enabled       $end
-$var wire   32  aaakj  mode [31:0]  $end
+$var wire   32  aaapb  read_channel_data_0 [31:0]  $end
+$var wire   32  aaapc  write_channel_data_0 [31:0]  $end
+$var wire   32  aaapd  addr [31:0]  $end
+$var wire    1  aaape  enabled       $end
+$var wire   32  aaapf  mode [31:0]  $end
 $upscope $end
 $scope module channels_2 $end
-$var wire   32  aaaic  read_channel_data_0 [31:0]  $end
-$var wire   32  aaaid  write_channel_data_0 [31:0]  $end
-$var wire   32  aaaie  addr [31:0]  $end
-$var wire    1  aaaif  enabled       $end
-$var wire   32  aaaig  mode [31:0]  $end
+$var wire   32  aaamy  read_channel_data_0 [31:0]  $end
+$var wire   32  aaamz  write_channel_data_0 [31:0]  $end
+$var wire   32  aaana  addr [31:0]  $end
+$var wire    1  aaanb  enabled       $end
+$var wire   32  aaanc  mode [31:0]  $end
 $upscope $end
 $scope module channels_3 $end
-$var wire   32  aaaih  read_channel_data_0 [31:0]  $end
-$var wire   32  aaaii  write_channel_data_0 [31:0]  $end
-$var wire   32  aaaij  addr [31:0]  $end
-$var wire    1  aaaik  enabled       $end
-$var wire   32  aaail  mode [31:0]  $end
+$var wire   32  aaand  read_channel_data_0 [31:0]  $end
+$var wire   32  aaane  write_channel_data_0 [31:0]  $end
+$var wire   32  aaanf  addr [31:0]  $end
+$var wire    1  aaang  enabled       $end
+$var wire   32  aaanh  mode [31:0]  $end
 $upscope $end
 $scope module channels_4 $end
-$var wire   32  aaaim  read_channel_data_0 [31:0]  $end
-$var wire   32  aaain  write_channel_data_0 [31:0]  $end
-$var wire   32  aaaio  addr [31:0]  $end
-$var wire    1  aaaip  enabled       $end
-$var wire   32  aaaiq  mode [31:0]  $end
+$var wire   32  aaani  read_channel_data_0 [31:0]  $end
+$var wire   32  aaanj  write_channel_data_0 [31:0]  $end
+$var wire   32  aaank  addr [31:0]  $end
+$var wire    1  aaanl  enabled       $end
+$var wire   32  aaanm  mode [31:0]  $end
 $upscope $end
 $scope module channels_5 $end
-$var wire   32  aaair  read_channel_data_0 [31:0]  $end
-$var wire   32  aaais  write_channel_data_0 [31:0]  $end
-$var wire   32  aaait  addr [31:0]  $end
-$var wire    1  aaaiu  enabled       $end
-$var wire   32  aaaiv  mode [31:0]  $end
+$var wire   32  aaann  read_channel_data_0 [31:0]  $end
+$var wire   32  aaano  write_channel_data_0 [31:0]  $end
+$var wire   32  aaanp  addr [31:0]  $end
+$var wire    1  aaanq  enabled       $end
+$var wire   32  aaanr  mode [31:0]  $end
 $upscope $end
 $scope module channels_6 $end
-$var wire   32  aaaiw  read_channel_data_0 [31:0]  $end
-$var wire   32  aaaix  write_channel_data_0 [31:0]  $end
-$var wire   32  aaaiy  addr [31:0]  $end
-$var wire    1  aaaiz  enabled       $end
-$var wire   32  aaaja  mode [31:0]  $end
+$var wire   32  aaans  read_channel_data_0 [31:0]  $end
+$var wire   32  aaant  write_channel_data_0 [31:0]  $end
+$var wire   32  aaanu  addr [31:0]  $end
+$var wire    1  aaanv  enabled       $end
+$var wire   32  aaanw  mode [31:0]  $end
 $upscope $end
 $scope module channels_7 $end
-$var wire   32  aaajb  read_channel_data_0 [31:0]  $end
-$var wire   32  aaajc  write_channel_data_0 [31:0]  $end
-$var wire   32  aaajd  addr [31:0]  $end
-$var wire    1  aaaje  enabled       $end
-$var wire   32  aaajf  mode [31:0]  $end
+$var wire   32  aaanx  read_channel_data_0 [31:0]  $end
+$var wire   32  aaany  write_channel_data_0 [31:0]  $end
+$var wire   32  aaanz  addr [31:0]  $end
+$var wire    1  aaaoa  enabled       $end
+$var wire   32  aaaob  mode [31:0]  $end
 $upscope $end
 $scope module channels_8 $end
-$var wire   32  aaajg  read_channel_data_0 [31:0]  $end
-$var wire   32  aaajh  write_channel_data_0 [31:0]  $end
-$var wire   32  aaaji  addr [31:0]  $end
-$var wire    1  aaajj  enabled       $end
-$var wire   32  aaajk  mode [31:0]  $end
+$var wire   32  aaaoc  read_channel_data_0 [31:0]  $end
+$var wire   32  aaaod  write_channel_data_0 [31:0]  $end
+$var wire   32  aaaoe  addr [31:0]  $end
+$var wire    1  aaaof  enabled       $end
+$var wire   32  aaaog  mode [31:0]  $end
 $upscope $end
 $scope module channels_9 $end
-$var wire   32  aaajl  read_channel_data_0 [31:0]  $end
-$var wire   32  aaajm  write_channel_data_0 [31:0]  $end
-$var wire   32  aaajn  addr [31:0]  $end
-$var wire    1  aaajo  enabled       $end
-$var wire   32  aaajp  mode [31:0]  $end
+$var wire   32  aaaoh  read_channel_data_0 [31:0]  $end
+$var wire   32  aaaoi  write_channel_data_0 [31:0]  $end
+$var wire   32  aaaoj  addr [31:0]  $end
+$var wire    1  aaaok  enabled       $end
+$var wire   32  aaaol  mode [31:0]  $end
 $upscope $end
 $scope module generator_0 $end
-$var wire   32  aaafa  execute_index [31:0]  $end
-$var wire   32  aaafb  current_ram_index [31:0]  $end
-$var wire   32  aaafc  x_count_remaining [31:0]  $end
-$var wire   32  aaafd  y_count_remaining [31:0]  $end
-$var wire   32  aaafe  repeat [31:0]  $end
+$var wire   32  aaajw  execute_index [31:0]  $end
+$var wire   32  aaajx  current_ram_index [31:0]  $end
+$var wire   32  aaajy  x_count_remaining [31:0]  $end
+$var wire   32  aaajz  y_count_remaining [31:0]  $end
+$var wire   32  aaaka  repeat [31:0]  $end
 $upscope $end
 $scope module generator_1 $end
-$var wire   32  aaaff  execute_index [31:0]  $end
-$var wire   32  aaafg  current_ram_index [31:0]  $end
-$var wire   32  aaafh  x_count_remaining [31:0]  $end
-$var wire   32  aaafi  y_count_remaining [31:0]  $end
-$var wire   32  aaafj  repeat [31:0]  $end
+$var wire   32  aaakb  execute_index [31:0]  $end
+$var wire   32  aaakc  current_ram_index [31:0]  $end
+$var wire   32  aaakd  x_count_remaining [31:0]  $end
+$var wire   32  aaake  y_count_remaining [31:0]  $end
+$var wire   32  aaakf  repeat [31:0]  $end
 $upscope $end
 $scope module generator_10 $end
-$var wire   32  aaagy  execute_index [31:0]  $end
-$var wire   32  aaagz  current_ram_index [31:0]  $end
-$var wire   32  aaaha  x_count_remaining [31:0]  $end
-$var wire   32  aaahb  y_count_remaining [31:0]  $end
-$var wire   32  aaahc  repeat [31:0]  $end
+$var wire   32  aaalu  execute_index [31:0]  $end
+$var wire   32  aaalv  current_ram_index [31:0]  $end
+$var wire   32  aaalw  x_count_remaining [31:0]  $end
+$var wire   32  aaalx  y_count_remaining [31:0]  $end
+$var wire   32  aaaly  repeat [31:0]  $end
 $upscope $end
 $scope module generator_11 $end
-$var wire   32  aaahd  execute_index [31:0]  $end
-$var wire   32  aaahe  current_ram_index [31:0]  $end
-$var wire   32  aaahf  x_count_remaining [31:0]  $end
-$var wire   32  aaahg  y_count_remaining [31:0]  $end
-$var wire   32  aaahh  repeat [31:0]  $end
+$var wire   32  aaalz  execute_index [31:0]  $end
+$var wire   32  aaama  current_ram_index [31:0]  $end
+$var wire   32  aaamb  x_count_remaining [31:0]  $end
+$var wire   32  aaamc  y_count_remaining [31:0]  $end
+$var wire   32  aaamd  repeat [31:0]  $end
 $upscope $end
 $scope module generator_12 $end
-$var wire   32  aaahi  execute_index [31:0]  $end
-$var wire   32  aaahj  current_ram_index [31:0]  $end
-$var wire   32  aaahk  x_count_remaining [31:0]  $end
-$var wire   32  aaahl  y_count_remaining [31:0]  $end
-$var wire   32  aaahm  repeat [31:0]  $end
+$var wire   32  aaame  execute_index [31:0]  $end
+$var wire   32  aaamf  current_ram_index [31:0]  $end
+$var wire   32  aaamg  x_count_remaining [31:0]  $end
+$var wire   32  aaamh  y_count_remaining [31:0]  $end
+$var wire   32  aaami  repeat [31:0]  $end
 $upscope $end
 $scope module generator_13 $end
-$var wire   32  aaahn  execute_index [31:0]  $end
-$var wire   32  aaaho  current_ram_index [31:0]  $end
-$var wire   32  aaahp  x_count_remaining [31:0]  $end
-$var wire   32  aaahq  y_count_remaining [31:0]  $end
-$var wire   32  aaahr  repeat [31:0]  $end
+$var wire   32  aaamj  execute_index [31:0]  $end
+$var wire   32  aaamk  current_ram_index [31:0]  $end
+$var wire   32  aaaml  x_count_remaining [31:0]  $end
+$var wire   32  aaamm  y_count_remaining [31:0]  $end
+$var wire   32  aaamn  repeat [31:0]  $end
 $upscope $end
 $scope module generator_2 $end
-$var wire   32  aaafk  execute_index [31:0]  $end
-$var wire   32  aaafl  current_ram_index [31:0]  $end
-$var wire   32  aaafm  x_count_remaining [31:0]  $end
-$var wire   32  aaafn  y_count_remaining [31:0]  $end
-$var wire   32  aaafo  repeat [31:0]  $end
+$var wire   32  aaakg  execute_index [31:0]  $end
+$var wire   32  aaakh  current_ram_index [31:0]  $end
+$var wire   32  aaaki  x_count_remaining [31:0]  $end
+$var wire   32  aaakj  y_count_remaining [31:0]  $end
+$var wire   32  aaakk  repeat [31:0]  $end
 $upscope $end
 $scope module generator_3 $end
-$var wire   32  aaafp  execute_index [31:0]  $end
-$var wire   32  aaafq  current_ram_index [31:0]  $end
-$var wire   32  aaafr  x_count_remaining [31:0]  $end
-$var wire   32  aaafs  y_count_remaining [31:0]  $end
-$var wire   32  aaaft  repeat [31:0]  $end
+$var wire   32  aaakl  execute_index [31:0]  $end
+$var wire   32  aaakm  current_ram_index [31:0]  $end
+$var wire   32  aaakn  x_count_remaining [31:0]  $end
+$var wire   32  aaako  y_count_remaining [31:0]  $end
+$var wire   32  aaakp  repeat [31:0]  $end
 $upscope $end
 $scope module generator_4 $end
-$var wire   32  aaafu  execute_index [31:0]  $end
-$var wire   32  aaafv  current_ram_index [31:0]  $end
-$var wire   32  aaafw  x_count_remaining [31:0]  $end
-$var wire   32  aaafx  y_count_remaining [31:0]  $end
-$var wire   32  aaafy  repeat [31:0]  $end
+$var wire   32  aaakq  execute_index [31:0]  $end
+$var wire   32  aaakr  current_ram_index [31:0]  $end
+$var wire   32  aaaks  x_count_remaining [31:0]  $end
+$var wire   32  aaakt  y_count_remaining [31:0]  $end
+$var wire   32  aaaku  repeat [31:0]  $end
 $upscope $end
 $scope module generator_5 $end
-$var wire   32  aaafz  execute_index [31:0]  $end
-$var wire   32  aaaga  current_ram_index [31:0]  $end
-$var wire   32  aaagb  x_count_remaining [31:0]  $end
-$var wire   32  aaagc  y_count_remaining [31:0]  $end
-$var wire   32  aaagd  repeat [31:0]  $end
+$var wire   32  aaakv  execute_index [31:0]  $end
+$var wire   32  aaakw  current_ram_index [31:0]  $end
+$var wire   32  aaakx  x_count_remaining [31:0]  $end
+$var wire   32  aaaky  y_count_remaining [31:0]  $end
+$var wire   32  aaakz  repeat [31:0]  $end
 $upscope $end
 $scope module generator_6 $end
-$var wire   32  aaage  execute_index [31:0]  $end
-$var wire   32  aaagf  current_ram_index [31:0]  $end
-$var wire   32  aaagg  x_count_remaining [31:0]  $end
-$var wire   32  aaagh  y_count_remaining [31:0]  $end
-$var wire   32  aaagi  repeat [31:0]  $end
+$var wire   32  aaala  execute_index [31:0]  $end
+$var wire   32  aaalb  current_ram_index [31:0]  $end
+$var wire   32  aaalc  x_count_remaining [31:0]  $end
+$var wire   32  aaald  y_count_remaining [31:0]  $end
+$var wire   32  aaale  repeat [31:0]  $end
 $upscope $end
 $scope module generator_7 $end
-$var wire   32  aaagj  execute_index [31:0]  $end
-$var wire   32  aaagk  current_ram_index [31:0]  $end
-$var wire   32  aaagl  x_count_remaining [31:0]  $end
-$var wire   32  aaagm  y_count_remaining [31:0]  $end
-$var wire   32  aaagn  repeat [31:0]  $end
+$var wire   32  aaalf  execute_index [31:0]  $end
+$var wire   32  aaalg  current_ram_index [31:0]  $end
+$var wire   32  aaalh  x_count_remaining [31:0]  $end
+$var wire   32  aaali  y_count_remaining [31:0]  $end
+$var wire   32  aaalj  repeat [31:0]  $end
 $upscope $end
 $scope module generator_8 $end
-$var wire   32  aaago  execute_index [31:0]  $end
-$var wire   32  aaagp  current_ram_index [31:0]  $end
-$var wire   32  aaagq  x_count_remaining [31:0]  $end
-$var wire   32  aaagr  y_count_remaining [31:0]  $end
-$var wire   32  aaags  repeat [31:0]  $end
+$var wire   32  aaalk  execute_index [31:0]  $end
+$var wire   32  aaall  current_ram_index [31:0]  $end
+$var wire   32  aaalm  x_count_remaining [31:0]  $end
+$var wire   32  aaaln  y_count_remaining [31:0]  $end
+$var wire   32  aaalo  repeat [31:0]  $end
 $upscope $end
 $scope module generator_9 $end
-$var wire   32  aaagt  execute_index [31:0]  $end
-$var wire   32  aaagu  current_ram_index [31:0]  $end
-$var wire   32  aaagv  x_count_remaining [31:0]  $end
-$var wire   32  aaagw  y_count_remaining [31:0]  $end
-$var wire   32  aaagx  repeat [31:0]  $end
+$var wire   32  aaalp  execute_index [31:0]  $end
+$var wire   32  aaalq  current_ram_index [31:0]  $end
+$var wire   32  aaalr  x_count_remaining [31:0]  $end
+$var wire   32  aaals  y_count_remaining [31:0]  $end
+$var wire   32  aaalt  repeat [31:0]  $end
 $upscope $end
 $upscope $end
 $scope module ssm_0 $end
-$var wire   32  aaaqr  out_0 [31:0]  $end
-$var wire   32  aaaqs  in_8 [31:0]  $end
-$var wire   32  aaaqt  in_7 [31:0]  $end
-$var wire   32  aaaqu  in_6 [31:0]  $end
-$var wire   32  aaaqv  in_5 [31:0]  $end
-$var wire   32  aaaqw  in_4 [31:0]  $end
-$var wire   32  aaaqx  in_3 [31:0]  $end
-$var wire   32  aaaqy  in_2 [31:0]  $end
-$var wire   32  aaaqz  in_1 [31:0]  $end
-$var wire   32  aaara  in_0 [31:0]  $end
+$var wire   32  aabbw  out_0 [31:0]  $end
+$var wire   32  aabbx  in_8 [31:0]  $end
+$var wire   32  aabby  in_7 [31:0]  $end
+$var wire   32  aabbz  in_6 [31:0]  $end
+$var wire   32  aabca  in_5 [31:0]  $end
+$var wire   32  aabcb  in_4 [31:0]  $end
+$var wire   32  aabcc  in_3 [31:0]  $end
+$var wire   32  aabcd  in_2 [31:0]  $end
+$var wire   32  aabce  in_1 [31:0]  $end
+$var wire   32  aabcf  in_0 [31:0]  $end
 $scope module in_ag $end
-$var wire   32  aaaqm  execute_index [31:0]  $end
-$var wire   32  aaaqn  current_ram_index [31:0]  $end
-$var wire   32  aaaqo  x_count_remaining [31:0]  $end
-$var wire   32  aaaqp  y_count_remaining [31:0]  $end
-$var wire   32  aaaqq  repeat [31:0]  $end
+$var wire   32  aabax  execute_index [31:0]  $end
+$var wire   32  aabay  current_ram_index [31:0]  $end
+$var wire   32  aabaz  x_count_remaining [31:0]  $end
+$var wire   32  aabba  y_count_remaining [31:0]  $end
+$var wire   32  aabbb  repeat [31:0]  $end
 $upscope $end
 $scope module in_channel $end
-$var wire   32  aaaqh  read_channel_data_0 [31:0]  $end
-$var wire   32  aaaqi  write_channel_data_0 [31:0]  $end
-$var wire   32  aaaqj  addr [31:0]  $end
-$var wire    1  aaaqk  enabled       $end
-$var wire   32  aaaql  mode [31:0]  $end
+$var wire   32  aabas  read_channel_data_0 [31:0]  $end
+$var wire   32  aabat  write_channel_data_0 [31:0]  $end
+$var wire   32  aabau  addr [31:0]  $end
+$var wire    1  aabav  enabled       $end
+$var wire   32  aabaw  mode [31:0]  $end
+$upscope $end
+$upscope $end
+$scope module ssm_1 $end
+$var wire   32  aabbm  out_0 [31:0]  $end
+$var wire   32  aabbn  in_8 [31:0]  $end
+$var wire   32  aabbo  in_7 [31:0]  $end
+$var wire   32  aabbp  in_6 [31:0]  $end
+$var wire   32  aabbq  in_5 [31:0]  $end
+$var wire   32  aabbr  in_4 [31:0]  $end
+$var wire   32  aabbs  in_3 [31:0]  $end
+$var wire   32  aabbt  in_2 [31:0]  $end
+$var wire   32  aabbu  in_1 [31:0]  $end
+$var wire   32  aabbv  in_0 [31:0]  $end
+$scope module in_ag $end
+$var wire   32  aabbh  execute_index [31:0]  $end
+$var wire   32  aabbi  current_ram_index [31:0]  $end
+$var wire   32  aabbj  x_count_remaining [31:0]  $end
+$var wire   32  aabbk  y_count_remaining [31:0]  $end
+$var wire   32  aabbl  repeat [31:0]  $end
+$upscope $end
+$scope module in_channel $end
+$var wire   32  aabbc  read_channel_data_0 [31:0]  $end
+$var wire   32  aabbd  write_channel_data_0 [31:0]  $end
+$var wire   32  aabbe  addr [31:0]  $end
+$var wire    1  aabbf  enabled       $end
+$var wire   32  aabbg  mode [31:0]  $end
 $upscope $end
 $upscope $end
 $upscope $end
@@ -944,73 +1436,73 @@ b0 aaahr
 b0 aaahs
 b0 aaaht
 b0 aaahu
-0aaahv
-b1 aaahw
+b0 aaahv
+b0 aaahw
 b0 aaahx
 b0 aaahy
 b0 aaahz
-0aaaia
-b1 aaaib
+b0 aaaia
+b0 aaaib
 b0 aaaic
 b0 aaaid
 b0 aaaie
-0aaaif
-b1 aaaig
+b0 aaaif
+b0 aaaig
 b0 aaaih
 b0 aaaii
 b0 aaaij
-0aaaik
-b1 aaail
+b0 aaaik
+b0 aaail
 b0 aaaim
 b0 aaain
 b0 aaaio
-0aaaip
-b1 aaaiq
+b0 aaaip
+b0 aaaiq
 b0 aaair
 b0 aaais
 b0 aaait
-0aaaiu
-b1 aaaiv
+b0 aaaiu
+b0 aaaiv
 b0 aaaiw
 b0 aaaix
 b0 aaaiy
-0aaaiz
-b1 aaaja
+b0 aaaiz
+b0 aaaja
 b0 aaajb
 b0 aaajc
 b0 aaajd
-0aaaje
-b1 aaajf
+b0 aaaje
+b0 aaajf
 b0 aaajg
 b0 aaajh
 b0 aaaji
-0aaajj
-b1 aaajk
+b0 aaajj
+b0 aaajk
 b0 aaajl
 b0 aaajm
 b0 aaajn
-0aaajo
-b1 aaajp
+b0 aaajo
+b0 aaajp
 b0 aaajq
 b0 aaajr
 b0 aaajs
-0aaajt
-b1 aaaju
+b0 aaajt
+b0 aaaju
 b0 aaajv
 b0 aaajw
 b0 aaajx
-0aaajy
-b1 aaajz
+b0 aaajy
+b0 aaajz
 b0 aaaka
 b0 aaakb
 b0 aaakc
-0aaakd
-b1 aaake
+b0 aaakd
+b0 aaake
 b0 aaakf
 b0 aaakg
 b0 aaakh
-0aaaki
-b1 aaakj
+b0 aaaki
+b0 aaakj
 b0 aaakk
 b0 aaakl
 b0 aaakm
@@ -1059,91 +1551,91 @@ b0 aaamc
 b0 aaamd
 b0 aaame
 b0 aaamf
-0aaamg
-b1 aaamh
+b0 aaamg
+b0 aaamh
 b0 aaami
 b0 aaamj
 b0 aaamk
-0aaaml
-b1 aaamm
+b0 aaaml
+b0 aaamm
 b0 aaamn
 b0 aaamo
 b0 aaamp
-0aaamq
-b1 aaamr
-b0 aaams
+b0 aaamq
+0aaamr
+b1 aaams
 b0 aaamt
 b0 aaamu
-0aaamv
-b1 aaamw
-b0 aaamx
+b0 aaamv
+0aaamw
+b1 aaamx
 b0 aaamy
 b0 aaamz
-0aaana
-b1 aaanb
-b0 aaanc
+b0 aaana
+0aaanb
+b1 aaanc
 b0 aaand
 b0 aaane
-0aaanf
-b1 aaang
-b0 aaanh
+b0 aaanf
+0aaang
+b1 aaanh
 b0 aaani
 b0 aaanj
-0aaank
-b1 aaanl
-b0 aaanm
+b0 aaank
+0aaanl
+b1 aaanm
 b0 aaann
 b0 aaano
-0aaanp
-b1 aaanq
-b0 aaanr
+b0 aaanp
+0aaanq
+b1 aaanr
 b0 aaans
 b0 aaant
-0aaanu
-b1 aaanv
-b0 aaanw
+b0 aaanu
+0aaanv
+b1 aaanw
 b0 aaanx
 b0 aaany
 b0 aaanz
-b0 aaaoa
-b0 aaaob
+0aaaoa
+b1 aaaob
 b0 aaaoc
 b0 aaaod
 b0 aaaoe
-b0 aaaof
-b0 aaaog
+0aaaof
+b1 aaaog
 b0 aaaoh
 b0 aaaoi
 b0 aaaoj
-b0 aaaok
-b0 aaaol
+0aaaok
+b1 aaaol
 b0 aaaom
 b0 aaaon
 b0 aaaoo
-b0 aaaop
-b0 aaaoq
+0aaaop
+b1 aaaoq
 b0 aaaor
 b0 aaaos
 b0 aaaot
-b0 aaaou
-b0 aaaov
+0aaaou
+b1 aaaov
 b0 aaaow
 b0 aaaox
 b0 aaaoy
-b0 aaaoz
-b0 aaapa
+0aaaoz
+b1 aaapa
 b0 aaapb
 b0 aaapc
 b0 aaapd
-b0 aaape
-b0 aaapf
-0aaapg
-b1 aaaph
+0aaape
+b1 aaapf
+b0 aaapg
+b0 aaaph
 b0 aaapi
 b0 aaapj
 b0 aaapk
-0aaapl
-b1 aaapm
+b0 aaapl
+b0 aaapm
 b0 aaapn
 b0 aaapo
 b0 aaapp
@@ -1157,18 +1649,18 @@ b0 aaapw
 b0 aaapx
 b0 aaapy
 b0 aaapz
-0aaaqa
-b1 aaaqb
+b0 aaaqa
+b0 aaaqb
 b0 aaaqc
 b0 aaaqd
 b0 aaaqe
-0aaaqf
-b1 aaaqg
+b0 aaaqf
+b0 aaaqg
 b0 aaaqh
 b0 aaaqi
 b0 aaaqj
-0aaaqk
-b1 aaaql
+b0 aaaqk
+b0 aaaql
 b0 aaaqm
 b0 aaaqn
 b0 aaaqo
@@ -1211,6 +1703,310 @@ b0 aaary
 b0 aaarz
 b0 aaasa
 b0 aaasb
+b0 aaasc
+b0 aaasd
+b0 aaase
+b0 aaasf
+b0 aaasg
+b0 aaash
+b0 aaasi
+b0 aaasj
+b0 aaask
+b0 aaasl
+b0 aaasm
+b0 aaasn
+b0 aaaso
+b0 aaasp
+b0 aaasq
+b0 aaasr
+b0 aaass
+b0 aaast
+b0 aaasu
+0aaasv
+b1 aaasw
+b0 aaasx
+b0 aaasy
+b0 aaasz
+0aaata
+b1 aaatb
+b0 aaatc
+b0 aaatd
+b0 aaate
+0aaatf
+b1 aaatg
+b0 aaath
+b0 aaati
+b0 aaatj
+0aaatk
+b1 aaatl
+b0 aaatm
+b0 aaatn
+b0 aaato
+0aaatp
+b1 aaatq
+b0 aaatr
+b0 aaats
+b0 aaatt
+0aaatu
+b1 aaatv
+b0 aaatw
+b0 aaatx
+b0 aaaty
+0aaatz
+b1 aaaua
+b0 aaaub
+b0 aaauc
+b0 aaaud
+0aaaue
+b1 aaauf
+b0 aaaug
+b0 aaauh
+b0 aaaui
+0aaauj
+b1 aaauk
+b0 aaaul
+b0 aaaum
+b0 aaaun
+0aaauo
+b1 aaaup
+b0 aaauq
+b0 aaaur
+b0 aaaus
+0aaaut
+b1 aaauu
+b0 aaauv
+b0 aaauw
+b0 aaaux
+0aaauy
+b1 aaauz
+b0 aaava
+b0 aaavb
+b0 aaavc
+0aaavd
+b1 aaave
+b0 aaavf
+b0 aaavg
+b0 aaavh
+0aaavi
+b1 aaavj
+b0 aaavk
+b0 aaavl
+b0 aaavm
+0aaavn
+b1 aaavo
+b0 aaavp
+b0 aaavq
+b0 aaavr
+0aaavs
+b1 aaavt
+b0 aaavu
+b0 aaavv
+b0 aaavw
+0aaavx
+b1 aaavy
+b0 aaavz
+b0 aaawa
+b0 aaawb
+0aaawc
+b1 aaawd
+b0 aaawe
+b0 aaawf
+b0 aaawg
+b0 aaawh
+b0 aaawi
+b0 aaawj
+b0 aaawk
+b0 aaawl
+b0 aaawm
+b0 aaawn
+b0 aaawo
+b0 aaawp
+b0 aaawq
+b0 aaawr
+b0 aaaws
+b0 aaawt
+b0 aaawu
+b0 aaawv
+b0 aaaww
+b0 aaawx
+b0 aaawy
+b0 aaawz
+b0 aaaxa
+b0 aaaxb
+b0 aaaxc
+b0 aaaxd
+b0 aaaxe
+b0 aaaxf
+b0 aaaxg
+b0 aaaxh
+b0 aaaxi
+b0 aaaxj
+b0 aaaxk
+b0 aaaxl
+b0 aaaxm
+b0 aaaxn
+b0 aaaxo
+b0 aaaxp
+b0 aaaxq
+b0 aaaxr
+b0 aaaxs
+b0 aaaxt
+b0 aaaxu
+b0 aaaxv
+b0 aaaxw
+0aaaxx
+b1 aaaxy
+b0 aaaxz
+b0 aaaya
+b0 aaayb
+0aaayc
+b1 aaayd
+b0 aaaye
+b0 aaayf
+b0 aaayg
+b0 aaayh
+b0 aaayi
+b0 aaayj
+b0 aaayk
+b0 aaayl
+b0 aaaym
+b0 aaayn
+b0 aaayo
+b0 aaayp
+b0 aaayq
+0aaayr
+b1 aaays
+b0 aaayt
+b0 aaayu
+b0 aaayv
+0aaayw
+b1 aaayx
+b0 aaayy
+b0 aaayz
+b0 aaaza
+b0 aaazb
+b0 aaazc
+b0 aaazd
+b0 aaaze
+b0 aaazf
+b0 aaazg
+b0 aaazh
+b0 aaazi
+b0 aaazj
+b0 aaazk
+0aaazl
+b1 aaazm
+b0 aaazn
+b0 aaazo
+b0 aaazp
+0aaazq
+b1 aaazr
+b0 aaazs
+b0 aaazt
+b0 aaazu
+b0 aaazv
+b0 aaazw
+b0 aaazx
+b0 aaazy
+b0 aaazz
+b0 aabaa
+b0 aabab
+b0 aabac
+b0 aabad
+b0 aabae
+0aabaf
+b1 aabag
+b0 aabah
+b0 aabai
+b0 aabaj
+0aabak
+b1 aabal
+b0 aabam
+b0 aaban
+b0 aabao
+b0 aabap
+b0 aabaq
+b0 aabar
+b0 aabas
+b0 aabat
+b0 aabau
+0aabav
+b1 aabaw
+b0 aabax
+b0 aabay
+b0 aabaz
+b0 aabba
+b0 aabbb
+b0 aabbc
+b0 aabbd
+b0 aabbe
+0aabbf
+b1 aabbg
+b0 aabbh
+b0 aabbi
+b0 aabbj
+b0 aabbk
+b0 aabbl
+b0 aabbm
+b0 aabbn
+b0 aabbo
+b0 aabbp
+b0 aabbq
+b0 aabbr
+b0 aabbs
+b0 aabbt
+b0 aabbu
+b0 aabbv
+b0 aabbw
+b0 aabbx
+b0 aabby
+b0 aabbz
+b0 aabca
+b0 aabcb
+b0 aabcc
+b0 aabcd
+b0 aabce
+b0 aabcf
+b0 aabcg
+b0 aabch
+b0 aabci
+b0 aabcj
+b0 aabck
+b0 aabcl
+b0 aabcm
+b0 aabcn
+b0 aabco
+b0 aabcp
+b0 aabcq
+b0 aabcr
+b0 aabcs
+b0 aabct
+b0 aabcu
+b0 aabcv
+b0 aabcw
+b0 aabcx
+b0 aabcy
+b0 aabcz
+b0 aabda
+b0 aabdb
+b0 aabdc
+b0 aabdd
+b0 aabde
+b0 aabdf
+b0 aabdg
+b0 aabdh
+b0 aabdi
+b0 aabdj
+b0 aabdk
+b0 aabdl
+b0 aabdm
+b0 aabdn
+b0 aabdo
+b0 aabdp
+b0 aabdq
+b0 aabdr
+b0 aabds
+b0 aabdt
 $end
 
 #5
