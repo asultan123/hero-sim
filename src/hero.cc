@@ -50,32 +50,39 @@ template <typename DataType> SSM<DataType> *SSMVectorCreator<DataType>::operator
 
 template <typename DataType> void Arch<DataType>::suspend_monitor()
 {
-    while (1)
+    try
     {
-        while (control->enable())
+        while (1)
         {
-            bool pes_suspended = true;
-            for (auto &pe : pe_array)
+            while (control->enable())
             {
-                pes_suspended &= (pe.program.at(pe.prog_idx).state == DescriptorState::SUSPENDED);
-            }
-            bool ifmap_generators_suspended = true;
-            for (auto &gen : ifmap_mem.generators)
-            {
-                ifmap_generators_suspended &= (gen.currentDescriptor().state == DescriptorState::SUSPENDED);
-            }
-            bool psum_generators_suspended = true;
-            for (auto &gen : psum_mem.generators)
-            {
-                psum_generators_suspended &= (gen.currentDescriptor().state == DescriptorState::SUSPENDED);
-            }
-            if (pes_suspended && ifmap_generators_suspended && psum_generators_suspended)
-            {
-                sc_stop();
+                bool pes_suspended = true;
+                for (auto &pe : pe_array)
+                {
+                    pes_suspended &= (pe.program.at(pe.prog_idx).state == DescriptorState::SUSPENDED);
+                }
+                bool ifmap_generators_suspended = true;
+                for (auto &gen : ifmap_mem.generators)
+                {
+                    ifmap_generators_suspended &= (gen.currentDescriptor().state == DescriptorState::SUSPENDED);
+                }
+                bool psum_generators_suspended = true;
+                for (auto &gen : psum_mem.generators)
+                {
+                    psum_generators_suspended &= (gen.currentDescriptor().state == DescriptorState::SUSPENDED);
+                }
+                if (pes_suspended && ifmap_generators_suspended && psum_generators_suspended)
+                {
+                    sc_stop();
+                }
+                wait();
             }
             wait();
         }
-        wait();
+    }
+    catch (...)
+    {
+        cout << "exception " << endl;
     }
 }
 
@@ -100,9 +107,16 @@ template <typename DataType> void Arch<DataType>::update_3x3()
                     {
                         unsigned int kernel_group = channel_column / 9;
                         unsigned int kernel_row = channel_column % 3;
-                        auto &ifmap_pixel = ifmap_reuse_chain_signals.at(kernel_group).at(kernel_row);
-                        cur_pe.active_counter++;
-                        next_pe.psum_in = cur_pe.compute(ifmap_pixel.read());
+                        try
+                        {
+                            auto &ifmap_pixel = ifmap_reuse_chain_signals.at(kernel_group).at(kernel_row);
+                            cur_pe.active_counter++;
+                            next_pe.psum_in = cur_pe.compute(ifmap_pixel.read());
+                        }
+                        catch (const std::exception &e)
+                        {
+                            std::cerr << e.what() << '\n';
+                        }
                     }
                     else
                     {
@@ -118,9 +132,16 @@ template <typename DataType> void Arch<DataType>::update_3x3()
                     last_pe.active_counter++;
                     unsigned int channel_column = channel_count - 1;
                     unsigned int kernel_group = channel_column / 9;
-                    unsigned int kernel_row = 3;
-                    auto &ifmap_pixel = ifmap_reuse_chain_signals.at(kernel_group).at(kernel_row);
-                    psum_mem_write[filter_row][0] = last_pe.compute(ifmap_pixel);
+                    unsigned int kernel_row = 2;
+                    try
+                    {
+                        auto &ifmap_pixel = ifmap_reuse_chain_signals.at(kernel_group).at(kernel_row);
+                        psum_mem_write[filter_row][0] = last_pe.compute(ifmap_pixel);
+                    }
+                    catch (const std::exception &e)
+                    {
+                        std::cerr << e.what() << '\n';
+                    }
                 }
                 else
                 {

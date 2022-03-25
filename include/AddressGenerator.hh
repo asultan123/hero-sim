@@ -9,7 +9,7 @@
 #include <iostream>
 #include <map>
 #include <string>
-#include <systemc>
+#include <systemc.h>
 #include <vector>
 
 using std::cout;

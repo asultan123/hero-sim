@@ -13,6 +13,7 @@
 #include <chrono>
 #include <cmath>
 #include <deque>
+#include <fmt/format.h>
 #include <iomanip>
 #include <iostream>
 #include <memory>
@@ -154,18 +155,36 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     dram_load(arch, ifmap, c_in, ifmap_h, ifmap_w);
 
     weights = LayerGeneration::generate_weights<DataType>(f_out, c_in, k);
+
     padded_weights = LayerGeneration::pad_weights(arch, weights, f_out, c_in, k);
+    cout << padded_weights << endl;
 
     load_padded_weights_into_pes(arch, padded_weights);
 
-    GenerateDescriptors::generate_and_load_arch_descriptors(arch, ifmap_h, ifmap_w, padded_weights, ofmap_h, ofmap_w);
+    try
+    {
+        GenerateDescriptors::generate_and_load_arch_descriptors(arch, ifmap_h, ifmap_w, padded_weights, ofmap_h,
+                                                                ofmap_w);
+    }
+    catch (...)
+    {
+        fmt::print("Caught exception during program generation... continuing");
+    }
 
     control.set_program(true);
     arch.set_channel_modes();
     sc_start(1, SC_NS);
     control.set_enable(true);
     control.set_program(false);
-    sc_start();
+    try
+    {
+        sc_start();
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << e.what() << '\n';
+        sc_close_vcd_trace_file(tf);
+    }
 
     auto arch_output = dram_store(arch, f_out, ofmap_h, ofmap_w);
     auto valid = LayerGeneration::validate_output(ifmap, weights, arch_output);
