@@ -8,7 +8,7 @@
 #include <iostream>
 #include <map>
 #include <string>
-#include <systemc>
+#include <systemc.h>
 #include <type_traits>
 #include <vector>
 

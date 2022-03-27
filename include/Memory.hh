@@ -6,7 +6,7 @@
 #include <assert.h>
 #include <iostream>
 #include <string>
-#include <systemc>
+#include <systemc.h>
 
 using std::cout;
 using std::endl;

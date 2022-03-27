@@ -5,7 +5,7 @@
 #include <assert.h>
 #include <iostream>
 #include <string>
-#include <systemc>
+#include <systemc.h>
 
 using namespace sc_core;
 using namespace sc_dt;
