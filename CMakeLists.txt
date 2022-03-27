@@ -30,7 +30,7 @@ find_package(fmt REQUIRED)
 # set(CMAKE_C_INCLUDE_WHAT_YOU_USE ${IWYU_PATH})
 
 pkg_check_modules(SYSTEMC REQUIRED IMPORTED_TARGET systemc)
-pkg_check_modules(TLM2 REQUIRED IMPORTED_TARGET tlm)
+# pkg_check_modules(TLM2 REQUIRED IMPORTED_TARGET tlm)
 
 # add_subdirectory(xilinx)
 
@@ -38,7 +38,7 @@ add_library(cnn_processor INTERFACE)
 target_include_directories(cnn_processor INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
-target_link_libraries(cnn_processor INTERFACE fmt::fmt-header-only Boost::program_options PkgConfig::SYSTEMC PkgConfig::TLM2 xtensor xtensor-blas xtensor::optimize xtensor::use_xsimd)
+target_link_libraries(cnn_processor INTERFACE PkgConfig::SYSTEMC fmt::fmt-header-only Boost::program_options xtensor xtensor-blas xtensor::optimize xtensor::use_xsimd)
 
 add_executable(hero_sim_backend "")
 target_sources(hero_sim_backend PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests/hero_sim_backend.cc")
