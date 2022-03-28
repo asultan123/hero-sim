@@ -4,8 +4,8 @@
 
 template <typename DataType>
 SSM<DataType>::SSM(sc_module_name name, GlobalControlChannel &_control, unsigned int _input_count,
-                   unsigned int _output_count, sc_trace_file *_tf)
-    : sc_module(name), input_count(_input_count), output_count(_output_count), in("in"), out("out")
+                   unsigned int _output_count, sc_trace_file *_tf, SSMMode _mode)
+    : sc_module(name), input_count(_input_count), output_count(_output_count), in("in"), out("out"), mode(_mode)
 {
     if (input_count <= 0 || output_count <= 0)
     {
@@ -62,6 +62,16 @@ SSM<DataType>::SSM(sc_module_name name, GlobalControlChannel &_control, unsigned
     cout << "SSM MODULE: " << name << " has been instantiated " << endl;
 }
 
+template <typename DataType> void SSM<DataType>::set_static_input_port_select(int _static_input_port_select)
+{
+    static_input_port_select = _static_input_port_select;
+}
+
+template <typename DataType> void SSM<DataType>::set_static_output_port_select(int _static_output_port_select)
+{
+    static_output_port_select = _static_output_port_select;
+}
+
 template <typename DataType> void SSM<DataType>::load_in_port_program(const vector<Descriptor_2D> &newProgram)
 {
     if (input_count == 1)
@@ -103,8 +113,25 @@ template <typename DataType> void SSM<DataType>::propogate_in_to_out()
             throw std::runtime_error(
                 "Something went wrong during SSM instantiation, \"out\" channel should be non null");
         }
-        auto target_port = out_channel->addr();
-        out.at(target_port).write(in.at(0).read());
+        switch (mode)
+        {
+        case SSMMode::DYNAMIC:
+        {
+            auto target_port = out_channel->addr();
+            out.at(target_port).write(in.at(0).read());
+            break;
+        }
+        case SSMMode::STATIC:
+        {
+            out.at(static_output_port_select).write(in.at(0).read());
+            break;
+        }
+        default:
+        {
+            throw "Invalid SSM Mode selected";
+            break;
+        }
+        }
     }
     else if (input_count > 1)
     {
@@ -113,12 +140,29 @@ template <typename DataType> void SSM<DataType>::propogate_in_to_out()
             throw std::runtime_error(
                 "Something went wrong during SSM instantiation, \"in\" channel should be non null");
         }
-        auto target_port = in_channel->addr();
-        out.at(0).write(in.at(target_port).read());
+        switch (mode)
+        {
+        case SSMMode::DYNAMIC:
+        {
+            auto target_port = in_channel->addr();
+            out.at(0).write(in.at(target_port).read());
+            break;
+        }
+        case SSMMode::STATIC:
+        {
+            out.at(0).write(in.at(static_input_port_select).read());
+            break;
+        }
+        default:
+        {
+            throw "Invalid SSM Mode selected";
+            break;
+        }
+        }
     }
     else
     {
         throw std::runtime_error("Something went wrong in SSM instantiation, port counts for both in/out ports can't "
-                                 "both be less than or equal to 1");
+                                 "both be 1");
     }
 }

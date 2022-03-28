@@ -53,9 +53,10 @@ template <typename DataType> struct SSMVectorCreator
     unsigned int input_count;
     unsigned int output_count;
     sc_trace_file *tf;
+    SSMMode mode;
 
     SSMVectorCreator(GlobalControlChannel &_control, unsigned int input_count, unsigned int output_count,
-                     sc_trace_file *_tf);
+                     sc_trace_file *_tf, SSMMode _mode);
 
     SSM<DataType> *operator()(const char *name, size_t);
 };

@@ -38,14 +38,14 @@ template <typename DataType> SAM<DataType> *SAMVectorCreator<DataType>::operator
 
 template <typename DataType>
 SSMVectorCreator<DataType>::SSMVectorCreator(GlobalControlChannel &_control, unsigned int input_count,
-                                             unsigned int output_count, sc_trace_file *_tf)
-    : control(_control), input_count(input_count), output_count(output_count), tf(_tf)
+                                             unsigned int output_count, sc_trace_file *_tf, SSMMode _mode)
+    : control(_control), input_count(input_count), output_count(output_count), tf(_tf), mode(_mode)
 {
 }
 
 template <typename DataType> SSM<DataType> *SSMVectorCreator<DataType>::operator()(const char *name, size_t)
 {
-    return new SSM<DataType>(name, control, input_count, output_count, tf);
+    return new SSM<DataType>(name, control, input_count, output_count, tf, mode);
 }
 
 template <typename DataType> void Arch<DataType>::suspend_monitor()
@@ -304,7 +304,7 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
         ssm.init(kernel_groups_count, SSMVectorCreator<DataType>(_control,
                                                                  9, // input_count
                                                                  1, // output_count
-                                                                 _tf));
+                                                                 _tf, SSMMode::STATIC));
 
         // bind ifmap channel memory read ports to SSM input ports for each kernel group
         for (int ifmap_read_signal_idx = 0; ifmap_read_signal_idx < channel_count; ifmap_read_signal_idx++)
