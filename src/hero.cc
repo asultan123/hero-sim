@@ -243,7 +243,7 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
       ifmap_reuse_chain_signals("ifmap_reuse_chain_signals"),
       unused_ifmap_reuse_chain_signals("unused_ifmap_reuse_chain_signals"),
       ifmap_mem_read("ifmap_mem_read", channel_count, SignalVectorCreator<DataType>(1, tf)),
-      ifmap_mem_write("ifmap_mem_write", channel_count, SignalVectorCreator<DataType>(1, tf)), ssm("ssm"),
+      ifmap_mem_write("ifmap_mem_write", channel_count, SignalVectorCreator<DataType>(1, tf)), ssms("ssms"),
       kmapping(kmapping), mode(mode)
 {
     control(_control);
@@ -301,25 +301,25 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
             }
         }
 
-        ssm.init(kernel_groups_count, SSMVectorCreator<DataType>(_control,
-                                                                 9, // input_count
-                                                                 1, // output_count
-                                                                 _tf, SSMMode::STATIC));
+        ssms.init(kernel_groups_count, SSMVectorCreator<DataType>(_control,
+                                                                  channel_count, // input_count
+                                                                  1,             // output_count
+                                                                  _tf, SSMMode::STATIC));
 
-        // bind ifmap channel memory read ports to SSM input ports for each kernel group
-        for (int ifmap_read_signal_idx = 0; ifmap_read_signal_idx < channel_count; ifmap_read_signal_idx++)
+        for (auto &ssm : ssms)
         {
-            int ssm_idx = ifmap_read_signal_idx / 9;
-            int ssm_port_idx = ifmap_read_signal_idx % 9;
-            auto &ssm_in_port = ssm.at(ssm_idx).in.at(ssm_port_idx);
-            ssm_in_port.bind(ifmap_mem_read[ifmap_read_signal_idx][0]);
+            for (int ifmap_read_signal_idx = 0; ifmap_read_signal_idx < channel_count; ifmap_read_signal_idx++)
+            {
+                auto &ssm_in_port = ssm.in.at(ifmap_read_signal_idx);
+                ssm_in_port.bind(ifmap_mem_read[ifmap_read_signal_idx][0]);
+            }
         }
 
-        // bind ssm out port to head of ifmap reuse chain
+        // bind ssms out port to head of ifmap reuse chain
         for (unsigned int kernel_group_idx = 0; kernel_group_idx < kernel_groups_count; kernel_group_idx++)
         {
             auto &head_of_chain = ifmap_reuse_chain.at(kernel_group_idx * 2);
-            auto &ssm_output_port = ssm.at(kernel_group_idx).out.at(0);
+            auto &ssm_output_port = ssms.at(kernel_group_idx).out.at(0);
             auto &chain_signal = ifmap_reuse_chain_signals.at(kernel_group_idx).at(2);
             auto &tie_down_signal = unused_ifmap_reuse_chain_signals.at(kernel_group_idx).at(2);
             ssm_output_port.bind(chain_signal);

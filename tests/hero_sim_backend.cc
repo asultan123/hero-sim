@@ -231,7 +231,7 @@ int sc_main(int argc, char *argv[])
     int c_in = 3;
     int f_out = 16;
     int filter_count = 7;
-    int channel_count = 18;
+    int channel_count = 27;
 
     try
     {

@@ -300,7 +300,11 @@ namespace GenerateDescriptors3x3
 
 template <typename DataType> void generate_and_load_ssm_program(Hero::Arch<DataType> &arch, int ifmap_h, int ifmap_w)
 {
-    // TODO: #41
+    const int arch_effective_channel_count = arch.channel_count / 9;
+    for (int c = 0; c < arch_effective_channel_count; c++)
+    {
+        arch.ssms.at(c).set_static_input_port_select(c);
+    }
 }
 
 template <typename DataType> void generate_and_load_pe_program(Hero::Arch<DataType> &arch, int ifmap_h, int ifmap_w)

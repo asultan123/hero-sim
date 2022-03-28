@@ -6,6 +6,9 @@
 #include "ProcEngine.hh"
 #include "SAM.hh"
 #include "SSM.hh"
+#include <cstdio>
+#include <cstring>
+#include <fmt/format.h>
 #include <stdexcept>
 #include <systemc.h>
 
@@ -88,7 +91,7 @@ template <typename DataType> struct Arch : public sc_module
     sc_vector<sc_vector<sc_signal<DataType>>> unused_ifmap_reuse_chain_signals;
     sc_vector<sc_vector<sc_signal<DataType>>> ifmap_mem_read;
     sc_vector<sc_vector<sc_signal<DataType>>> ifmap_mem_write;
-    sc_vector<SSM<DataType>> ssm;
+    sc_vector<SSM<DataType>> ssms;
 
     unsigned int dram_access_counter{0};
     int filter_count;
