@@ -422,11 +422,10 @@ void generate_and_load_ifmap_in_program(Hero::Arch<DataType> &arch, xt::xarray<i
 
         std::deque<Descriptor_2D> program;
 
-        unsigned int kernel_group_idx = ag_idx / 9;
-        unsigned int kernel_group_delay = (ag_idx * systolic_delay);
-        kernel_group_delay = (kernel_group_delay == 0) ? 0 : (kernel_group_delay - 1);
+        unsigned int channel_start_delay = (ag_idx * systolic_delay);
+        channel_start_delay = (channel_start_delay == 0) ? 0 : (channel_start_delay - 1);
 
-        auto systolic_delay_inst = Descriptor_2D::delay_inst(kernel_group_delay);
+        auto systolic_delay_inst = Descriptor_2D::delay_inst(channel_start_delay);
         program.push_back(systolic_delay_inst);
 
         for (int v = 0; v < verticle_tile_count; v++)
@@ -436,7 +435,7 @@ void generate_and_load_ifmap_in_program(Hero::Arch<DataType> &arch, xt::xarray<i
                 int active = run_bitmap(v, h, ag_idx);
                 if (active)
                 {
-                    int stream_start_idx = h * arch.channel_count * stream_size + ag_idx * stream_size;
+                    int stream_start_idx = h * arch_effective_channel_count * stream_size + ag_idx * stream_size;
                     auto stream_first_two_lines_inst =
                         Descriptor_2D::stream_inst(stream_start_idx, first_two_line_size - 1, 0);
                     program.push_back(stream_first_two_lines_inst);
@@ -462,7 +461,6 @@ void generate_and_load_ifmap_in_program(Hero::Arch<DataType> &arch, xt::xarray<i
         program.push_back(Descriptor_2D::suspend_inst());
         Descriptor_2D::make_sequential(program);
         ag.loadProgram(program);
-        ag_idx++;
     }
 }
 

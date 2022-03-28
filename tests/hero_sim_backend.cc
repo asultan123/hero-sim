@@ -152,12 +152,14 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     sc_start(1, SC_NS);
 
     auto ifmap = LayerGeneration::generate_ifmap<DataType>(arch, c_in, ifmap_h, ifmap_w);
+
+    cout << ifmap << endl;
+
     dram_load(arch, ifmap, c_in, ifmap_h, ifmap_w);
 
     weights = LayerGeneration::generate_weights<DataType>(f_out, c_in, k);
 
     padded_weights = LayerGeneration::pad_weights(arch, weights, f_out, c_in, k);
-    cout << padded_weights << endl;
 
     load_padded_weights_into_pes(arch, padded_weights);
 
