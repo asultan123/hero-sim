@@ -43,9 +43,10 @@ template <typename DataType> struct SAMVectorCreator
     unsigned int length;
     unsigned int width;
     sc_trace_file *tf;
+    bool trace_mem;
 
     SAMVectorCreator(GlobalControlChannel &_control, unsigned int _channel_count, unsigned int _length,
-                     unsigned int _width, sc_trace_file *_tf);
+                     unsigned int _width, sc_trace_file *_tf, bool _trace_mem = false);
 
     SAM<DataType> *operator()(const char *name, size_t);
 };

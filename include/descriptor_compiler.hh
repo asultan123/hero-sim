@@ -472,7 +472,76 @@ template <typename DataType>
 void generate_and_load_ifmap_channel_to_reuse_chain_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights,
                                                             int ifmap_h, int ifmap_w)
 {
-    throw "Not implemented";
+    auto run_bitmap = get_ifmap_mem_run_bitmap(arch, padded_weights);
+    const int verticle_tile_count = run_bitmap.shape()[0];
+    const int horizontal_tile_count = run_bitmap.shape()[1];
+
+    const int arch_effective_channel_count = arch.channel_count / 9;
+
+    const int stream_size = ifmap_h * ifmap_w;
+    const int first_two_line_size = 2 * ifmap_w;
+    const int rest_of_fmap_size = (ifmap_h - 2) * ifmap_w;
+    const int systolic_delay = 9;
+    const int reuse_chain_delay = 6;
+    const int load_delay = 1;
+    const int total_stream_delay = stream_size + reuse_chain_delay + load_delay;
+
+    for (int chain_idx = 0; chain_idx < arch_effective_channel_count; chain_idx++)
+    {
+        std::vector<std::deque<Descriptor_2D>> generator_programs(4);
+
+        auto &head_in_prog = generator_programs.at(0);
+        auto &head_out_prog = generator_programs.at(1);
+        auto &tail_in_prog = generator_programs.at(2);
+        auto &tail_out_prog = generator_programs.at(3);
+
+        auto &head_of_chain = arch.ifmap_reuse_chain.at(chain_idx * 2);
+        auto &head_of_chain_in_generator = head_of_chain.generators.at(0);
+        auto &head_of_chain_out_generator = head_of_chain.generators.at(1);
+        auto &tail_of_chain = arch.ifmap_reuse_chain.at(chain_idx * 2 + 1);
+        auto &tail_of_chain_in_generator = tail_of_chain.generators.at(0);
+        auto &tail_of_chain_out_generator = tail_of_chain.generators.at(1);
+
+        for (int v = 0; v < verticle_tile_count; v++)
+        {
+            for (int h = 0; h < horizontal_tile_count; h++)
+            {
+                // head_of_chain_in_prog
+                head_in_prog.push_back(Descriptor_2D::delay_inst(1));
+                head_in_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, 1));
+                head_in_prog.push_back(Descriptor_2D::delay_inst(ifmap_w * ifmap_h));
+                // head_in_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w, ifmap_h - 2));
+
+                head_out_prog.push_back(Descriptor_2D::delay_inst(2));
+                head_out_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, 0));
+                head_out_prog.push_back(Descriptor_2D::delay_inst(ifmap_w * ifmap_h));
+
+                tail_in_prog.push_back(Descriptor_2D::delay_inst(3));
+                tail_in_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, 0));
+                tail_in_prog.push_back(Descriptor_2D::delay_inst(ifmap_w - 1 - 1));
+
+                tail_out_prog.push_back(Descriptor_2D::delay_inst(2 * ifmap_w));
+                tail_out_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, 0));
+                tail_out_prog.push_back(Descriptor_2D::delay_inst(ifmap_w * ifmap_h));
+            }
+        }
+        head_in_prog.push_back(Descriptor_2D::suspend_inst());
+        Descriptor_2D::make_sequential(head_in_prog);
+
+        head_out_prog.push_back(Descriptor_2D::suspend_inst());
+        Descriptor_2D::make_sequential(head_out_prog);
+
+        tail_in_prog.push_back(Descriptor_2D::suspend_inst());
+        Descriptor_2D::make_sequential(tail_in_prog);
+
+        tail_out_prog.push_back(Descriptor_2D::suspend_inst());
+        Descriptor_2D::make_sequential(tail_out_prog);
+
+        head_of_chain_in_generator.loadProgram(head_in_prog);
+        head_of_chain_out_generator.loadProgram(head_out_prog);
+        tail_of_chain_in_generator.loadProgram(tail_in_prog);
+        tail_of_chain_out_generator.loadProgram(tail_out_prog);
+    }
 }
 
 } // namespace GenerateDescriptors3x3

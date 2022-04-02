@@ -26,14 +26,15 @@ template <typename DataType> PE<DataType> *PeCreator<DataType>::operator()(const
 
 template <typename DataType>
 SAMVectorCreator<DataType>::SAMVectorCreator(GlobalControlChannel &_control, unsigned int _channel_count,
-                                             unsigned int _length, unsigned int _width, sc_trace_file *_tf)
-    : control(_control), channel_count(_channel_count), length(_length), width(_width), tf(_tf)
+                                             unsigned int _length, unsigned int _width, sc_trace_file *_tf,
+                                             bool _trace_mem)
+    : control(_control), channel_count(_channel_count), length(_length), width(_width), tf(_tf), trace_mem(_trace_mem)
 {
 }
 
 template <typename DataType> SAM<DataType> *SAMVectorCreator<DataType>::operator()(const char *name, size_t)
 {
-    return new SAM<DataType>(name, control, channel_count, length, width, tf);
+    return new SAM<DataType>(name, control, channel_count, length, width, tf, trace_mem);
 }
 
 template <typename DataType>
@@ -288,7 +289,7 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
                                                                                      2,   // port count
                                                                                      512, // over estimating length
                                                                                      1,   // width
-                                                                                     _tf));
+                                                                                     _tf, true));
 
         ifmap_reuse_chain_signals.init(kernel_groups_count, SignalVectorCreator<DataType>(3, tf));
         unused_ifmap_reuse_chain_signals.init(kernel_groups_count, SignalVectorCreator<DataType>(3, tf));
