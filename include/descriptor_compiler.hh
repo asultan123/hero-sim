@@ -506,22 +506,40 @@ void generate_and_load_ifmap_channel_to_reuse_chain_program(Hero::Arch<DataType>
         {
             for (int h = 0; h < horizontal_tile_count; h++)
             {
-                // head_of_chain_in_prog
-                head_in_prog.push_back(Descriptor_2D::delay_inst(1));
-                head_in_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, 1));
+                // head_in_trans
+                head_in_prog.push_back(Descriptor_2D::delay_inst(1));                  // wait for channel mem
+                head_in_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, 1)); // write first two lines
+                head_in_prog.push_back(Descriptor_2D::delay_inst(3));                  // wait for sys. prop. delay
+                // head_in_steady_state
+                head_in_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, ifmap_h - 2 - 1));
+                // head_in_tile_delay
                 head_in_prog.push_back(Descriptor_2D::delay_inst(ifmap_w * ifmap_h));
-                // head_in_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w, ifmap_h - 2));
 
-                head_out_prog.push_back(Descriptor_2D::delay_inst(2));
-                head_out_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, 0));
+                // head_out_trans
+                head_out_prog.push_back(Descriptor_2D::delay_inst(2)); // wait for head in to write first pixel
+                head_out_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, 0)); // stream out first line
+                head_out_prog.push_back(Descriptor_2D::delay_inst(ifmap_w - 1 - 1)); // wait for 2nd line to be written
+                // head_out_steady_state
+                head_out_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, ifmap_h - 2 - 1));
+                // head_out_tile_delay
                 head_out_prog.push_back(Descriptor_2D::delay_inst(ifmap_w * ifmap_h));
 
-                tail_in_prog.push_back(Descriptor_2D::delay_inst(3));
-                tail_in_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, 0));
-                tail_in_prog.push_back(Descriptor_2D::delay_inst(ifmap_w - 1 - 1));
+                // tail_in_trans
+                tail_in_prog.push_back(Descriptor_2D::delay_inst(3)); // wait for head out to stream out first pixel
+                tail_in_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, 0)); // store first line
+                tail_in_prog.push_back(
+                    Descriptor_2D::delay_inst(ifmap_w - 1 - 1)); // wait for 2nd line to be written in head
+                // tail_in_steady_state
+                tail_in_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, ifmap_h - 2 - 1));
+                // tail_in_tile_delay
+                tail_in_prog.push_back(Descriptor_2D::delay_inst(ifmap_w * ifmap_h));
 
-                tail_out_prog.push_back(Descriptor_2D::delay_inst(2 * ifmap_w));
-                tail_out_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, 0));
+                // tail_out_trans
+                tail_out_prog.push_back(Descriptor_2D::delay_inst(
+                    1 + 2 * ifmap_w - 1)); // wait for line 1 to be written in tail and line 2 in head
+                // tail_out_steady_state
+                tail_out_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, ifmap_h - 2 - 1));
+                // tail_out_tile_delay
                 tail_out_prog.push_back(Descriptor_2D::delay_inst(ifmap_w * ifmap_h));
             }
         }
