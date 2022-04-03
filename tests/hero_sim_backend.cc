@@ -229,7 +229,7 @@ int sc_main(int argc, char *argv[])
     int ifmap_w = 32;
     int k = 3;
     int c_in = 3;
-    int f_out = 16;
+    int f_out = 24;
     int filter_count = 7;
     int channel_count = 27;
 

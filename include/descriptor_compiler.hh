@@ -418,7 +418,6 @@ void generate_and_load_ifmap_in_program(Hero::Arch<DataType> &arch, xt::xarray<i
     const int systolic_delay = 9;
     const int reuse_chain_delay = 6;
     const int load_delay = 1;
-    const int total_stream_delay = stream_size + reuse_chain_delay + load_delay;
 
     for (int ag_idx = 0; ag_idx < arch_effective_channel_count; ag_idx++)
     {
@@ -427,8 +426,7 @@ void generate_and_load_ifmap_in_program(Hero::Arch<DataType> &arch, xt::xarray<i
         std::deque<Descriptor_2D> program;
 
         unsigned int channel_start_delay = (ag_idx * systolic_delay);
-        channel_start_delay = (channel_start_delay == 0) ? 0 : (channel_start_delay - 1);
-
+        channel_start_delay = (channel_start_delay == 0) ? 0 : (channel_start_delay);
         auto systolic_delay_inst = Descriptor_2D::delay_inst(channel_start_delay);
         program.push_back(systolic_delay_inst);
 
@@ -439,6 +437,7 @@ void generate_and_load_ifmap_in_program(Hero::Arch<DataType> &arch, xt::xarray<i
                 int active = run_bitmap(v, h, ag_idx);
                 if (active)
                 {
+
                     int stream_start_idx = h * arch_effective_channel_count * stream_size + ag_idx * stream_size;
                     auto stream_first_two_lines_inst =
                         Descriptor_2D::stream_inst(stream_start_idx, first_two_line_size - 1, 0);
@@ -454,11 +453,13 @@ void generate_and_load_ifmap_in_program(Hero::Arch<DataType> &arch, xt::xarray<i
                 }
                 else
                 {
-                    auto delay_inst = Descriptor_2D::delay_inst(total_stream_delay - 1);
+                    const int total_stream_delay = ag_idx * systolic_delay + first_two_line_size + reuse_chain_delay +
+                                                   rest_of_fmap_size - 3 * load_delay;
+
+                    auto delay_inst = Descriptor_2D::delay_inst(total_stream_delay);
                     program.push_back(delay_inst);
                 }
-                const int channel_memories_to_wait_for = (arch.channel_count - 1);
-                auto delay_inst = Descriptor_2D::delay_inst((channel_memories_to_wait_for * total_stream_delay) - 1);
+                auto delay_inst = Descriptor_2D::delay_inst(1);
                 program.push_back(delay_inst);
             }
         }
@@ -502,45 +503,53 @@ void generate_and_load_ifmap_channel_to_reuse_chain_program(Hero::Arch<DataType>
         auto &tail_of_chain_in_generator = tail_of_chain.generators.at(0);
         auto &tail_of_chain_out_generator = tail_of_chain.generators.at(1);
 
+        bool first_tile = true;
+
         for (int v = 0; v < verticle_tile_count; v++)
         {
             for (int h = 0; h < horizontal_tile_count; h++)
             {
                 // head_in_trans
-                head_in_prog.push_back(Descriptor_2D::delay_inst(1));                  // wait for channel mem
+                head_in_prog.push_back(Descriptor_2D::delay_inst(((int)first_tile * chain_idx * systolic_delay) +
+                                                                 1));                  // wait for channel mem
                 head_in_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, 1)); // write first two lines
                 head_in_prog.push_back(Descriptor_2D::delay_inst(3));                  // wait for sys. prop. delay
                 // head_in_steady_state
                 head_in_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, ifmap_h - 2 - 1));
                 // head_in_tile_delay
-                head_in_prog.push_back(Descriptor_2D::delay_inst(ifmap_w * ifmap_h));
+                // head_in_prog.push_back(Descriptor_2D::delay_inst(1));
 
                 // head_out_trans
-                head_out_prog.push_back(Descriptor_2D::delay_inst(2)); // wait for head in to write first pixel
+                head_out_prog.push_back(Descriptor_2D::delay_inst(((int)first_tile * chain_idx * systolic_delay) +
+                                                                  2)); // wait for head in to write first pixel
                 head_out_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, 0)); // stream out first line
                 head_out_prog.push_back(Descriptor_2D::delay_inst(ifmap_w - 1 - 1)); // wait for 2nd line to be written
                 // head_out_steady_state
                 head_out_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, ifmap_h - 2 - 1));
                 // head_out_tile_delay
-                head_out_prog.push_back(Descriptor_2D::delay_inst(ifmap_w * ifmap_h));
+                head_out_prog.push_back(Descriptor_2D::delay_inst(2));
 
                 // tail_in_trans
-                tail_in_prog.push_back(Descriptor_2D::delay_inst(3)); // wait for head out to stream out first pixel
+                tail_in_prog.push_back(Descriptor_2D::delay_inst(((int)first_tile * chain_idx * systolic_delay) +
+                                                                 3)); // wait for head out to stream out first pixel
                 tail_in_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, 0)); // store first line
                 tail_in_prog.push_back(
                     Descriptor_2D::delay_inst(ifmap_w - 1 - 1)); // wait for 2nd line to be written in head
                 // tail_in_steady_state
                 tail_in_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, ifmap_h - 2 - 1));
                 // tail_in_tile_delay
-                tail_in_prog.push_back(Descriptor_2D::delay_inst(ifmap_w * ifmap_h));
+                tail_in_prog.push_back(Descriptor_2D::delay_inst(1));
 
                 // tail_out_trans
-                tail_out_prog.push_back(Descriptor_2D::delay_inst(
-                    1 + 2 * ifmap_w - 1)); // wait for line 1 to be written in tail and line 2 in head
+                tail_out_prog.push_back(
+                    Descriptor_2D::delay_inst(((int)first_tile * chain_idx * systolic_delay) +
+                                              2 * ifmap_w)); // wait for line 1 to be written in tail and line 2 in head
                 // tail_out_steady_state
                 tail_out_prog.push_back(Descriptor_2D::stream_inst(0, ifmap_w - 1, ifmap_h - 2 - 1));
                 // tail_out_tile_delay
-                tail_out_prog.push_back(Descriptor_2D::delay_inst(ifmap_w * ifmap_h));
+                tail_out_prog.push_back(Descriptor_2D::delay_inst(5));
+
+                first_tile = false;
             }
         }
         head_in_prog.push_back(Descriptor_2D::suspend_inst());
