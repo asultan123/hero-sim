@@ -453,10 +453,9 @@ void generate_and_load_ifmap_in_program(Hero::Arch<DataType> &arch, xt::xarray<i
                 }
                 else
                 {
-                    const int total_stream_delay = ag_idx * systolic_delay + first_two_line_size + reuse_chain_delay +
-                                                   rest_of_fmap_size - 3 * load_delay;
+                    const int total_stream_delay = first_two_line_size + reuse_chain_delay + rest_of_fmap_size;
 
-                    auto delay_inst = Descriptor_2D::delay_inst(total_stream_delay);
+                    auto delay_inst = Descriptor_2D::delay_inst(total_stream_delay - 1);
                     program.push_back(delay_inst);
                 }
                 auto delay_inst = Descriptor_2D::delay_inst(1);
