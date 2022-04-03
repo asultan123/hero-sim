@@ -16,8 +16,12 @@ template <typename DataType> void AddressGenerator<DataType>::loadInternalCounte
     repeat = descriptors.at(index).repeat;
 }
 
-template <typename DataType> void AddressGenerator<DataType>::loadProgram(const vector<Descriptor_2D> &newProgram)
+template <typename DataType>
+template <typename ProgramContainer>
+void AddressGenerator<DataType>::loadProgram(const ProgramContainer &newProgram)
 {
+    static_assert(std::is_same<typename ProgramContainer::value_type, Descriptor_2D>::value,
+                  "Program container must contain only Descriptor_2Ds");
     descriptors.clear();
     copy(newProgram.begin(), newProgram.end(), std::back_inserter(descriptors));
 }

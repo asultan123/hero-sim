@@ -6,7 +6,7 @@
 #include <assert.h>
 #include <iostream>
 #include <string>
-#include <systemc>
+#include <systemc.h>
 
 using std::cout;
 using std::endl;
@@ -40,7 +40,7 @@ template <typename DataType> struct Memory : public sc_module
 
     // Constructor
     Memory(sc_module_name name, GlobalControlChannel &_control, unsigned int _channel_count, unsigned int _length,
-           unsigned int _width, sc_trace_file *tf);
+           unsigned int _width, sc_trace_file *tf, bool trace_mem = false);
 
     SC_HAS_PROCESS(Memory);
 };

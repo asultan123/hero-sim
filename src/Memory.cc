@@ -75,21 +75,23 @@ template <typename DataType> void Memory<DataType>::print_memory_contents()
 // Constructor
 template <typename DataType>
 Memory<DataType>::Memory(sc_module_name name, GlobalControlChannel &_control, unsigned int _channel_count,
-                         unsigned int _length, unsigned int _width, sc_trace_file *tf)
+                         unsigned int _length, unsigned int _width, sc_trace_file *tf, bool trace_mem)
     : sc_module(name), ram("ram", _length, MemoryRowCreator<DataType>(_width, tf)), control("control"),
       channels("channel", _channel_count), width(_width), length(_length), channel_count(_channel_count),
       access_counter(0)
 
 {
-#ifdef MEM_WAVE_TRACE
-    for (unsigned int row = 0; row < length; row++)
+    if (trace_mem)
     {
-        for (unsigned int col = 0; col < width; col++)
+        for (unsigned int row = 0; row < length; row++)
         {
-            sc_trace(tf, ram[row][col], ram[row][col].name());
+            for (unsigned int col = 0; col < width; col++)
+            {
+                sc_trace(tf, ram[row][col], ram[row][col].name());
+            }
         }
     }
-#endif
+
     control(_control);
     _clk(control->clk());
 

@@ -8,7 +8,8 @@
 #include <iostream>
 #include <map>
 #include <string>
-#include <systemc>
+#include <systemc.h>
+#include <type_traits>
 #include <vector>
 
 using std::cout;
@@ -51,7 +52,7 @@ struct Descriptor_2D
 
     void y_count_update(int count);
 
-    static void make_sequential(vector<Descriptor_2D> &program);
+    template <typename ProgramContainer> static void make_sequential(ProgramContainer &program);
 
     static Descriptor_2D delay_inst(int delay_time);
     static Descriptor_2D delay_inst(int start, int delay_time);

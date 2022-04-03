@@ -19,8 +19,9 @@ template <typename DataType> struct SSM_TB : public sc_module
 
     SSM_TB(sc_module_name name)
         : sc_module(name), tf(sc_create_vcd_trace_file("SSM_TB")),
-          control("global_control_channel", sc_time(1, SC_NS), tf), dut("dut", control, input_size, output_size, tf),
-          in_sig("in_sig", input_size), out_sig("out_sig", output_size)
+          control("global_control_channel", sc_time(1, SC_NS), tf),
+          dut("dut", control, input_size, output_size, tf, SSMMode::DYNAMIC), in_sig("in_sig", input_size),
+          out_sig("out_sig", output_size)
     {
         dut.in.bind(in_sig);
         dut.out.bind(out_sig);

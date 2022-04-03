@@ -6,6 +6,9 @@
 #include "ProcEngine.hh"
 #include "SAM.hh"
 #include "SSM.hh"
+#include <cstdio>
+#include <cstring>
+#include <fmt/format.h>
 #include <stdexcept>
 #include <systemc.h>
 
@@ -40,9 +43,10 @@ template <typename DataType> struct SAMVectorCreator
     unsigned int length;
     unsigned int width;
     sc_trace_file *tf;
+    bool trace_mem;
 
     SAMVectorCreator(GlobalControlChannel &_control, unsigned int _channel_count, unsigned int _length,
-                     unsigned int _width, sc_trace_file *_tf);
+                     unsigned int _width, sc_trace_file *_tf, bool _trace_mem = false);
 
     SAM<DataType> *operator()(const char *name, size_t);
 };
@@ -53,9 +57,10 @@ template <typename DataType> struct SSMVectorCreator
     unsigned int input_count;
     unsigned int output_count;
     sc_trace_file *tf;
+    SSMMode mode;
 
     SSMVectorCreator(GlobalControlChannel &_control, unsigned int input_count, unsigned int output_count,
-                     sc_trace_file *_tf);
+                     sc_trace_file *_tf, SSMMode _mode);
 
     SSM<DataType> *operator()(const char *name, size_t);
 };
@@ -84,9 +89,10 @@ template <typename DataType> struct Arch : public sc_module
     SAM<DataType> ifmap_mem;
     sc_vector<SAM<DataType>> ifmap_reuse_chain;
     sc_vector<sc_vector<sc_signal<DataType>>> ifmap_reuse_chain_signals;
+    sc_vector<sc_vector<sc_signal<DataType>>> unused_ifmap_reuse_chain_signals;
     sc_vector<sc_vector<sc_signal<DataType>>> ifmap_mem_read;
     sc_vector<sc_vector<sc_signal<DataType>>> ifmap_mem_write;
-    sc_vector<SSM<DataType>> ssm;
+    sc_vector<SSM<DataType>> ssms;
 
     unsigned int dram_access_counter{0};
     int filter_count;

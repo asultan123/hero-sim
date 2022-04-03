@@ -9,7 +9,7 @@
 #include <iostream>
 #include <map>
 #include <string>
-#include <systemc>
+#include <systemc.h>
 #include <vector>
 
 using std::cout;
@@ -46,7 +46,7 @@ template <typename DataType> struct AddressGenerator : public sc_module
 
     void loadInternalCountersFromIndex(unsigned int index);
 
-    void loadProgram(const vector<Descriptor_2D> &newProgram);
+    template <typename ProgramContainer> void loadProgram(const ProgramContainer &newProgram);
 
     void resetProgramMemory();
 

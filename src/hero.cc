@@ -26,56 +26,64 @@ template <typename DataType> PE<DataType> *PeCreator<DataType>::operator()(const
 
 template <typename DataType>
 SAMVectorCreator<DataType>::SAMVectorCreator(GlobalControlChannel &_control, unsigned int _channel_count,
-                                             unsigned int _length, unsigned int _width, sc_trace_file *_tf)
-    : control(_control), channel_count(_channel_count), length(_length), width(_width), tf(_tf)
+                                             unsigned int _length, unsigned int _width, sc_trace_file *_tf,
+                                             bool _trace_mem)
+    : control(_control), channel_count(_channel_count), length(_length), width(_width), tf(_tf), trace_mem(_trace_mem)
 {
 }
 
 template <typename DataType> SAM<DataType> *SAMVectorCreator<DataType>::operator()(const char *name, size_t)
 {
-    return new SAM<DataType>(name, control, channel_count, length, width, tf);
+    return new SAM<DataType>(name, control, channel_count, length, width, tf, trace_mem);
 }
 
 template <typename DataType>
 SSMVectorCreator<DataType>::SSMVectorCreator(GlobalControlChannel &_control, unsigned int input_count,
-                                             unsigned int output_count, sc_trace_file *_tf)
-    : control(_control), input_count(input_count), output_count(output_count), tf(_tf)
+                                             unsigned int output_count, sc_trace_file *_tf, SSMMode _mode)
+    : control(_control), input_count(input_count), output_count(output_count), tf(_tf), mode(_mode)
 {
 }
 
 template <typename DataType> SSM<DataType> *SSMVectorCreator<DataType>::operator()(const char *name, size_t)
 {
-    return new SSM<DataType>(name, control, input_count, output_count, tf);
+    return new SSM<DataType>(name, control, input_count, output_count, tf, mode);
 }
 
 template <typename DataType> void Arch<DataType>::suspend_monitor()
 {
-    while (1)
+    try
     {
-        while (control->enable())
+        while (1)
         {
-            bool pes_suspended = true;
-            for (auto &pe : pe_array)
+            while (control->enable())
             {
-                pes_suspended &= (pe.program.at(pe.prog_idx).state == DescriptorState::SUSPENDED);
-            }
-            bool ifmap_generators_suspended = true;
-            for (auto &gen : ifmap_mem.generators)
-            {
-                ifmap_generators_suspended &= (gen.currentDescriptor().state == DescriptorState::SUSPENDED);
-            }
-            bool psum_generators_suspended = true;
-            for (auto &gen : psum_mem.generators)
-            {
-                psum_generators_suspended &= (gen.currentDescriptor().state == DescriptorState::SUSPENDED);
-            }
-            if (pes_suspended && ifmap_generators_suspended && psum_generators_suspended)
-            {
-                sc_stop();
+                bool pes_suspended = true;
+                for (auto &pe : pe_array)
+                {
+                    pes_suspended &= (pe.program.at(pe.prog_idx).state == DescriptorState::SUSPENDED);
+                }
+                bool ifmap_generators_suspended = true;
+                for (auto &gen : ifmap_mem.generators)
+                {
+                    ifmap_generators_suspended &= (gen.currentDescriptor().state == DescriptorState::SUSPENDED);
+                }
+                bool psum_generators_suspended = true;
+                for (auto &gen : psum_mem.generators)
+                {
+                    psum_generators_suspended &= (gen.currentDescriptor().state == DescriptorState::SUSPENDED);
+                }
+                if (pes_suspended && ifmap_generators_suspended && psum_generators_suspended)
+                {
+                    sc_stop();
+                }
+                wait();
             }
             wait();
         }
-        wait();
+    }
+    catch (...)
+    {
+        cout << "exception " << endl;
     }
 }
 
@@ -100,9 +108,16 @@ template <typename DataType> void Arch<DataType>::update_3x3()
                     {
                         unsigned int kernel_group = channel_column / 9;
                         unsigned int kernel_row = channel_column % 3;
-                        auto &ifmap_pixel = ifmap_reuse_chain_signals.at(kernel_group).at(kernel_row);
-                        cur_pe.active_counter++;
-                        next_pe.psum_in = cur_pe.compute(ifmap_pixel.read());
+                        try
+                        {
+                            auto &ifmap_pixel = ifmap_reuse_chain_signals.at(kernel_group).at(kernel_row);
+                            cur_pe.active_counter++;
+                            next_pe.psum_in = cur_pe.compute(ifmap_pixel.read());
+                        }
+                        catch (const std::exception &e)
+                        {
+                            std::cerr << e.what() << '\n';
+                        }
                     }
                     else
                     {
@@ -118,9 +133,16 @@ template <typename DataType> void Arch<DataType>::update_3x3()
                     last_pe.active_counter++;
                     unsigned int channel_column = channel_count - 1;
                     unsigned int kernel_group = channel_column / 9;
-                    unsigned int kernel_row = 3;
-                    auto &ifmap_pixel = ifmap_reuse_chain_signals.at(kernel_group).at(kernel_row);
-                    psum_mem_write[filter_row][0] = last_pe.compute(ifmap_pixel);
+                    unsigned int kernel_row = 2;
+                    try
+                    {
+                        auto &ifmap_pixel = ifmap_reuse_chain_signals.at(kernel_group).at(kernel_row);
+                        psum_mem_write[filter_row][0] = last_pe.compute(ifmap_pixel);
+                    }
+                    catch (const std::exception &e)
+                    {
+                        std::cerr << e.what() << '\n';
+                    }
                 }
                 else
                 {
@@ -220,12 +242,14 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
       psum_mem_write("psum_mem_write", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
       ifmap_mem("ifmap_mem", _control, channel_count, ifmap_mem_size, 1, _tf), ifmap_reuse_chain("ifmap_reuse_chain"),
       ifmap_reuse_chain_signals("ifmap_reuse_chain_signals"),
+      unused_ifmap_reuse_chain_signals("unused_ifmap_reuse_chain_signals"),
       ifmap_mem_read("ifmap_mem_read", channel_count, SignalVectorCreator<DataType>(1, tf)),
-      ifmap_mem_write("ifmap_mem_write", channel_count, SignalVectorCreator<DataType>(1, tf)), ssm("ssm"),
+      ifmap_mem_write("ifmap_mem_write", channel_count, SignalVectorCreator<DataType>(1, tf)), ssms("ssms"),
       kmapping(kmapping), mode(mode)
 {
     control(_control);
     _clk(control->clk());
+
     this->filter_count = filter_count;
     this->channel_count = channel_count;
     this->psum_mem_size = psum_mem_size;
@@ -265,32 +289,43 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
                                                                                      2,   // port count
                                                                                      512, // over estimating length
                                                                                      1,   // width
-                                                                                     _tf));
-        // create enough signals for for all tails in the  different reuse chains
+                                                                                     _tf, true));
+
         ifmap_reuse_chain_signals.init(kernel_groups_count, SignalVectorCreator<DataType>(3, tf));
+        unused_ifmap_reuse_chain_signals.init(kernel_groups_count, SignalVectorCreator<DataType>(3, tf));
 
-        ssm.init(kernel_groups_count, SSMVectorCreator<DataType>(_control,
-                                                                 9, // input_count
-                                                                 1, // output_count
-                                                                 _tf));
-
-        // bind ifmap channel memory read ports to SSM input ports for each kernel group
-        for (int ifmap_read_signal_idx = 0; ifmap_read_signal_idx < channel_count; ifmap_read_signal_idx++)
+        for (auto &signal_group : ifmap_reuse_chain_signals)
         {
-            int ssm_idx = ifmap_read_signal_idx / 9;
-            int ssm_port_idx = ifmap_read_signal_idx % 9;
-            auto &ssm_in_port = ssm.at(ssm_idx).in.at(ssm_port_idx);
-            ssm_in_port.bind(ifmap_mem_read[ifmap_read_signal_idx][0]);
+            for (auto &signal : signal_group)
+            {
+                sc_trace(tf, signal, signal.name());
+            }
         }
 
-        // bind ssm out port to head of ifmap reuse chain
+        ssms.init(kernel_groups_count, SSMVectorCreator<DataType>(_control,
+                                                                  channel_count, // input_count
+                                                                  1,             // output_count
+                                                                  _tf, SSMMode::STATIC));
+
+        for (auto &ssm : ssms)
+        {
+            for (int ifmap_read_signal_idx = 0; ifmap_read_signal_idx < channel_count; ifmap_read_signal_idx++)
+            {
+                auto &ssm_in_port = ssm.in.at(ifmap_read_signal_idx);
+                ssm_in_port.bind(ifmap_mem_read[ifmap_read_signal_idx][0]);
+            }
+        }
+
+        // bind ssms out port to head of ifmap reuse chain
         for (unsigned int kernel_group_idx = 0; kernel_group_idx < kernel_groups_count; kernel_group_idx++)
         {
             auto &head_of_chain = ifmap_reuse_chain.at(kernel_group_idx * 2);
-            auto &ssm_output_port = ssm.at(kernel_group_idx).out.at(0);
+            auto &ssm_output_port = ssms.at(kernel_group_idx).out.at(0);
             auto &chain_signal = ifmap_reuse_chain_signals.at(kernel_group_idx).at(2);
+            auto &tie_down_signal = unused_ifmap_reuse_chain_signals.at(kernel_group_idx).at(2);
             ssm_output_port.bind(chain_signal);
             head_of_chain.write_channel_data[0][0].bind(chain_signal);
+            head_of_chain.read_channel_data[0][0].bind(tie_down_signal);
         }
 
         // bind tail of chain input port to head output port
@@ -299,8 +334,12 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
             auto &head_of_chain = ifmap_reuse_chain.at(kernel_group_idx * 2);
             auto &tail_of_chain = ifmap_reuse_chain.at(kernel_group_idx * 2 + 1);
             auto &chain_signal = ifmap_reuse_chain_signals.at(kernel_group_idx).at(1);
-            head_of_chain.read_channel_data[0][0].bind(chain_signal);
+            auto &tie_down_signal = unused_ifmap_reuse_chain_signals.at(kernel_group_idx).at(1);
+            head_of_chain.read_channel_data[1][0].bind(chain_signal);
             tail_of_chain.write_channel_data[0][0].bind(chain_signal);
+
+            head_of_chain.write_channel_data[1][0].bind(tie_down_signal);
+            tail_of_chain.read_channel_data[0][0].bind(tie_down_signal);
         }
 
         // bind tail read ports to signals to prevent simulator from failing bind assertion
@@ -310,7 +349,9 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
         {
             auto &tail_of_chain = ifmap_reuse_chain.at(kernel_group_idx * 2 + 1);
             auto &chain_signal = ifmap_reuse_chain_signals.at(kernel_group_idx).at(0);
-            tail_of_chain.write_channel_data[0][0].bind(chain_signal);
+            auto &tie_down_signal = unused_ifmap_reuse_chain_signals.at(kernel_group_idx).at(0);
+            tail_of_chain.read_channel_data[1][0].bind(chain_signal);
+            tail_of_chain.write_channel_data[1][0].bind(tie_down_signal);
         }
 
         SC_THREAD(update_3x3);

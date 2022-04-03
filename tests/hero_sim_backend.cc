@@ -13,6 +13,7 @@
 #include <chrono>
 #include <cmath>
 #include <deque>
+#include <fmt/format.h>
 #include <iomanip>
 #include <iostream>
 #include <memory>
@@ -45,6 +46,7 @@ namespace po = boost::program_options;
 template <typename DataType>
 void dram_load(Hero::Arch<DataType> &arch, xt::xarray<int> ifmap, int channel_in, int ifmap_h, int ifmap_w)
 {
+    // TODO #42
     for (int c = 0; c < channel_in; c++)
     {
         for (int i = 0; i < ifmap_h; i++)
@@ -150,21 +152,41 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     sc_start(1, SC_NS);
 
     auto ifmap = LayerGeneration::generate_ifmap<DataType>(arch, c_in, ifmap_h, ifmap_w);
+
+    cout << ifmap << endl;
+
     dram_load(arch, ifmap, c_in, ifmap_h, ifmap_w);
 
     weights = LayerGeneration::generate_weights<DataType>(f_out, c_in, k);
+
     padded_weights = LayerGeneration::pad_weights(arch, weights, f_out, c_in, k);
 
     load_padded_weights_into_pes(arch, padded_weights);
 
-    GenerateDescriptors::generate_and_load_arch_descriptors(arch, ifmap_h, ifmap_w, padded_weights, ofmap_h, ofmap_w);
+    try
+    {
+        GenerateDescriptors::generate_and_load_arch_descriptors(arch, ifmap_h, ifmap_w, padded_weights, ofmap_h,
+                                                                ofmap_w);
+    }
+    catch (...)
+    {
+        fmt::print("Caught exception during program generation... continuing");
+    }
 
     control.set_program(true);
     arch.set_channel_modes();
     sc_start(1, SC_NS);
     control.set_enable(true);
     control.set_program(false);
-    sc_start();
+    try
+    {
+        sc_start();
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << e.what() << '\n';
+        sc_close_vcd_trace_file(tf);
+    }
 
     auto arch_output = dram_store(arch, f_out, ofmap_h, ofmap_w);
     auto valid = LayerGeneration::validate_output(ifmap, weights, arch_output);
@@ -203,14 +225,13 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
 
 int sc_main(int argc, char *argv[])
 {
-    int ifmap_h = 32;
+    int ifmap_h = 16;
     int ifmap_w = 32;
-    int k = 1;
-    int c_in = 16;
-    int f_out = 16;
+    int k = 3;
+    int c_in = 2;
+    int f_out = 2;
     int filter_count = 7;
-    int channel_count = 9;
-    auto operation_mode = Hero::OperationMode::RUN_1x1;
+    int channel_count = 27;
 
     try
     {
@@ -250,9 +271,9 @@ int sc_main(int argc, char *argv[])
             throw std::invalid_argument("total ifmap sizes below 11 currently unsupported");
         }
 
-        if (k > 1)
+        if (k != 1 && k != 3)
         {
-            throw std::invalid_argument("kernel sizes greater than 1 currently unsupported");
+            throw std::invalid_argument("kernel sizes not equal to 1x1 or 3x3");
         }
     }
     catch (std::exception &e)
@@ -284,6 +305,7 @@ int sc_main(int argc, char *argv[])
     cout << std::left << std::setw(20) << "c_in" << c_in << endl;
     cout << std::left << std::setw(20) << "f_out" << f_out << endl;
 
+    auto operation_mode = (k == 1) ? Hero::OperationMode::RUN_1x1 : Hero::OperationMode::RUN_3x3;
     sim_and_get_results<sc_int<32>>(ifmap_h, ifmap_w, k, c_in, f_out, filter_count, channel_count, operation_mode);
 
     return 0;

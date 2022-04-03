@@ -8,7 +8,7 @@
 #include <map>
 #include <stdexcept>
 #include <string>
-#include <systemc>
+#include <systemc.h>
 #include <vector>
 
 using std::cout;

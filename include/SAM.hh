@@ -6,7 +6,7 @@
 #include <assert.h>
 #include <iostream>
 #include <string>
-#include <systemc>
+#include <systemc.h>
 
 using std::cout;
 using std::endl;
@@ -48,7 +48,7 @@ template <typename DataType> struct SAM : public sc_module
     void out_port_propogate();
 
     SAM(sc_module_name name, GlobalControlChannel &_control, unsigned int _channel_count, unsigned int _length,
-        unsigned int _width, sc_trace_file *tf);
+        unsigned int _width, sc_trace_file *tf, bool _trace_mem = false);
 
     SC_HAS_PROCESS(SAM);
 };

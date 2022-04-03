@@ -36,8 +36,11 @@ Descriptor_2D Descriptor_2D::default_descriptor()
     return {0, 0, DescriptorState::SUSPENDED, 0, 0, 0, 0};
 }
 
-void Descriptor_2D::make_sequential(vector<Descriptor_2D> &program)
+template <typename ProgramContainer> void Descriptor_2D::make_sequential(ProgramContainer &program)
 {
+    static_assert(std::is_same<typename ProgramContainer::value_type, Descriptor_2D>::value,
+                  "Program container must contain only Descriptor_2Ds");
+
     int idx = 1;
     for (auto &desc : program)
     {

@@ -85,6 +85,11 @@ xt::xarray<int> pad_weights(Hero::Arch<DataType> &arch, xt::xarray<int> weights,
     {
     case Hero::KernelMapping::HORIZONTAL:
     {
+        if (arch.channel_count % kernel_size != 0)
+        {
+            throw std::invalid_argument(
+                "Architecture channel count has to be a multiple of layer kernel size requested");
+        }
         weights.reshape({filter_out_dim, channel_in_dim * kernel_size});
         verticle_padding = ceil((float)filter_out_dim / arch.filter_count) * arch.filter_count - filter_out_dim;
         horizontal_padding = ceil((float)(channel_in_dim * kernel_size) / arch.channel_count) * arch.channel_count -

@@ -61,8 +61,8 @@ template <typename DataType> void SAM<DataType>::out_port_propogate()
 // Constructor
 template <typename DataType>
 SAM<DataType>::SAM(sc_module_name name, GlobalControlChannel &_control, unsigned int _channel_count,
-                   unsigned int _length, unsigned int _width, sc_trace_file *tf)
-    : sc_module(name), mem("mem", _control, _channel_count, _length, _width, tf),
+                   unsigned int _length, unsigned int _width, sc_trace_file *tf, bool _trace_mem)
+    : sc_module(name), mem("mem", _control, _channel_count, _length, _width, tf, _trace_mem),
       generators("generator", _channel_count, AddressGeneratorCreator<DataType>(_control, tf)),
       channels("channels", _channel_count, MemoryChannelCreator<DataType>(_width, tf)),
       read_channel_data("read_channel_data", _channel_count, OutDataPortCreator<DataType>(_width, tf)),
@@ -95,10 +95,8 @@ SAM<DataType>::SAM(sc_module_name name, GlobalControlChannel &_control, unsigned
         for (unsigned int data_index = 0; data_index < width; data_index++)
         {
             sensitive << channels[channel_index].get_channel_read_data_bus()[data_index];
-#ifdef TRACE
             sc_trace(tf, read_channel_data[channel_index][data_index],
                      read_channel_data[channel_index][data_index].name());
-#endif
         }
     }
 
