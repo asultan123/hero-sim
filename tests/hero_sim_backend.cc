@@ -225,11 +225,11 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
 
 int sc_main(int argc, char *argv[])
 {
-    int ifmap_h = 32;
-    int ifmap_w = 32;
+    int ifmap_h = 64;
+    int ifmap_w = 64;
     int k = 3;
-    int c_in = 3;
-    int f_out = 8;
+    int c_in = 6;
+    int f_out = 37;
     int filter_count = 8;
     int channel_count = 27;
 

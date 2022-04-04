@@ -312,20 +312,19 @@ template <typename DataType> void generate_and_load_pe_program(Hero::Arch<DataTy
     int stream_size = ifmap_h * ifmap_w;
     int delay_offset = 1;
     const int arch_effective_channel_count = arch.channel_count / 9;
+    const int reuse_chain_delay = 6;
+    const int systolic_delay = 9;
 
-    for (int channel_column = 0; channel_column < arch_effective_channel_count; channel_column++)
+    for (int channel_column = 0; channel_column < arch.channel_count; channel_column++)
     {
         for (int filter_row = 0; filter_row < arch.filter_count; filter_row++)
         {
-            for (int kernel_idx = 0; kernel_idx < 9; kernel_idx++)
-            {
-                PE<DataType> &cur_pe = arch.pe_array[filter_row * arch.channel_count + channel_column * 9 + kernel_idx];
-                vector<Descriptor_2D> program;
-                program.push_back(Descriptor_2D::delay_inst(channel_column + delay_offset));
-                program.push_back(Descriptor_2D::genhold_inst(0, stream_size, cur_pe.weights.size() - 1, 1));
-                program.push_back(Descriptor_2D::suspend_inst());
-                cur_pe.loadProgram(program);
-            }
+            PE<DataType> &cur_pe = arch.pe_array[filter_row * arch.channel_count + channel_column];
+            vector<Descriptor_2D> program;
+            program.push_back(Descriptor_2D::delay_inst(7));
+            program.push_back(Descriptor_2D::genhold_inst(0, stream_size + 9, cur_pe.weights.size() - 1, 1));
+            program.push_back(Descriptor_2D::suspend_inst());
+            cur_pe.loadProgram(program);
         }
     }
 }
