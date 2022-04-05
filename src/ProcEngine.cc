@@ -16,11 +16,13 @@ PE<DataType>::PE(sc_module_name name, sc_trace_file *_tf)
 
 template <typename DataType> DataType PE<DataType>::compute(sc_signal<DataType> &input)
 {
+    // return this->current_weight.read() * input.read();
     return this->current_weight.read() * input.read() + this->psum_in.read();
 }
 
 template <typename DataType> DataType PE<DataType>::compute(unsigned long int input)
 {
+    // return this->current_weight.read() * input;
     return this->current_weight.read() * input + this->psum_in.read();
 }
 

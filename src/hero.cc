@@ -89,6 +89,7 @@ template <typename DataType> void Arch<DataType>::suspend_monitor()
 
 template <typename DataType> void Arch<DataType>::update_3x3()
 {
+    auto &current_time = sc_time_stamp();
     while (1)
     {
         while (control->enable())
@@ -107,12 +108,12 @@ template <typename DataType> void Arch<DataType>::update_3x3()
                     if (cur_pe.current_weight.read() != -1)
                     {
                         unsigned int kernel_group = channel_column / 9;
-                        unsigned int kernel_row = channel_column % 3;
+                        unsigned int kernel_row = (channel_column % 9) / 3;
                         try
                         {
                             auto &ifmap_pixel = ifmap_reuse_chain_signals.at(kernel_group).at(kernel_row);
                             cur_pe.active_counter++;
-                            next_pe.psum_in = cur_pe.compute(ifmap_pixel.read());
+                            next_pe.psum_in = cur_pe.compute(ifmap_pixel);
                         }
                         catch (const std::exception &e)
                         {
@@ -133,7 +134,7 @@ template <typename DataType> void Arch<DataType>::update_3x3()
                     last_pe.active_counter++;
                     unsigned int channel_column = channel_count - 1;
                     unsigned int kernel_group = channel_column / 9;
-                    unsigned int kernel_row = 2;
+                    unsigned int kernel_row = (channel_column % 9) / 3;
                     try
                     {
                         auto &ifmap_pixel = ifmap_reuse_chain_signals.at(kernel_group).at(kernel_row);
@@ -237,7 +238,7 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
                      int psum_mem_size, int ifmap_mem_size, sc_trace_file *_tf, OperationMode mode,
                      KernelMapping kmapping)
     : sc_module(name), pe_array("pe_array", filter_count * channel_count, PeCreator<DataType>(_tf)), tf(_tf),
-      psum_mem("psum_mem", _control, filter_count * 2, psum_mem_size, 1, _tf),
+      psum_mem("psum_mem", _control, filter_count * 2, psum_mem_size, 1, _tf, true),
       psum_mem_read("psum_mem_read", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
       psum_mem_write("psum_mem_write", filter_count * 2, SignalVectorCreator<DataType>(1, tf)),
       ifmap_mem("ifmap_mem", _control, channel_count, ifmap_mem_size, 1, _tf), ifmap_reuse_chain("ifmap_reuse_chain"),

@@ -132,7 +132,19 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     int ofmap_h = (ifmap_h - k + 1);
     int ofmap_w = (ifmap_w - k + 1);
     int ifmap_mem_size = c_in * ifmap_h * ifmap_w;
-    int psum_mem_size = f_out * ofmap_h * ofmap_w;
+    int psum_mem_size;
+    if (op_mode == Hero::OperationMode::RUN_1x1)
+    {
+        psum_mem_size = f_out * ofmap_h * ofmap_w;
+    }
+    else if (op_mode == Hero::OperationMode::RUN_3x3)
+    {
+        psum_mem_size = f_out * ofmap_h * ifmap_w;
+    }
+    else
+    {
+        throw "Invalid Accelerator Operation Mode";
+    }
 
     xt::xarray<int> weights, padded_weights;
 
@@ -225,13 +237,21 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
 
 int sc_main(int argc, char *argv[])
 {
-    int ifmap_h = 64;
-    int ifmap_w = 64;
+    // int ifmap_h = 10;
+    // int ifmap_w = 10;
+    // int k = 3;
+    // int c_in = 2;
+    // int f_out = 4;
+    // int filter_count = 1;
+    // int channel_count = 18;
+
+    int ifmap_h = 10;
+    int ifmap_w = 10;
     int k = 3;
-    int c_in = 6;
-    int f_out = 37;
-    int filter_count = 8;
-    int channel_count = 27;
+    int c_in = 3;
+    int f_out = 1;
+    int filter_count = 1;
+    int channel_count = 18;
 
     try
     {
