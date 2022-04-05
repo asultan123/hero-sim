@@ -232,7 +232,7 @@ void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> 
             if (active)
             {
                 program.push_back(Descriptor_2D::delay_inst(stream_size - 4 * (v == 0) - 1));
-                for (int h = 1; h < horizontal_tile_count; h++)
+                for (int h = 1; h < horizontal_tile_count; h++) // TODO: #44 Bias not loaded
                 {
                     program.push_back(Descriptor_2D::stream_inst((v * arch.filter_count * stream_size) +
                                                                      (read_gen_idx - arch.filter_count) * stream_size,
@@ -398,7 +398,7 @@ void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> 
             auto active = run_bitmap(v, (read_gen_idx_adjusted));
             if (active)
             {
-                for (int h = 1; h < horizontal_tile_count; h++)
+                for (int h = 0; h < horizontal_tile_count; h++)
                 {
                     program.push_back(Descriptor_2D::stream_inst(
                         v * arch.filter_count * stream_size + read_gen_idx_adjusted * stream_size, stream_size - 1, 0));

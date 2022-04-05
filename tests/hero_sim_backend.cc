@@ -248,9 +248,9 @@ int sc_main(int argc, char *argv[])
     int ifmap_h = 10;
     int ifmap_w = 10;
     int k = 3;
-    int c_in = 3;
-    int f_out = 1;
-    int filter_count = 1;
+    int c_in = 5;
+    int f_out = 5;
+    int filter_count = 3;
     int channel_count = 18;
 
     try
