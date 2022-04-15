@@ -4,7 +4,7 @@
 
 template <typename DataType>
 PE<DataType>::PE(sc_module_name name, sc_trace_file *_tf)
-    : sc_module(name), tf(_tf), psum_in("psum_in"), current_weight("weight")
+    : sc_module(name), tf(_tf), psum_in("psum_in"), current_weight("weight"), prog_idx_sig("prog_idx")
 {
     this->resetWeightIdx();
     this->resetWeights();
@@ -12,6 +12,7 @@ PE<DataType>::PE(sc_module_name name, sc_trace_file *_tf)
     this->weight_access_counter = 0;
     sc_trace(tf, this->psum_in, (this->psum_in.name()));
     sc_trace(tf, this->current_weight, (this->current_weight.name()));
+    sc_trace(tf, this->prog_idx_sig, (this->prog_idx_sig.name()));
 }
 
 template <typename DataType> DataType PE<DataType>::compute(sc_signal<DataType> &input)
@@ -57,15 +58,19 @@ template <typename DataType> void PE<DataType>::loadProgram(vector<Descriptor_2D
         this->program.push_back(desc);
     }
     this->prog_idx = 0;
+    prog_idx_sig.write(prog_idx);
+
     this->programmed = true;
     weight_access_counter += 1;
 }
 
+// TODO: #45 
 template <typename DataType> void PE<DataType>::updateState()
 {
     if (this->programmed)
     {
         Descriptor_2D &current_desc = this->program.at(prog_idx);
+        prog_idx_sig.write(prog_idx);
 
         if (current_desc.state == DescriptorState::GENHOLD)
         {

@@ -27,6 +27,7 @@ template <typename DataType> struct PE : public sc_module
     int weight_idx;
     sc_signal<DataType> psum_in;
     sc_signal<int> current_weight;
+    sc_signal<int> prog_idx_sig;
     int prog_idx;
     bool programmed;
     vector<Descriptor_2D> program;
