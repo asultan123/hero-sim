@@ -1,64 +1,49 @@
 [*]
-[*] GTKWave Analyzer v3.3.86 (w)1999-2017 BSI
-[*] Tue Apr  5 08:16:19 2022
+[*] GTKWave Analyzer v3.3.103 (w)1999-2019 BSI
+[*] Fri Apr 15 07:02:58 2022
 [*]
 [dumpfile] "/home/sultan/remote_hero_sim/tests/Arch1x1.vcd"
-[dumpfile_mtime] "Tue Apr  5 08:11:38 2022"
-[dumpfile_size] 1696290
+[dumpfile_mtime] "Fri Apr 15 07:00:21 2022"
+[dumpfile_size] 1318300
 [savefile] "/home/sultan/remote_hero_sim/in_progress_validation.gtkw"
-[timestart] 152270
-[size] 2560 1440
+[timestart] 134230
+[size] 3840 1477
 [pos] -1 -1
-*-11.931639 147180 147180 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-11.000000 114000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] SystemC.
 [treeopen] SystemC.arch.
-[treeopen] SystemC.arch.pe_array_0.
-[treeopen] SystemC.arch.pe_array_3.
 [treeopen] SystemC.arch.psum_mem.
-[sst_width] 460
-[signals_width] 505
+[sst_width] 761
+[signals_width] 836
 [sst_expanded] 1
-[sst_vpaned_height] 515
-@24
+[sst_vpaned_height] 434
+@28
 SystemC.global_control_channel.clock
 SystemC.global_control_channel.enable
 SystemC.global_control_channel.program
 SystemC.global_control_channel.reset
+@24
+SystemC.arch.psum_mem.read_channel_data_3_0[31:0]
+SystemC.arch.psum_mem.read_channel_data_4_0[31:0]
+SystemC.arch.psum_mem.read_channel_data_5_0[31:0]
 SystemC.arch.ifmap_reuse_chain_signals_0_0[31:0]
 SystemC.arch.ifmap_reuse_chain_signals_0_1[31:0]
 SystemC.arch.ifmap_reuse_chain_signals_0_2[31:0]
-SystemC.arch.psum_mem.channels_3.read_channel_data_0[31:0]
-SystemC.arch.pe_array_0.psum_in[31:0]
-SystemC.arch.pe_array_1.psum_in[31:0]
-SystemC.arch.pe_array_2.psum_in[31:0]
-SystemC.arch.pe_array_3.psum_in[31:0]
-SystemC.arch.pe_array_4.psum_in[31:0]
-SystemC.arch.pe_array_5.psum_in[31:0]
-SystemC.arch.pe_array_6.psum_in[31:0]
-SystemC.arch.pe_array_7.psum_in[31:0]
-SystemC.arch.pe_array_8.psum_in[31:0]
-SystemC.arch.pe_array_9.psum_in[31:0]
-SystemC.arch.pe_array_10.psum_in[31:0]
-SystemC.arch.pe_array_11.psum_in[31:0]
-SystemC.arch.pe_array_12.psum_in[31:0]
-SystemC.arch.pe_array_13.psum_in[31:0]
-SystemC.arch.pe_array_14.psum_in[31:0]
-SystemC.arch.pe_array_15.psum_in[31:0]
-SystemC.arch.pe_array_16.psum_in[31:0]
-SystemC.arch.pe_array_17.psum_in[31:0]
+SystemC.arch.ifmap_reuse_chain_signals_1_0[31:0]
+SystemC.arch.ifmap_reuse_chain_signals_1_1[31:0]
+SystemC.arch.ifmap_reuse_chain_signals_1_2[31:0]
 SystemC.arch.psum_mem.write_channel_data_0_0[31:0]
-SystemC.arch.psum_mem.channels_0.addr[31:0]
-SystemC.arch.psum_mem.channels_1.addr[31:0]
-SystemC.arch.psum_mem.channels_2.addr[31:0]
-@28
-SystemC.arch.psum_mem.channels_0.enabled
-@200
--
+SystemC.arch.psum_mem.write_channel_data_1_0[31:0]
+SystemC.arch.psum_mem.write_channel_data_2_0[31:0]
+@22
+SystemC.arch.psum_mem.generator_3.execute_index[31:0]
 @24
-SystemC.arch.psum_mem.channels_3.addr[31:0]
-SystemC.arch.psum_mem.channels_4.addr[31:0]
-SystemC.arch.psum_mem.channels_5.addr[31:0]
-@29
+SystemC.arch.psum_mem.generator_3.current_ram_index[31:0]
+@28
 SystemC.arch.psum_mem.channels_3.enabled
+@24
+SystemC.arch.psum_mem.generator_3.x_count_remaining[31:0]
+@25
+SystemC.arch.psum_mem.channels_3.addr[31:0]
 [pattern_trace] 1
 [pattern_trace] 0
