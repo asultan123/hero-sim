@@ -375,11 +375,11 @@ void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> 
                 {
                     program.push_back(Descriptor_2D::stream_inst(
                         v * arch.filter_count * stream_size + write_gen_idx * stream_size, stream_size - 1, 0));
-                    // if ((h != horizontal_tile_count - 1) || (v != verticle_tile_count - 1))
-                    // {
+                    if ((h != horizontal_tile_count - 1) || (v != verticle_tile_count - 1))
+                    {
                         program.push_back(Descriptor_2D::delay_inst(arch.channel_count + reuse_chain_init - 2 -
                                                                     ((arch.channel_count / 9) - 1) * 9));
-                    // }
+                    }
                 }
             }
         }
@@ -408,11 +408,11 @@ void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> 
                         v * arch.filter_count * stream_size + read_gen_idx_adjusted * stream_size + initial_idx_offset,
                         stream_size - 1, 0));
                     
-                    // if ((h != horizontal_tile_count - 1) || (v != verticle_tile_count - 1))
-                    // {
+                    if ((h != horizontal_tile_count - 1) || (v != verticle_tile_count - 1))
+                    {
                         program.push_back(Descriptor_2D::delay_inst(arch.channel_count + reuse_chain_init - 2 -
                                             ((arch.channel_count / 9) - 1) * 9));
-                    // }
+                    }
 
                     // program.push_back(Descriptor_2D::stream_inst((v * arch.filter_count * stream_size) +
                     //                                                  (read_gen_idx - arch.filter_count) *
