@@ -139,7 +139,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     }
     else if (op_mode == Hero::OperationMode::RUN_3x3)
     {
-        psum_mem_size = f_out * ofmap_h * ifmap_w;
+        psum_mem_size = f_out * ofmap_h * ifmap_w + 2;
     }
     else
     {
@@ -248,8 +248,8 @@ int sc_main(int argc, char *argv[])
     int ifmap_h = 10;
     int ifmap_w = 10;
     int k = 3;
-    int c_in = 5;
-    int f_out = 5;
+    int c_in = 4;
+    int f_out = 6;
     int filter_count = 3;
     int channel_count = 18;
 
