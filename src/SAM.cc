@@ -110,7 +110,9 @@ SAM<DataType>::SAM(sc_module_name name, GlobalControlChannel &_control, unsigned
         mem.channels[channel_index](channels.at(channel_index));
     }
 
+    #ifdef DEBUG
     cout << " SAM MODULE: " << name << " has been instantiated " << endl;
+    #endif // DEBUG
 }
 
 // template struct SAMDataPortCreator<sc_int<32>>;

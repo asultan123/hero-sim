@@ -376,7 +376,9 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
     SC_THREAD(suspend_monitor);
     sensitive << _clk.pos();
     sensitive << control->reset();
+    #ifdef DEBUG
     cout << "Arch MODULE: " << name << " has been instantiated " << endl;
+    #endif // DEBUG
 }
 
 } // namespace Hero

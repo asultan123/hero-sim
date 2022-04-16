@@ -181,7 +181,9 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
 
     GlobalControlChannel control("global_control_channel", sc_time(1, SC_NS), tf);
     Hero::Arch<DataType> arch("arch", control, filter_count, channel_count, psum_mem_size, ifmap_mem_size, tf, op_mode);
-
+    
+    fmt::print("Instantiated HERO Arch\n");
+    
     unsigned long int start_cycle_time = sc_time_stamp().value();
     control.set_reset(true);
     sc_start(10, SC_NS);
@@ -189,8 +191,6 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     sc_start(1, SC_NS);
 
     auto ifmap = LayerGeneration::generate_ifmap<DataType>(arch, c_in, ifmap_h, ifmap_w);
-
-    cout << ifmap << endl;
 
     dram_load(arch, ifmap, c_in, ifmap_h, ifmap_w);
 
@@ -239,6 +239,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
         throw "Invalid Accelerator Operation Mode";
     }
 
+    fmt::print("Validating output\n");
     auto valid = LayerGeneration::validate_output(ifmap, weights, arch_output);
     unsigned long int end_cycle_time = sc_time_stamp().value();
 
@@ -283,13 +284,13 @@ int sc_main(int argc, char *argv[])
     // int filter_count = 1;
     // int channel_count = 18;
 
-    int ifmap_h = 224;
-    int ifmap_w = 224;
+    int ifmap_h = 64;
+    int ifmap_w = 64;
     int k = 3;
-    int c_in = 3;
-    int f_out = 16;
-    int filter_count = 4;
-    int channel_count = 54;
+    int c_in = 32;
+    int f_out = 32;
+    int filter_count = 32;
+    int channel_count = 18;
 
     try
     {

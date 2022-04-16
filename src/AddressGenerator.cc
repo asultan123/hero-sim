@@ -120,7 +120,9 @@ template <typename DataType> void AddressGenerator<DataType>::update()
         programmed = false;
         first_cycle = false;
         channel->reset();
+        #ifdef DEBUG
         std::cout << "@ " << sc_time_stamp() << " " << this->name() << ":MODULE has been reset" << std::endl;
+        #endif // DEBUG
     }
     else if (control->program())
     {
@@ -130,7 +132,9 @@ template <typename DataType> void AddressGenerator<DataType>::update()
         channel->set_addr(descriptors.at(0).start);
         programmed = true;
         first_cycle = true;
+        #ifdef DEBUG
         std::cout << "@ " << sc_time_stamp() << " " << this->name() << ":MODULE has been programmed" << std::endl;
+        #endif // DEBUG
     }
     else if (control->enable() && programmed)
     {
@@ -237,7 +241,9 @@ AddressGenerator<DataType>::AddressGenerator(sc_module_name name, GlobalControlC
     sensitive << _reset.pos();
 
     // connect signals
+    #ifdef DEBUG
     std::cout << "ADDRESS_GENERATOR MODULE: " << name << " has been instantiated " << std::endl;
+    #endif // DEBUG
 }
 
 template <typename DataType>

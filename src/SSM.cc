@@ -62,7 +62,9 @@ SSM<DataType>::SSM(sc_module_name name, GlobalControlChannel &_control, unsigned
     {
         sensitive << in_channel->channel_addr;
     }
+    #ifdef DEBUG
     cout << "SSM MODULE: " << name << " has been instantiated " << endl;
+    #endif // DEBUG
 }
 
 template <typename DataType> void SSM<DataType>::set_static_input_port_select(int _static_input_port_select)

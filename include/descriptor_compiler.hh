@@ -89,8 +89,6 @@ xt::xarray<int> get_ifmap_mem_run_bitmap(Hero::Arch<DataType> &arch, xt::xarray<
     int input_channel_count = (padded_weights.shape()[1] / horizontal_kernel_size);
     int horizontal_tile_count = input_channel_count / arch_effective_channel_count;
 
-    cout << padded_weights << endl;
-
     xt::xarray<int> run_bitmap =
         xt::zeros<int>({verticle_tile_count, horizontal_tile_count, (int)arch_effective_channel_count});
 
@@ -116,8 +114,6 @@ xt::xarray<int> get_ifmap_mem_run_bitmap(Hero::Arch<DataType> &arch, xt::xarray<
                 padded_weights,
                 xt::range(filter_offset, filter_offset + (arch_effective_filter_count * verticle_kernel_size)),
                 xt::range(channel_offset, channel_offset + (arch_effective_channel_count * horizontal_kernel_size)));
-
-            cout << tiled_view << endl;
 
             int verticle_tile_idx = filter_offset / (arch_effective_filter_count * verticle_kernel_size);
             int horizontal_tile_idx = channel_offset / (arch_effective_channel_count * horizontal_kernel_size);
