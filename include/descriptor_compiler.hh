@@ -307,13 +307,12 @@ template <typename DataType> void generate_and_load_ssm_program(Hero::Arch<DataT
     }
 }
 
-template <typename DataType> void generate_and_load_pe_program(Hero::Arch<DataType> &arch, int ifmap_h, int ifmap_w)
+template <typename DataType>
+void generate_and_load_pe_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights, int ifmap_h, int ifmap_w,
+                                  int ofmap_h, int ofmap_w)
 {
     int stream_size = ifmap_h * ifmap_w;
-    int delay_offset = 1;
-    const int arch_effective_channel_count = arch.channel_count / 9;
-    const int reuse_chain_delay = 6;
-    const int systolic_delay = 9;
+    const int reuse_chain_delay = ifmap_w * 2;
 
     for (int channel_column = 0; channel_column < arch.channel_count; channel_column++)
     {
@@ -321,8 +320,10 @@ template <typename DataType> void generate_and_load_pe_program(Hero::Arch<DataTy
         {
             PE<DataType> &cur_pe = arch.pe_array[filter_row * arch.channel_count + channel_column];
             vector<Descriptor_2D> program;
-            program.push_back(Descriptor_2D::delay_inst(7));
-            program.push_back(Descriptor_2D::genhold_inst(0, stream_size + 9, cur_pe.weights.size() - 1, 1));
+            program.push_back(Descriptor_2D::delay_inst(reuse_chain_delay + 2));
+            program.push_back(Descriptor_2D::genhold_inst(
+                0, stream_size + 9,
+                cur_pe.weights.size() - 1, 1));
             program.push_back(Descriptor_2D::suspend_inst());
             cur_pe.loadProgram(program);
         }
@@ -407,11 +408,11 @@ void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> 
                     program.push_back(Descriptor_2D::stream_inst(
                         v * arch.filter_count * stream_size + read_gen_idx_adjusted * stream_size + initial_idx_offset,
                         stream_size - 1, 0));
-                    
+
                     if ((h != horizontal_tile_count - 1) || (v != verticle_tile_count - 1))
                     {
                         program.push_back(Descriptor_2D::delay_inst(arch.channel_count + reuse_chain_init - 2 -
-                                            ((arch.channel_count / 9) - 1) * 9));
+                                                                    ((arch.channel_count / 9) - 1) * 9));
                     }
 
                     // program.push_back(Descriptor_2D::stream_inst((v * arch.filter_count * stream_size) +
@@ -613,7 +614,7 @@ void generate_and_load_arch_descriptors(Hero::Arch<DataType> &arch, int ifmap_h,
     case Hero::OperationMode::RUN_3x3:
         GenerateDescriptors3x3::generate_and_load_ifmap_in_program(arch, padded_weights, ifmap_h, ifmap_w);
         GenerateDescriptors3x3::generate_and_load_ssm_program(arch, ifmap_h, ifmap_w);
-        GenerateDescriptors3x3::generate_and_load_pe_program(arch, ifmap_h, ifmap_w);
+        GenerateDescriptors3x3::generate_and_load_pe_program(arch, padded_weights, ifmap_h, ifmap_w, ofmap_h, ofmap_w);
         GenerateDescriptors3x3::generate_and_load_ifmap_channel_to_reuse_chain_program(arch, padded_weights, ifmap_h,
                                                                                        ifmap_w);
         GenerateDescriptors3x3::generate_and_load_psum_program(arch, padded_weights, ifmap_h, ifmap_w, ofmap_h,
