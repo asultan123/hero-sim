@@ -5,7 +5,8 @@
 template <typename DataType>
 SSM<DataType>::SSM(sc_module_name name, GlobalControlChannel &_control, unsigned int _input_count,
                    unsigned int _output_count, sc_trace_file *_tf, SSMMode _mode)
-    : sc_module(name), input_count(_input_count), output_count(_output_count), in("in"), out("out"), mode(_mode)
+    : sc_module(name), input_count(_input_count), output_count(_output_count), in("in"), out("out"), mode(_mode),
+      static_input_port_select(0), static_output_port_select(0)
 {
     if (input_count <= 0 || output_count <= 0)
     {
