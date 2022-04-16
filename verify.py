@@ -13,13 +13,13 @@ import colorlog
 from colorlog import ColoredFormatter
 
 formatter = ColoredFormatter(
-	"%(asctime)s %(log_color)s%(levelname)-8s%(reset)s %(blue)s%(message)s",
+	"%(log_color)s%(asctime)s %(log_color)s%(levelname)-8s%(reset)s %(log_color)s%(message)s",
 	datefmt='%Y-%m-%d %H:%M:%S',
 	reset=True,
 	log_colors={
 		'DEBUG':    'cyan',
-		'INFO':     'green',
-		'WARNING':  'yellow',
+		'INFO':     'yellow',
+		'WARNING':  'orange',
 		'ERROR':    'red',
 		'CRITICAL': 'red,bg_white',
 	},
