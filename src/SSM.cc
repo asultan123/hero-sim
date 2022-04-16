@@ -27,6 +27,7 @@ SSM<DataType>::SSM(sc_module_name name, GlobalControlChannel &_control, unsigned
     in.init(input_count);
     out.init(output_count);
 
+    #ifdef DEBUG
     for (auto &port : in)
     {
         sc_trace(_tf, port, port.name());
@@ -35,6 +36,7 @@ SSM<DataType>::SSM(sc_module_name name, GlobalControlChannel &_control, unsigned
     {
         sc_trace(_tf, port, port.name());
     }
+    #endif // DEBUG
 
     if (input_count > 1)
     {

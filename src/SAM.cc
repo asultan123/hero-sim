@@ -83,8 +83,10 @@ SAM<DataType>::SAM(sc_module_name name, GlobalControlChannel &_control, unsigned
         for (unsigned int data_index = 0; data_index < width; data_index++)
         {
             sensitive << write_channel_data[channel_index][data_index];
+            #ifdef DEBUG
             sc_trace(tf, write_channel_data[channel_index][data_index],
                      write_channel_data[channel_index][data_index].name());
+            #endif // DEBUG
         }
     }
 
@@ -95,8 +97,10 @@ SAM<DataType>::SAM(sc_module_name name, GlobalControlChannel &_control, unsigned
         for (unsigned int data_index = 0; data_index < width; data_index++)
         {
             sensitive << channels[channel_index].get_channel_read_data_bus()[data_index];
+            #ifdef DEBUG
             sc_trace(tf, read_channel_data[channel_index][data_index],
                      read_channel_data[channel_index][data_index].name());
+            #endif // DEBUG
         }
     }
 

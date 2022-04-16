@@ -222,12 +222,15 @@ AddressGenerator<DataType>::AddressGenerator(sc_module_name name, GlobalControlC
     _clk(control->clk());
     _reset(control->reset());
     execute_index = 0;
+    #ifdef DEBUG
+        sc_trace(tf, this->execute_index, (this->execute_index.name()));
+        sc_trace(tf, this->current_ram_index, (this->current_ram_index.name()));
+        sc_trace(tf, this->x_count_remaining, (this->x_count_remaining.name()));
+        sc_trace(tf, this->y_count_remaining, (this->y_count_remaining.name()));
+        sc_trace(tf, this->repeat, (this->repeat.name()));
+    #endif // DEBUG
     // sc_trace(tf, this->execute_index, (this->execute_index.name()));
-    sc_trace(tf, this->execute_index, (this->execute_index.name()));
-    sc_trace(tf, this->current_ram_index, (this->current_ram_index.name()));
-    sc_trace(tf, this->x_count_remaining, (this->x_count_remaining.name()));
-    sc_trace(tf, this->y_count_remaining, (this->y_count_remaining.name()));
-    sc_trace(tf, this->repeat, (this->repeat.name()));
+
 
     SC_METHOD(update);
     sensitive << _clk.pos();

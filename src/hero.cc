@@ -263,18 +263,24 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
     }
     for (int i = 0; i < filter_count; i++)
     {
+        #ifdef DEBUG
         sc_trace(tf, psum_mem_write[i][0], (this->psum_mem_write[i][0].name()));
+        #endif // DEBUG
     }
     for (int i = filter_count; i < filter_count * 2; i++)
     {
+        #ifdef DEBUG
         sc_trace(tf, psum_mem_read[i][0], (this->psum_mem_read[i][0].name()));
+        #endif // DEBUG
     }
 
     for (int i = 0; i < channel_count; i++)
     {
         ifmap_mem.read_channel_data[i][0](ifmap_mem_read[i][0]);
         ifmap_mem.write_channel_data[i][0](ifmap_mem_write[i][0]);
+        #ifdef DEBUG
         sc_trace(tf, ifmap_mem_read[i][0], (this->ifmap_mem_read[i][0].name()));
+        #endif // DEBUG
     }
 
     if (mode == OperationMode::RUN_1x1)
@@ -299,7 +305,9 @@ Arch<DataType>::Arch(sc_module_name name, GlobalControlChannel &_control, int fi
         {
             for (auto &signal : signal_group)
             {
+                #ifdef DEBUG
                 sc_trace(tf, signal, signal.name());
+                #endif // DEBUG
             }
         }
 

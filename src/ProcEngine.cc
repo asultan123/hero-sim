@@ -10,9 +10,11 @@ PE<DataType>::PE(sc_module_name name, sc_trace_file *_tf)
     this->resetWeights();
     this->programmed = false;
     this->weight_access_counter = 0;
+    #ifdef DEBUG
     sc_trace(tf, this->psum_in, (this->psum_in.name()));
     sc_trace(tf, this->current_weight, (this->current_weight.name()));
     sc_trace(tf, this->prog_idx_sig, (this->prog_idx_sig.name()));
+    #endif // DEBUG
 }
 
 template <typename DataType> DataType PE<DataType>::compute(sc_signal<DataType> &input)

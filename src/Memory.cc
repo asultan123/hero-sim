@@ -87,7 +87,9 @@ Memory<DataType>::Memory(sc_module_name name, GlobalControlChannel &_control, un
         {
             for (unsigned int col = 0; col < width; col++)
             {
+                #ifdef DEBUG
                 sc_trace(tf, ram[row][col], ram[row][col].name());
+                #endif // DEBUG
             }
         }
     }

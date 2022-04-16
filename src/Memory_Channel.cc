@@ -11,6 +11,8 @@ MemoryChannel<DataType>::MemoryChannel(sc_module_name name, unsigned int width, 
     channel_enabled = false;
     channel_mode = MemoryChannelMode::READ;
 
+    #ifdef DEBUG
+    
     for (unsigned int i = 0; i < channel_width; i++)
     {
         sc_trace(tf, this->read_channel_data[i], (string(this->read_channel_data[i].name())));
@@ -20,7 +22,7 @@ MemoryChannel<DataType>::MemoryChannel(sc_module_name name, unsigned int width, 
     sc_trace(tf, this->channel_addr, (string(this->channel_addr.name())));
     sc_trace(tf, this->channel_enabled, (string(this->channel_enabled.name())));
     sc_trace(tf, this->channel_mode, (string(this->channel_mode.name())));
-
+    #endif // DEBUG
     cout << "MEMORY_CHANNEL CHANNEL: " << name << " has been instantiated " << endl;
 }
 
