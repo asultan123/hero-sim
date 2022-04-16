@@ -5,7 +5,6 @@ from random import randint, choice, seed, choices
 import threading, queue
 from dataclasses import dataclass, asdict
 from pandas import DataFrame, concat
-import logging
 from pathlib import Path
 import os
 from timeit import default_timer as timer
@@ -17,7 +16,7 @@ formatter = ColoredFormatter(
 	datefmt='%Y-%m-%d %H:%M:%S',
 	reset=True,
 	log_colors={
-		'DEBUG':    'cyan',
+		'DEBUG':    'green',
 		'INFO':     'yellow',
 		'WARNING':  'orange',
 		'ERROR':    'red',
