@@ -283,13 +283,13 @@ int sc_main(int argc, char *argv[])
     // int filter_count = 1;
     // int channel_count = 18;
 
-    int ifmap_h = 32;
-    int ifmap_w = 32;
+    int ifmap_h = 224;
+    int ifmap_w = 224;
     int k = 3;
-    int c_in = 6;
-    int f_out = 4;
+    int c_in = 3;
+    int f_out = 16;
     int filter_count = 4;
-    int channel_count = 27;
+    int channel_count = 54;
 
     try
     {
