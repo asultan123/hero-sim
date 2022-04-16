@@ -4,3 +4,4 @@ build/
 tests/*.vcd
 .venv/
 *.vcd
+*.temp
