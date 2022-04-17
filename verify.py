@@ -10,6 +10,7 @@ import os
 from timeit import default_timer as timer
 import colorlog
 from colorlog import ColoredFormatter
+import math
 
 formatter = ColoredFormatter(
 	"%(log_color)s%(asctime)s %(log_color)s%(levelname)-8s%(reset)s %(log_color)s%(message)s",
@@ -36,18 +37,19 @@ logger.addHandler(handler)
 logger.setLevel('DEBUG')
 
 CORE_COUNT = 32
-TEST_CASE_COUNT = 100
-SAVE_EVERY = 5
+TEST_CASE_COUNT = 20000
+SAVE_EVERY = 10
 RESULTS_CSV_PATH = "./verify_results.csv"
 SUBPROCESS_OUTPUT_DIR = "./subprocess_output"
 
 SEED = 1234
+LAYER_SIZE_UB = 2**20
 IFMAP_LOWER = 10
-IFMAP_UPPER = 32
+IFMAP_UPPER = 224
 LOG2_FILTER_LOWER = 0
-LOG2_FILTER_UPPER = 7
+LOG2_FILTER_UPPER = 10
 LOG2_CHANNEL_LOWER = 0
-LOG2_CHANNEL_UPPER = 7
+LOG2_CHANNEL_UPPER = 10
 
 seed(SEED)
 
@@ -92,20 +94,22 @@ def generate_test_cases_queue(count: int):
     ]
 
     for r in range(count):
-        # op_mode = OperationMode.conv
         op_mode = OperationMode(choices([0, 1], weights=[1, 3], k=1)[0])
-        if op_mode == OperationMode.linear:
-            ifmap_w = 1
-            ifmap_h = randint(IFMAP_LOWER, IFMAP_UPPER)**2
-            kernel = 1
-        elif op_mode == OperationMode.conv:
-            ifmap_h = ifmap_w = randint(IFMAP_LOWER, IFMAP_UPPER)
-            # kernel = 3
-            kernel = choices([1, 3], weights=[1, 3], k=1)[0]
+        ifmap_size = ofmap_size = math.inf
+        while ifmap_size > LAYER_SIZE_UB or ofmap_size > LAYER_SIZE_UB:
+            if op_mode == OperationMode.linear:
+                ifmap_w = 1
+                ifmap_h = randint(IFMAP_LOWER, IFMAP_UPPER)**2
+                kernel = 1
+            elif op_mode == OperationMode.conv:
+                ifmap_h = ifmap_w = randint(IFMAP_LOWER, IFMAP_UPPER)
+                kernel = choices([1, 3], weights=[1, 3], k=1)[0]
+            f_out, c_in = choice(expected_f_in), choice(expected_c_out)
+            ifmap_size = ifmap_h * ifmap_w * c_in
+            ofmap_size = (ifmap_w - kernel + 1) * (ifmap_h - kernel + 1) * f_out
         arch_filter_counts, arch_channel_counts = choice(
             list(arch_config_dict.values())
         ).values()
-        f_out, c_in = choice(expected_f_in), choice(expected_c_out)
         test_cases_queue.put(
             TestCase(
                 ifmap_h,

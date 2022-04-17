@@ -88,7 +88,8 @@ xt::xarray<DataType> dram_store(Hero::Arch<DataType> &arch, int filter_out, int 
 }
 
 template <typename DataType>
-xt::xarray<DataType> dram_store_with_filtering(Hero::Arch<DataType> &arch, int filter_out, int ifmap_h, int ifmap_w, int ofmap_h, int ofmap_w)
+xt::xarray<DataType> dram_store_with_filtering(Hero::Arch<DataType> &arch, int filter_out, int ifmap_h, int ifmap_w,
+                                               int ofmap_h, int ofmap_w)
 {
     auto output_size = ofmap_h * ofmap_w * filter_out;
     assert(output_size <= arch.psum_mem_size);
@@ -100,7 +101,7 @@ xt::xarray<DataType> dram_store_with_filtering(Hero::Arch<DataType> &arch, int f
             for (int j = 2; j < ifmap_w; j++)
             {
                 auto &mem_ptr = arch.psum_mem.mem.ram.at(f * (ofmap_h * ifmap_w) + i * ifmap_w + j).at(0);
-                result(f, i, j-2) = mem_ptr.read();
+                result(f, i, j - 2) = mem_ptr.read();
                 arch.dram_access_counter++;
                 arch.psum_mem.mem.access_counter++;
             }
@@ -163,7 +164,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     }
     else if (op_mode == Hero::OperationMode::RUN_3x3)
     {
-        // TODO: #46 
+        // TODO: #46
         psum_mem_size = f_out * ofmap_h * ifmap_w + 2;
     }
     else
@@ -181,9 +182,9 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
 
     GlobalControlChannel control("global_control_channel", sc_time(1, SC_NS), tf);
     Hero::Arch<DataType> arch("arch", control, filter_count, channel_count, psum_mem_size, ifmap_mem_size, tf, op_mode);
-    
+
     fmt::print("Instantiated HERO Arch\n");
-    
+
     unsigned long int start_cycle_time = sc_time_stamp().value();
     control.set_reset(true);
     sc_start(10, SC_NS);
@@ -226,11 +227,11 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     }
 
     xt::xarray<DataType> arch_output;
-    if(op_mode == Hero::OperationMode::RUN_1x1)
+    if (op_mode == Hero::OperationMode::RUN_1x1)
     {
         arch_output = dram_store(arch, f_out, ofmap_h, ofmap_w);
     }
-    else if(op_mode == Hero::OperationMode::RUN_3x3)
+    else if (op_mode == Hero::OperationMode::RUN_3x3)
     {
         arch_output = dram_store_with_filtering(arch, f_out, ifmap_h, ifmap_w, ofmap_h, ofmap_w);
     }
@@ -284,8 +285,8 @@ int sc_main(int argc, char *argv[])
     // int filter_count = 1;
     // int channel_count = 18;
 
-    int ifmap_h = 64;
-    int ifmap_w = 64;
+    int ifmap_h = 174;
+    int ifmap_w = 174;
     int k = 3;
     int c_in = 32;
     int f_out = 32;
