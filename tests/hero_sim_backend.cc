@@ -178,14 +178,14 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     xt::print_options::set_line_width(100);
 
     sc_trace_file *tf = sc_create_vcd_trace_file("Arch1x1");
-    tf->set_time_unit(100, SC_PS);
+    tf->set_time_unit(10, SC_PS);
 
     GlobalControlChannel control("global_control_channel", sc_time(1, SC_NS), tf);
     Hero::Arch<DataType> arch("arch", control, filter_count, channel_count, psum_mem_size, ifmap_mem_size, tf, op_mode);
 
     fmt::print("Instantiated HERO Arch\n");
 
-    unsigned long int start_cycle_time = sc_time_stamp().value();
+    auto start_cycle_time = sc_simulation_time();
     control.set_reset(true);
     sc_start(10, SC_NS);
     control.set_reset(false);
@@ -242,7 +242,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
 
     fmt::print("Validating output\n");
     auto valid = LayerGeneration::validate_output(ifmap, weights, arch_output);
-    unsigned long int end_cycle_time = sc_time_stamp().value();
+    auto end_cycle_time = sc_simulation_time();
 
     auto t2 = high_resolution_clock::now();
     auto sim_time = duration_cast<milliseconds>(t2 - t1);
@@ -264,7 +264,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
         cout << std::left << std::setw(20) << "Psum Access" << arch.psum_mem.mem.access_counter << endl;
         cout << std::left << std::setw(20) << "Ifmap Access" << arch.ifmap_mem.mem.access_counter << endl;
         cout << std::left << std::setw(20) << "Avg. Pe Util" << std::setprecision(2) << avg_util << endl;
-        cout << std::left << std::setw(20) << "Latency in cycles" << end_cycle_time - start_cycle_time << endl;
+        cout << std::left << std::setw(20) << "Latency in cycles" << (unsigned long int)(end_cycle_time - start_cycle_time) << endl;
         cout << std::left << std::setw(20) << "Simulated in " << sim_time.count() << "ms\n";
         cout << std::left << std::setw(20) << "ALL TESTS PASS\n";
         exit(EXIT_SUCCESS); // avoids expensive de-alloc
@@ -285,8 +285,8 @@ int sc_main(int argc, char *argv[])
     // int filter_count = 1;
     // int channel_count = 18;
 
-    int ifmap_h = 174;
-    int ifmap_w = 174;
+    int ifmap_h = 10;
+    int ifmap_w = 10;
     int k = 3;
     int c_in = 32;
     int f_out = 32;
