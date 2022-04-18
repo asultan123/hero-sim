@@ -32,8 +32,8 @@ namespace GenerateDescriptors1x1
 template <typename DataType> void generate_and_load_pe_program(Hero::Arch<DataType> &arch, int ifmap_h, int ifmap_w);
 
 template <typename DataType>
-void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights, int ofmap_h,
-                                    int ofmap_w);
+void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights, int ifmap_h,
+                                    int ifmap_w, int ofmap_h, int ofmap_w);
 
 template <typename DataType>
 void generate_and_load_ifmap_in_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights, int ifmap_h,
@@ -48,8 +48,8 @@ template <typename DataType> void generate_and_load_ssm_program(Hero::Arch<DataT
 template <typename DataType> void generate_and_load_pe_program(Hero::Arch<DataType> &arch, int ifmap_h, int ifmap_w);
 
 template <typename DataType>
-void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights, int ofmap_h,
-                                    int ofmap_w);
+void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights, int ifmap_h,
+                                    int ifmap_w, int ofmap_h, int ofmap_w);
 
 template <typename DataType>
 void generate_and_load_ifmap_in_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights, int ifmap_h,
@@ -89,8 +89,6 @@ xt::xarray<int> get_ifmap_mem_run_bitmap(Hero::Arch<DataType> &arch, xt::xarray<
     int input_channel_count = (padded_weights.shape()[1] / horizontal_kernel_size);
     int horizontal_tile_count = input_channel_count / arch_effective_channel_count;
 
-    cout << padded_weights << endl;
-
     xt::xarray<int> run_bitmap =
         xt::zeros<int>({verticle_tile_count, horizontal_tile_count, (int)arch_effective_channel_count});
 
@@ -116,8 +114,6 @@ xt::xarray<int> get_ifmap_mem_run_bitmap(Hero::Arch<DataType> &arch, xt::xarray<
                 padded_weights,
                 xt::range(filter_offset, filter_offset + (arch_effective_filter_count * verticle_kernel_size)),
                 xt::range(channel_offset, channel_offset + (arch_effective_channel_count * horizontal_kernel_size)));
-
-            cout << tiled_view << endl;
 
             int verticle_tile_idx = filter_offset / (arch_effective_filter_count * verticle_kernel_size);
             int horizontal_tile_idx = channel_offset / (arch_effective_channel_count * horizontal_kernel_size);
@@ -170,8 +166,8 @@ template <typename DataType> void generate_and_load_pe_program(Hero::Arch<DataTy
 }
 
 template <typename DataType>
-void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights, int ofmap_h,
-                                    int ofmap_w)
+void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights, int ifmap_h,
+                                    int ifmap_w, int ofmap_h, int ofmap_w)
 {
     int verticle_tile_count = padded_weights.shape()[0] / arch.filter_count;
     int horizontal_tile_count = padded_weights.shape()[1] / arch.channel_count;
@@ -232,7 +228,7 @@ void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> 
             if (active)
             {
                 program.push_back(Descriptor_2D::delay_inst(stream_size - 4 * (v == 0) - 1));
-                for (int h = 1; h < horizontal_tile_count; h++)
+                for (int h = 1; h < horizontal_tile_count; h++) // TODO: #44 Bias not loaded
                 {
                     program.push_back(Descriptor_2D::stream_inst((v * arch.filter_count * stream_size) +
                                                                      (read_gen_idx - arch.filter_count) * stream_size,
@@ -307,18 +303,23 @@ template <typename DataType> void generate_and_load_ssm_program(Hero::Arch<DataT
     }
 }
 
-template <typename DataType> void generate_and_load_pe_program(Hero::Arch<DataType> &arch, int ifmap_h, int ifmap_w)
+template <typename DataType>
+void generate_and_load_pe_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights, int ifmap_h, int ifmap_w,
+                                  int ofmap_h, int ofmap_w)
 {
     int stream_size = ifmap_h * ifmap_w;
-    int delay_offset = 1;
+    const int reuse_chain_delay = ifmap_w * 2;
+
     for (int channel_column = 0; channel_column < arch.channel_count; channel_column++)
     {
         for (int filter_row = 0; filter_row < arch.filter_count; filter_row++)
         {
             PE<DataType> &cur_pe = arch.pe_array[filter_row * arch.channel_count + channel_column];
             vector<Descriptor_2D> program;
-            program.push_back(Descriptor_2D::delay_inst(channel_column + delay_offset));
-            program.push_back(Descriptor_2D::genhold_inst(0, stream_size, cur_pe.weights.size() - 1, 1));
+            program.push_back(Descriptor_2D::delay_inst(reuse_chain_delay + 2));
+            program.push_back(Descriptor_2D::genhold_inst(
+                0, stream_size + 9,
+                cur_pe.weights.size() - 1, 1));
             program.push_back(Descriptor_2D::suspend_inst());
             cur_pe.loadProgram(program);
         }
@@ -326,13 +327,15 @@ template <typename DataType> void generate_and_load_pe_program(Hero::Arch<DataTy
 }
 
 template <typename DataType>
-void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights, int ofmap_h,
-                                    int ofmap_w)
+void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights, int ifmap_h,
+                                    int ifmap_w, int ofmap_h, int ofmap_w)
 {
     int verticle_tile_count = padded_weights.shape()[0] / arch.filter_count;
     int horizontal_tile_count = padded_weights.shape()[1] / arch.channel_count;
 
-    int stream_size = ofmap_h * ofmap_w;
+    // assuming stride 1
+
+    int stream_size = ofmap_h * ifmap_w;
 
     xt::xarray<int> run_bitmap = xt::zeros<int>({verticle_tile_count, (int)arch.filter_count});
     for (auto filter_offset = 0; filter_offset < (int)padded_weights.shape()[0]; filter_offset += arch.filter_count)
@@ -354,11 +357,12 @@ void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> 
     }
 
     // TODO: #32
+    const int reuse_chain_init = ifmap_w * 2;
     for (int write_gen_idx = 0; write_gen_idx < arch.filter_count; write_gen_idx++)
     {
         vector<Descriptor_2D> program;
 
-        program.push_back(Descriptor_2D::delay_inst(arch.channel_count + 1));
+        program.push_back(Descriptor_2D::delay_inst(arch.channel_count + reuse_chain_init - 1));
         for (int v = 0; v < verticle_tile_count; v++)
         {
             auto active = run_bitmap(v, write_gen_idx);
@@ -368,6 +372,11 @@ void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> 
                 {
                     program.push_back(Descriptor_2D::stream_inst(
                         v * arch.filter_count * stream_size + write_gen_idx * stream_size, stream_size - 1, 0));
+                    if ((h != horizontal_tile_count - 1) || (v != verticle_tile_count - 1))
+                    {
+                        program.push_back(Descriptor_2D::delay_inst(arch.channel_count + reuse_chain_init - 2 -
+                                                                    ((arch.channel_count / 9) - 1) * 9));
+                    }
                 }
             }
         }
@@ -380,19 +389,32 @@ void generate_and_load_psum_program(Hero::Arch<DataType> &arch, xt::xarray<int> 
     for (int read_gen_idx = arch.filter_count; read_gen_idx < arch.filter_count * 2; read_gen_idx++)
     {
         vector<Descriptor_2D> program;
-        program.push_back(Descriptor_2D::delay_inst(3));
+        int read_gen_idx_adjusted = read_gen_idx - arch.filter_count;
+        // program.push_back(Descriptor_2D::delay_inst(3));
+        program.push_back(Descriptor_2D::delay_inst(reuse_chain_init - 1));
 
         for (int v = 0; v < verticle_tile_count; v++)
         {
-            auto active = run_bitmap(v, (read_gen_idx - arch.filter_count));
+            auto active = run_bitmap(v, (read_gen_idx_adjusted));
             if (active)
             {
-                program.push_back(Descriptor_2D::delay_inst(stream_size - 4 * (v == 0) - 1));
-                for (int h = 1; h < horizontal_tile_count; h++)
+                for (int h = 0; h < horizontal_tile_count; h++)
                 {
-                    program.push_back(Descriptor_2D::stream_inst((v * arch.filter_count * stream_size) +
-                                                                     (read_gen_idx - arch.filter_count) * stream_size,
-                                                                 stream_size - 1, 0));
+                    int initial_idx_offset = (h > 0) ? 2 : 0;
+                    program.push_back(Descriptor_2D::stream_inst(
+                        v * arch.filter_count * stream_size + read_gen_idx_adjusted * stream_size + initial_idx_offset,
+                        stream_size - 1, 0));
+
+                    if ((h != horizontal_tile_count - 1) || (v != verticle_tile_count - 1))
+                    {
+                        program.push_back(Descriptor_2D::delay_inst(arch.channel_count + reuse_chain_init - 2 -
+                                                                    ((arch.channel_count / 9) - 1) * 9));
+                    }
+
+                    // program.push_back(Descriptor_2D::stream_inst((v * arch.filter_count * stream_size) +
+                    //                                                  (read_gen_idx - arch.filter_count) *
+                    //                                                  stream_size,
+                    //                                              stream_size - 1, 0));
                 }
             }
         }
@@ -582,15 +604,17 @@ void generate_and_load_arch_descriptors(Hero::Arch<DataType> &arch, int ifmap_h,
     case Hero::OperationMode::RUN_1x1:
         GenerateDescriptors1x1::generate_and_load_pe_program(arch, ifmap_h, ifmap_w);
         GenerateDescriptors1x1::generate_and_load_ifmap_in_program(arch, padded_weights, ifmap_h, ifmap_w);
-        GenerateDescriptors1x1::generate_and_load_psum_program(arch, padded_weights, ofmap_h, ofmap_w);
+        GenerateDescriptors1x1::generate_and_load_psum_program(arch, padded_weights, ifmap_h, ifmap_w, ofmap_h,
+                                                               ofmap_w);
         break;
     case Hero::OperationMode::RUN_3x3:
         GenerateDescriptors3x3::generate_and_load_ifmap_in_program(arch, padded_weights, ifmap_h, ifmap_w);
         GenerateDescriptors3x3::generate_and_load_ssm_program(arch, ifmap_h, ifmap_w);
-        GenerateDescriptors3x3::generate_and_load_pe_program(arch, ifmap_h, ifmap_w);
+        GenerateDescriptors3x3::generate_and_load_pe_program(arch, padded_weights, ifmap_h, ifmap_w, ofmap_h, ofmap_w);
         GenerateDescriptors3x3::generate_and_load_ifmap_channel_to_reuse_chain_program(arch, padded_weights, ifmap_h,
                                                                                        ifmap_w);
-        GenerateDescriptors3x3::generate_and_load_psum_program(arch, padded_weights, ofmap_h, ofmap_w);
+        GenerateDescriptors3x3::generate_and_load_psum_program(arch, padded_weights, ifmap_h, ifmap_w, ofmap_h,
+                                                               ofmap_w);
         break;
     default:
         throw std::invalid_argument("Invalid architecture operation mode");

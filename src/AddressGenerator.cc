@@ -120,7 +120,9 @@ template <typename DataType> void AddressGenerator<DataType>::update()
         programmed = false;
         first_cycle = false;
         channel->reset();
+        #ifdef DEBUG
         std::cout << "@ " << sc_time_stamp() << " " << this->name() << ":MODULE has been reset" << std::endl;
+        #endif // DEBUG
     }
     else if (control->program())
     {
@@ -130,7 +132,9 @@ template <typename DataType> void AddressGenerator<DataType>::update()
         channel->set_addr(descriptors.at(0).start);
         programmed = true;
         first_cycle = true;
+        #ifdef DEBUG
         std::cout << "@ " << sc_time_stamp() << " " << this->name() << ":MODULE has been programmed" << std::endl;
+        #endif // DEBUG
     }
     else if (control->enable() && programmed)
     {
@@ -222,19 +226,24 @@ AddressGenerator<DataType>::AddressGenerator(sc_module_name name, GlobalControlC
     _clk(control->clk());
     _reset(control->reset());
     execute_index = 0;
+    #ifdef DEBUG
+        sc_trace(tf, this->execute_index, (this->execute_index.name()));
+        sc_trace(tf, this->current_ram_index, (this->current_ram_index.name()));
+        sc_trace(tf, this->x_count_remaining, (this->x_count_remaining.name()));
+        sc_trace(tf, this->y_count_remaining, (this->y_count_remaining.name()));
+        sc_trace(tf, this->repeat, (this->repeat.name()));
+    #endif // DEBUG
     // sc_trace(tf, this->execute_index, (this->execute_index.name()));
-    sc_trace(tf, this->execute_index, (this->execute_index.name()));
-    sc_trace(tf, this->current_ram_index, (this->current_ram_index.name()));
-    sc_trace(tf, this->x_count_remaining, (this->x_count_remaining.name()));
-    sc_trace(tf, this->y_count_remaining, (this->y_count_remaining.name()));
-    sc_trace(tf, this->repeat, (this->repeat.name()));
+
 
     SC_METHOD(update);
     sensitive << _clk.pos();
     sensitive << _reset.pos();
 
     // connect signals
+    #ifdef DEBUG
     std::cout << "ADDRESS_GENERATOR MODULE: " << name << " has been instantiated " << std::endl;
+    #endif // DEBUG
 }
 
 template <typename DataType>

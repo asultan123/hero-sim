@@ -11,6 +11,8 @@ MemoryChannel<DataType>::MemoryChannel(sc_module_name name, unsigned int width, 
     channel_enabled = false;
     channel_mode = MemoryChannelMode::READ;
 
+    #ifdef DEBUG
+    
     for (unsigned int i = 0; i < channel_width; i++)
     {
         sc_trace(tf, this->read_channel_data[i], (string(this->read_channel_data[i].name())));
@@ -20,8 +22,8 @@ MemoryChannel<DataType>::MemoryChannel(sc_module_name name, unsigned int width, 
     sc_trace(tf, this->channel_addr, (string(this->channel_addr.name())));
     sc_trace(tf, this->channel_enabled, (string(this->channel_enabled.name())));
     sc_trace(tf, this->channel_mode, (string(this->channel_mode.name())));
-
     cout << "MEMORY_CHANNEL CHANNEL: " << name << " has been instantiated " << endl;
+    #endif // DEBUG
 }
 
 template <typename DataType>
@@ -132,7 +134,9 @@ template <typename DataType> void MemoryChannel<DataType>::reset()
     channel_addr = 0;
     channel_enabled = false;
     channel_mode = MemoryChannelMode::READ;
+    #ifdef DEBUG
     std::cout << "@ " << sc_time_stamp() << " " << this->name() << ": channel has been reset" << std::endl;
+    #endif // DEBUG
 }
 
 template <typename DataType> const unsigned int &MemoryChannel<DataType>::get_width()
@@ -142,8 +146,10 @@ template <typename DataType> const unsigned int &MemoryChannel<DataType>::get_wi
 
 template <typename DataType> void MemoryChannel<DataType>::register_port(sc_port_base &port_, const char *if_typename_)
 {
+    #ifdef DEBUG
     cout << "now binding    " << port_.name() << " to "
          << "interface: " << if_typename_ << " with channel width " << channel_width << endl;
+    #endif // DEBUG
 }
 
 template <typename DataType>

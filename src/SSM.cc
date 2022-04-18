@@ -5,7 +5,8 @@
 template <typename DataType>
 SSM<DataType>::SSM(sc_module_name name, GlobalControlChannel &_control, unsigned int _input_count,
                    unsigned int _output_count, sc_trace_file *_tf, SSMMode _mode)
-    : sc_module(name), input_count(_input_count), output_count(_output_count), in("in"), out("out"), mode(_mode)
+    : sc_module(name), input_count(_input_count), output_count(_output_count), in("in"), out("out"), mode(_mode),
+      static_input_port_select(0), static_output_port_select(0)
 {
     if (input_count <= 0 || output_count <= 0)
     {
@@ -26,6 +27,7 @@ SSM<DataType>::SSM(sc_module_name name, GlobalControlChannel &_control, unsigned
     in.init(input_count);
     out.init(output_count);
 
+    #ifdef DEBUG
     for (auto &port : in)
     {
         sc_trace(_tf, port, port.name());
@@ -34,6 +36,7 @@ SSM<DataType>::SSM(sc_module_name name, GlobalControlChannel &_control, unsigned
     {
         sc_trace(_tf, port, port.name());
     }
+    #endif // DEBUG
 
     if (input_count > 1)
     {
@@ -59,7 +62,9 @@ SSM<DataType>::SSM(sc_module_name name, GlobalControlChannel &_control, unsigned
     {
         sensitive << in_channel->channel_addr;
     }
+    #ifdef DEBUG
     cout << "SSM MODULE: " << name << " has been instantiated " << endl;
+    #endif // DEBUG
 }
 
 template <typename DataType> void SSM<DataType>::set_static_input_port_select(int _static_input_port_select)

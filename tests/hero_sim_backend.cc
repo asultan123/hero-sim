@@ -88,6 +88,30 @@ xt::xarray<DataType> dram_store(Hero::Arch<DataType> &arch, int filter_out, int 
 }
 
 template <typename DataType>
+xt::xarray<DataType> dram_store_with_filtering(Hero::Arch<DataType> &arch, int filter_out, int ifmap_h, int ifmap_w,
+                                               int ofmap_h, int ofmap_w)
+{
+    auto output_size = ofmap_h * ofmap_w * filter_out;
+    assert(output_size <= arch.psum_mem_size);
+    xt::xarray<DataType> result = xt::zeros<int>({filter_out, ofmap_h, ofmap_w});
+    for (int f = 0; f < filter_out; f++)
+    {
+        for (int i = 0; i < ofmap_h; i++)
+        {
+            for (int j = 2; j < ifmap_w; j++)
+            {
+                auto &mem_ptr = arch.psum_mem.mem.ram.at(f * (ofmap_h * ifmap_w) + i * ifmap_w + j).at(0);
+                result(f, i, j - 2) = mem_ptr.read();
+                arch.dram_access_counter++;
+                arch.psum_mem.mem.access_counter++;
+            }
+        }
+    }
+    cout << "Loaded dram contents from psum mem" << endl;
+    return result;
+}
+
+template <typename DataType>
 void load_padded_weights_into_pes(Hero::Arch<DataType> &arch, xt::xarray<int> padded_weights)
 {
     vector<vector<deque<int>>> pe_weights(arch.filter_count, vector<deque<int>>(arch.channel_count, deque<int>()));
@@ -132,7 +156,21 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     int ofmap_h = (ifmap_h - k + 1);
     int ofmap_w = (ifmap_w - k + 1);
     int ifmap_mem_size = c_in * ifmap_h * ifmap_w;
-    int psum_mem_size = f_out * ofmap_h * ofmap_w;
+    int psum_mem_size;
+
+    if (op_mode == Hero::OperationMode::RUN_1x1)
+    {
+        psum_mem_size = f_out * ofmap_h * ofmap_w;
+    }
+    else if (op_mode == Hero::OperationMode::RUN_3x3)
+    {
+        // TODO: #46
+        psum_mem_size = f_out * ofmap_h * ifmap_w + 2;
+    }
+    else
+    {
+        throw "Invalid Accelerator Operation Mode";
+    }
 
     xt::xarray<int> weights, padded_weights;
 
@@ -140,20 +178,20 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     xt::print_options::set_line_width(100);
 
     sc_trace_file *tf = sc_create_vcd_trace_file("Arch1x1");
-    tf->set_time_unit(100, SC_PS);
+    tf->set_time_unit(10, SC_PS);
 
     GlobalControlChannel control("global_control_channel", sc_time(1, SC_NS), tf);
     Hero::Arch<DataType> arch("arch", control, filter_count, channel_count, psum_mem_size, ifmap_mem_size, tf, op_mode);
 
-    unsigned long int start_cycle_time = sc_time_stamp().value();
+    fmt::print("Instantiated HERO Arch\n");
+
+    auto start_cycle_time = sc_simulation_time();
     control.set_reset(true);
     sc_start(10, SC_NS);
     control.set_reset(false);
     sc_start(1, SC_NS);
 
     auto ifmap = LayerGeneration::generate_ifmap<DataType>(arch, c_in, ifmap_h, ifmap_w);
-
-    cout << ifmap << endl;
 
     dram_load(arch, ifmap, c_in, ifmap_h, ifmap_w);
 
@@ -188,9 +226,23 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
         sc_close_vcd_trace_file(tf);
     }
 
-    auto arch_output = dram_store(arch, f_out, ofmap_h, ofmap_w);
+    xt::xarray<DataType> arch_output;
+    if (op_mode == Hero::OperationMode::RUN_1x1)
+    {
+        arch_output = dram_store(arch, f_out, ofmap_h, ofmap_w);
+    }
+    else if (op_mode == Hero::OperationMode::RUN_3x3)
+    {
+        arch_output = dram_store_with_filtering(arch, f_out, ifmap_h, ifmap_w, ofmap_h, ofmap_w);
+    }
+    else
+    {
+        throw "Invalid Accelerator Operation Mode";
+    }
+
+    fmt::print("Validating output\n");
     auto valid = LayerGeneration::validate_output(ifmap, weights, arch_output);
-    unsigned long int end_cycle_time = sc_time_stamp().value();
+    auto end_cycle_time = sc_simulation_time();
 
     auto t2 = high_resolution_clock::now();
     auto sim_time = duration_cast<milliseconds>(t2 - t1);
@@ -212,7 +264,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
         cout << std::left << std::setw(20) << "Psum Access" << arch.psum_mem.mem.access_counter << endl;
         cout << std::left << std::setw(20) << "Ifmap Access" << arch.ifmap_mem.mem.access_counter << endl;
         cout << std::left << std::setw(20) << "Avg. Pe Util" << std::setprecision(2) << avg_util << endl;
-        cout << std::left << std::setw(20) << "Latency in cycles" << end_cycle_time - start_cycle_time << endl;
+        cout << std::left << std::setw(20) << "Latency in cycles" << (unsigned long int)(end_cycle_time - start_cycle_time) << endl;
         cout << std::left << std::setw(20) << "Simulated in " << sim_time.count() << "ms\n";
         cout << std::left << std::setw(20) << "ALL TESTS PASS\n";
         exit(EXIT_SUCCESS); // avoids expensive de-alloc
@@ -225,13 +277,21 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
 
 int sc_main(int argc, char *argv[])
 {
-    int ifmap_h = 16;
-    int ifmap_w = 32;
+    // int ifmap_h = 10;
+    // int ifmap_w = 10;
+    // int k = 3;
+    // int c_in = 2;
+    // int f_out = 4;
+    // int filter_count = 1;
+    // int channel_count = 18;
+
+    int ifmap_h = 10;
+    int ifmap_w = 10;
     int k = 3;
-    int c_in = 2;
-    int f_out = 2;
-    int filter_count = 7;
-    int channel_count = 27;
+    int c_in = 32;
+    int f_out = 32;
+    int filter_count = 32;
+    int channel_count = 18;
 
     try
     {

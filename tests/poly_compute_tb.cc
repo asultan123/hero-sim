@@ -70,6 +70,7 @@ template <typename DataType> struct ComputeBlob : public sc_module
         {
             pe_group_in[i].bind(_pe_group_in[i]);
         }
+        #ifdef DEBUG
         sc_trace(tf, pe_group_in[0], "pe_group_in_0");
         sc_trace(tf, pe_group_in[1], "pe_group_in_1");
         sc_trace(tf, pe_group_in[2], "pe_group_in_2");
@@ -83,6 +84,7 @@ template <typename DataType> struct ComputeBlob : public sc_module
         {
             sc_trace(tf, psums[i], (string("psums") + std::to_string(i)));
         }
+        #endif // DEBUG
         SC_METHOD(update);
         sensitive << _clk.pos();
         sensitive << control->reset();

@@ -6,10 +6,12 @@ GlobalControlChannel::GlobalControlChannel(sc_module_name name, sc_time time_val
     : sc_module(name), global_clock("clock", time_val), global_reset("reset"), global_enable("enable"),
       global_program("program")
 {
-    sc_trace(tf, this->global_clock, (this->global_clock.name()));
-    sc_trace(tf, this->global_reset, (this->global_reset.name()));
-    sc_trace(tf, this->global_program, (this->global_program.name()));
-    sc_trace(tf, this->global_enable, (this->global_enable.name()));
+    #ifdef DEBUG
+        sc_trace(tf, this->global_clock, (this->global_clock.name()));
+        sc_trace(tf, this->global_reset, (this->global_reset.name()));
+        sc_trace(tf, this->global_program, (this->global_program.name()));
+        sc_trace(tf, this->global_enable, (this->global_enable.name()));
+    #endif // DEBUG
 }
 
 sc_clock &GlobalControlChannel::clk()

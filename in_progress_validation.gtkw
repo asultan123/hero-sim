@@ -1,0 +1,74 @@
+[*]
+[*] GTKWave Analyzer v3.3.86 (w)1999-2017 BSI
+[*] Sat Apr 16 02:22:30 2022
+[*]
+[dumpfile] "/home/sultan/remote_hero_sim/tests/Arch1x1.vcd"
+[dumpfile_mtime] "Sat Apr 16 01:47:30 2022"
+[dumpfile_size] 20909391
+[savefile] "/home/sultan/remote_hero_sim/in_progress_validation.gtkw"
+[timestart] 1032600
+[size] 1255 1375
+[pos] 19 44
+*-12.000000 1050000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] SystemC.
+[treeopen] SystemC.arch.
+[treeopen] SystemC.arch.ifmap_mem.
+[sst_width] 349
+[signals_width] 807
+[sst_expanded] 1
+[sst_vpaned_height] 412
+@24
+SystemC.global_control_channel.clock
+SystemC.global_control_channel.enable
+SystemC.global_control_channel.program
+SystemC.global_control_channel.reset
+SystemC.arch.psum_mem.channels_0.enabled
+SystemC.arch.psum_mem.channels_0.addr[31:0]
+@20000
+-
+@24
+SystemC.arch.pe_array_0.psum_in[31:0]
+SystemC.arch.ifmap_reuse_chain_signals_0_0[31:0]
+SystemC.arch.ifmap_reuse_chain_signals_0_1[31:0]
+SystemC.arch.ifmap_reuse_chain_signals_0_2[31:0]
+SystemC.arch.ifmap_reuse_chain_signals_1_0[31:0]
+SystemC.arch.ifmap_reuse_chain_signals_1_1[31:0]
+SystemC.arch.ifmap_reuse_chain_signals_1_2[31:0]
+SystemC.arch.ifmap_reuse_chain_signals_2_0[31:0]
+SystemC.arch.ifmap_reuse_chain_signals_2_1[31:0]
+SystemC.arch.ifmap_reuse_chain_signals_2_2[31:0]
+SystemC.arch.psum_mem.write_channel_data_0_0[31:0]
+SystemC.arch.pe_array_0.weight[31:0]
+SystemC.arch.pe_array_1.weight[31:0]
+SystemC.arch.pe_array_2.weight[31:0]
+SystemC.arch.pe_array_3.weight[31:0]
+SystemC.arch.pe_array_4.weight[31:0]
+SystemC.arch.pe_array_5.weight[31:0]
+SystemC.arch.pe_array_6.weight[31:0]
+SystemC.arch.pe_array_7.weight[31:0]
+SystemC.arch.pe_array_8.weight[31:0]
+SystemC.arch.pe_array_9.weight[31:0]
+SystemC.arch.pe_array_10.weight[31:0]
+SystemC.arch.pe_array_11.weight[31:0]
+SystemC.arch.pe_array_12.weight[31:0]
+SystemC.arch.pe_array_13.weight[31:0]
+SystemC.arch.pe_array_14.weight[31:0]
+SystemC.arch.pe_array_15.weight[31:0]
+SystemC.arch.pe_array_16.weight[31:0]
+SystemC.arch.pe_array_17.weight[31:0]
+SystemC.arch.pe_array_18.weight[31:0]
+SystemC.arch.pe_array_19.weight[31:0]
+SystemC.arch.pe_array_20.weight[31:0]
+SystemC.arch.pe_array_21.weight[31:0]
+SystemC.arch.pe_array_22.weight[31:0]
+SystemC.arch.pe_array_23.weight[31:0]
+SystemC.arch.pe_array_24.weight[31:0]
+SystemC.arch.pe_array_25.weight[31:0]
+SystemC.arch.pe_array_26.weight[31:0]
+SystemC.arch.ifmap_mem.generator_0.execute_index[31:0]
+@28
+SystemC.arch.ifmap_mem.channels_0.enabled
+@29
+SystemC.arch.ifmap_mem.channels_0.enabled
+[pattern_trace] 1
+[pattern_trace] 0

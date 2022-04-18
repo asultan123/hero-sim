@@ -25,7 +25,9 @@ template <typename DataType> void Memory<DataType>::update()
                 col = 0;
             }
         }
+        #ifdef DEBUG
         std::cout << "@ " << sc_time_stamp() << " " << this->name() << ":MODULE has been reset" << std::endl;
+        #endif // DEBUG
     }
     else if (control->enable())
     {
@@ -60,17 +62,17 @@ template <typename DataType> void Memory<DataType>::update()
     }
 }
 
-template <typename DataType> void Memory<DataType>::print_memory_contents()
-{
-    for (const auto &row : ram)
-    {
-        for (const auto &col : row)
-        {
-            cout << col << " ";
-        }
-        cout << endl;
-    }
-}
+// template <typename DataType> void Memory<DataType>::print_memory_contents()
+// {
+//     for (const auto &row : ram)
+//     {
+//         for (const auto &col : row)
+//         {
+//             cout << col << " ";
+//         }
+//         cout << endl;
+//     }
+// }
 
 // Constructor
 template <typename DataType>
@@ -87,7 +89,9 @@ Memory<DataType>::Memory(sc_module_name name, GlobalControlChannel &_control, un
         {
             for (unsigned int col = 0; col < width; col++)
             {
+                #ifdef DEBUG
                 sc_trace(tf, ram[row][col], ram[row][col].name());
+                #endif // DEBUG
             }
         }
     }
@@ -100,7 +104,9 @@ Memory<DataType>::Memory(sc_module_name name, GlobalControlChannel &_control, un
     sensitive << _clk.pos();
     sensitive << control->reset();
 
+    #ifdef DEBUG
     cout << "MEMORY MODULE: " << name << " has been instantiated " << endl;
+    #endif // DEBUG
 }
 
 // template struct Memory<sc_int<32>>;
