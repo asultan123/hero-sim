@@ -357,6 +357,7 @@ int sc_main(int argc, char *argv[])
     cout << std::left << std::setw(20) << "channel_count" << channel_count << endl;
     cout << endl;
 
+
     cout << std::left << "With layer config:" << endl;
     cout << endl;
     cout << std::left << std::setw(20) << "ifmap_h" << ifmap_h << endl;
