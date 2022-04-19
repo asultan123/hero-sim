@@ -14,6 +14,10 @@ set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+set(BUILD_SHARED_LIBS OFF)
+set(CMAKE_EXE_LINKER_FLAGS "-static")
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 find_package(PkgConfig REQUIRED)
 find_package(xtl REQUIRED)
@@ -30,6 +34,7 @@ find_package(fmt REQUIRED)
 # set(CMAKE_C_INCLUDE_WHAT_YOU_USE ${IWYU_PATH})
 
 pkg_check_modules(SYSTEMC REQUIRED IMPORTED_TARGET systemc)
+
 # pkg_check_modules(TLM2 REQUIRED IMPORTED_TARGET tlm)
 
 # add_subdirectory(xilinx)
