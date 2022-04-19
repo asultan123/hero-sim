@@ -290,6 +290,7 @@ int sc_main(int argc, char *argv[])
     int f_out;
     int filter_count;
     int channel_count;
+    bool result_as_protobuf;
 
     try
     {
@@ -303,6 +304,7 @@ int sc_main(int argc, char *argv[])
         const int f_out_default = 32;
         const int filter_count_default = 32;
         const int channel_count_default = 18;
+        const bool result_as_protobuf_default = true;
 
         config.add_options()("help", "produce help message")(
             "ifmap_h", po::value<int>()->default_value(ifmap_h_default), "set input feature map height")(
@@ -311,7 +313,9 @@ int sc_main(int argc, char *argv[])
             "c_in", po::value<int>()->default_value(c_in_default), "set ifmap channel count")(
             "f_out", po::value<int>()->default_value(f_out_default), "set weight filter count")(
             "filter_count", po::value<int>()->default_value(filter_count_default), "set arch height")(
-            "channel_count", po::value<int>()->default_value(channel_count_default), "set arch width");
+            "channel_count", po::value<int>()->default_value(channel_count_default),
+            "set arch width")("result_as_protobuf", po::value<int>()->default_value(result_as_protobuf_default),
+                              "output result as serialized protobuf to stderr");
 
 #else
         config.add_options()("help", "produce help message")("ifmap_h", po::value<int>()->required(),
@@ -321,7 +325,9 @@ int sc_main(int argc, char *argv[])
             "c_in", po::value<int>()->required(), "set ifmap channel count")("f_out", po::value<int>()->required(),
                                                                              "set weight filter count")(
             "filter_count", po::value<int>()->required(),
-            "set arch width")("channel_count", po::value<int>()->required(), "set arch height");
+            "set arch width")("channel_count", po::value<int>()->required(),
+                              "set arch height")("result_as_protobuf", po::value<int>()->default_value(false),
+                                                 "output result as serialized protobuf to stderr");
 
 #endif
 
