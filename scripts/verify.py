@@ -13,18 +13,18 @@ from colorlog import ColoredFormatter
 import math
 
 formatter = ColoredFormatter(
-	"%(log_color)s%(asctime)s %(log_color)s%(levelname)-8s%(reset)s %(log_color)s%(message)s",
-	datefmt='%Y-%m-%d %H:%M:%S',
-	reset=True,
-	log_colors={
-		'DEBUG':    'green',
-		'INFO':     'yellow',
-		'WARNING':  'orange',
-		'ERROR':    'red',
-		'CRITICAL': 'red,bg_white',
-	},
-	secondary_log_colors={},
-	style='%'
+    "%(log_color)s%(asctime)s %(log_color)s%(levelname)-8s%(reset)s %(log_color)s%(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    reset=True,
+    log_colors={
+        "DEBUG": "green",
+        "INFO": "yellow",
+        "WARNING": "orange",
+        "ERROR": "red",
+        "CRITICAL": "red,bg_white",
+    },
+    secondary_log_colors={},
+    style="%",
 )
 
 handler = colorlog.StreamHandler()
@@ -34,16 +34,16 @@ logger = colorlog.getLogger()
 
 logger.addHandler(handler)
 
-logger.setLevel('DEBUG')
+logger.setLevel("DEBUG")
 
 CORE_COUNT = 32
-TEST_CASE_COUNT = 20000
+TEST_CASE_COUNT = 1000
 SAVE_EVERY = 10
 RESULTS_CSV_PATH = "./verify_results.csv"
 SUBPROCESS_OUTPUT_DIR = "./subprocess_output"
 
 SEED = 1234
-LAYER_SIZE_UB = 2**20
+LAYER_SIZE_UB = 2**10
 IFMAP_LOWER = 10
 IFMAP_UPPER = 224
 LOG2_FILTER_LOWER = 0
@@ -52,6 +52,7 @@ LOG2_CHANNEL_LOWER = 0
 LOG2_CHANNEL_UPPER = 10
 
 seed(SEED)
+
 
 class OperationMode(Enum):
     linear = 0
@@ -99,7 +100,7 @@ def generate_test_cases_queue(count: int):
         while ifmap_size > LAYER_SIZE_UB or ofmap_size > LAYER_SIZE_UB:
             if op_mode == OperationMode.linear:
                 ifmap_w = 1
-                ifmap_h = randint(IFMAP_LOWER, IFMAP_UPPER)**2
+                ifmap_h = randint(IFMAP_LOWER, IFMAP_UPPER) ** 2
                 kernel = 1
             elif op_mode == OperationMode.conv:
                 ifmap_h = ifmap_w = randint(IFMAP_LOWER, IFMAP_UPPER)
@@ -125,7 +126,7 @@ def generate_test_cases_queue(count: int):
     return test_cases_queue
 
 
-def spawn_simulation_process(worker_id : int, test_case: TestCase):
+def spawn_simulation_process(worker_id: int, test_case: TestCase):
     args = (
         "build/hero_sim_backend",
         "--ifmap_h",
@@ -143,8 +144,8 @@ def spawn_simulation_process(worker_id : int, test_case: TestCase):
         "--channel_count",
         f"{test_case.arch_channel_count}",
     )
-    output_file_path = os.path.join(SUBPROCESS_OUTPUT_DIR, f'output_{worker_id}.temp')
-    with open(output_file_path, 'w+') as output_file:
+    output_file_path = os.path.join(SUBPROCESS_OUTPUT_DIR, f"output_{worker_id}.temp")
+    with open(output_file_path, "w+") as output_file:
         popen = subprocess.Popen(args, stdout=output_file, stderr=output_file)
         popen.wait()
         output_file.seek(0)
@@ -192,7 +193,7 @@ def test_case_worker(
 ):
     while True:
         test_case = test_cases_queue.get()
-        logger.debug(f'worker {worker_id} spawning process with test case\n{test_case}')
+        logger.debug(f"worker {worker_id} spawning process with test case\n{test_case}")
         output = spawn_simulation_process(worker_id, test_case)
         sim_result = parse_simulation_process_output(output)
         results_queue.put((test_case, sim_result))
@@ -200,7 +201,10 @@ def test_case_worker(
 
 
 def results_collection_worker(
-    worker_id: int, test_case_count: int, results_queue: queue.Queue, done_queue: queue.Queue
+    worker_id: int,
+    test_case_count: int,
+    results_queue: queue.Queue,
+    done_queue: queue.Queue,
 ):
     collection_counter = 0
     results_dataframe = DataFrame()
@@ -221,10 +225,11 @@ def results_collection_worker(
             logger.info(
                 f"Worker {worker_id} processed %{percent_complete} of test cases",
             )
-        
+
         done_queue.put(collection_counter)
         collection_counter += 1
         results_queue.task_done()
+
 
 def main():
     Path(SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
@@ -246,13 +251,14 @@ def main():
 
     for _ in range(TEST_CASE_COUNT):
         _ = done_queue.get()
-    
+
     print("Processed all test cases... exiting...")
+
 
 if __name__ == "__main__":
     start = timer()
     main()
     end = timer()
-    print(f'Evaluated {TEST_CASE_COUNT} testcases in {(end - start):.2f} seconds') # Time in seconds, e.g. 5.38091952400282
-
-
+    print(
+        f"Evaluated {TEST_CASE_COUNT} testcases in {(end - start):.2f} seconds"
+    )  # Time in seconds, e.g. 5.38091952400282
