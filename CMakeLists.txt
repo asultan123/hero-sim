@@ -9,7 +9,6 @@ project(HeroSim-Backend
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# set(CMAKE_CXX_FLAGS_DEBUG "-pg -DMEM_WAVE_TRACE")
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
@@ -19,6 +18,10 @@ set(BUILD_SHARED_LIBS OFF)
 set(CMAKE_EXE_LINKER_FLAGS "-static")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release")
+endif()
+
 find_package(PkgConfig REQUIRED)
 find_package(xtl REQUIRED)
 find_package(xtensor REQUIRED)
@@ -26,18 +29,7 @@ find_package(xtensor-blas REQUIRED)
 find_package(Boost COMPONENTS program_options REQUIRED)
 find_package(fmt REQUIRED)
 
-# find_program(IWYU_PATH NAMES include-what-you-use iwyu)
-# if(NOT IWYU_PATH)
-#   message(FATAL_ERROR "Could not find the program include-what-you-use")
-# endif()
-# set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE ${IWYU_PATH})
-# set(CMAKE_C_INCLUDE_WHAT_YOU_USE ${IWYU_PATH})
-
 pkg_check_modules(SYSTEMC REQUIRED IMPORTED_TARGET systemc)
-
-# pkg_check_modules(TLM2 REQUIRED IMPORTED_TARGET tlm)
-
-# add_subdirectory(xilinx)
 
 add_library(cnn_processor INTERFACE)
 target_include_directories(cnn_processor INTERFACE
@@ -53,9 +45,8 @@ install(TARGETS hero_sim_backend
         CONFIGURATIONS Release
         RUNTIME DESTINATION /bin)
 
-# set_property(TARGET hero_sim_backend PROPERTY CXX_INCLUDE_WHAT_YOU_USE "${iwyu_path};-Xiwyu;--mapping_file=${CMAKE_CURRENT_SOURCE_DIR}/systemc.imp;-Xiwyu;--cxx14ns")
 SET(CPACK_GENERATOR "DEB")
-SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "SULTAN") #required
+SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "SULTAN") 
 INCLUDE(CPack)
 
 enable_testing()
