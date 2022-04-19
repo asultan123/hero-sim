@@ -177,8 +177,12 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     xt::print_options::set_threshold(10000);
     xt::print_options::set_line_width(100);
 
+#ifdef DEBUG
     sc_trace_file *tf = sc_create_vcd_trace_file("Arch1x1");
     tf->set_time_unit(10, SC_PS);
+#else
+    sc_trace_file *tf = nullptr;
+#endif
 
     GlobalControlChannel control("global_control_channel", sc_time(1, SC_NS), tf);
     Hero::Arch<DataType> arch("arch", control, filter_count, channel_count, psum_mem_size, ifmap_mem_size, tf, op_mode);
@@ -264,7 +268,8 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
         cout << std::left << std::setw(20) << "Psum Access" << arch.psum_mem.mem.access_counter << endl;
         cout << std::left << std::setw(20) << "Ifmap Access" << arch.ifmap_mem.mem.access_counter << endl;
         cout << std::left << std::setw(20) << "Avg. Pe Util" << std::setprecision(2) << avg_util << endl;
-        cout << std::left << std::setw(20) << "Latency in cycles" << (unsigned long int)(end_cycle_time - start_cycle_time) << endl;
+        cout << std::left << std::setw(20) << "Latency in cycles"
+             << (unsigned long int)(end_cycle_time - start_cycle_time) << endl;
         cout << std::left << std::setw(20) << "Simulated in " << sim_time.count() << "ms\n";
         cout << std::left << std::setw(20) << "ALL TESTS PASS\n";
         exit(EXIT_SUCCESS); // avoids expensive de-alloc
@@ -349,7 +354,6 @@ int sc_main(int argc, char *argv[])
     cout << std::left << std::setw(20) << "filter_count" << filter_count << endl;
     cout << std::left << std::setw(20) << "channel_count" << channel_count << endl;
     cout << endl;
-
 
     cout << std::left << "With layer config:" << endl;
     cout << endl;
