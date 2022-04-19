@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 
-project(Processor
+project(HeroSim-Backend
     VERSION 0.1
     DESCRIPTION "Testbench for distributed control based processor SystemC module"
     LANGUAGES CXX
@@ -12,7 +12,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # set(CMAKE_CXX_FLAGS_DEBUG "-pg -DMEM_WAVE_TRACE")
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 set(BUILD_SHARED_LIBS OFF)
@@ -49,7 +49,14 @@ add_executable(hero_sim_backend "")
 target_sources(hero_sim_backend PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests/hero_sim_backend.cc")
 target_link_libraries(hero_sim_backend cnn_processor)
 
+install(TARGETS hero_sim_backend
+        CONFIGURATIONS Release
+        RUNTIME DESTINATION /bin)
+
 # set_property(TARGET hero_sim_backend PROPERTY CXX_INCLUDE_WHAT_YOU_USE "${iwyu_path};-Xiwyu;--mapping_file=${CMAKE_CURRENT_SOURCE_DIR}/systemc.imp;-Xiwyu;--cxx14ns")
+SET(CPACK_GENERATOR "DEB")
+SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "SULTAN") #required
+INCLUDE(CPack)
 
 enable_testing()
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/tests")
