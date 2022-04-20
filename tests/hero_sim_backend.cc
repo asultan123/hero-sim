@@ -190,7 +190,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
 
     fmt::print("Instantiated HERO Arch\n");
 
-    auto start_cycle_time = sc_simulation_time();
+    auto start_cycle_time = sc_time_stamp();
     control.set_reset(true);
     sc_start(10, SC_NS);
     control.set_reset(false);
@@ -247,7 +247,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
 
     fmt::print("Validating output\n");
     auto valid = LayerGeneration::validate_output(ifmap, weights, arch_output);
-    auto end_cycle_time = sc_simulation_time();
+    auto end_cycle_time = sc_time_stamp();
 
     auto t2 = high_resolution_clock::now();
     auto sim_time = duration_cast<milliseconds>(t2 - t1);
@@ -264,16 +264,17 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
             pe_utilization(0, pe_idx++) = (float)pe.active_counter / (float)(pe.active_counter + pe.inactive_counter);
         }
         float avg_util = xt::average(pe_utilization)(0);
+        auto latency_in_cycles = end_cycle_time - start_cycle_time;
         cout << std::left << std::setw(20) << "DRAM Access" << arch.dram_access_counter << endl;
         cout << std::left << std::setw(20) << "Weight Access" << weight_access << endl;
         cout << std::left << std::setw(20) << "Psum Access" << arch.psum_mem.mem.access_counter << endl;
         cout << std::left << std::setw(20) << "Ifmap Access" << arch.ifmap_mem.mem.access_counter << endl;
         cout << std::left << std::setw(20) << "Avg. Pe Util" << std::setprecision(2) << avg_util << endl;
-        cout << std::left << std::setw(20) << "Latency in cycles"
-             << (unsigned long int)(end_cycle_time - start_cycle_time) << endl;
+        cout << std::left << std::setw(20) << "Latency in cycles" << latency_in_cycles << endl;
         cout << std::left << std::setw(20) << "Simulated in " << sim_time.count() << "ms\n";
         cout << std::left << std::setw(20) << "ALL TESTS PASS\n";
-        exit(EXIT_SUCCESS); // avoids expensive de-alloc
+
+                exit(EXIT_SUCCESS); // avoids expensive de-alloc
     }
     else
     {
@@ -283,12 +284,6 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
 
 int sc_main(int argc, char *argv[])
 {
-    message::Message m0, m1;
-    m0.set_id("ASD");
-    std::string temp = m0.SerializeAsString();
-    m1.ParseFromString(temp);
-    cout << m1.id() << endl;
-
     int ifmap_h;
     int ifmap_w;
     int k;

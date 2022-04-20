@@ -6,3 +6,4 @@ tests/*.vcd
 *.vcd
 *.temp
 data/
+scripts/__pycache__/
