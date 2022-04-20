@@ -5,3 +5,4 @@ tests/*.vcd
 .venv/
 *.vcd
 *.temp
+data/

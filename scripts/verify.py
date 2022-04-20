@@ -37,13 +37,13 @@ logger.addHandler(handler)
 logger.setLevel("DEBUG")
 
 CORE_COUNT = 32
-TEST_CASE_COUNT = 1000
+TEST_CASE_COUNT = 100
 SAVE_EVERY = 10
-RESULTS_CSV_PATH = "./verify_results.csv"
-SUBPROCESS_OUTPUT_DIR = "./subprocess_output"
+RESULTS_CSV_PATH = "./data/verify_results.csv"
+SUBPROCESS_OUTPUT_DIR = "./data/subprocess_output"
 
 SEED = 1234
-LAYER_SIZE_UB = 2**10
+LAYER_SIZE_UB = 2**15
 IFMAP_LOWER = 10
 IFMAP_UPPER = 224
 LOG2_FILTER_LOWER = 0
