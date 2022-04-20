@@ -1,6 +1,7 @@
 #ifndef __ESTIMATION_ENVIORNMENT_CC
 #define __ESTIMATION_ENVIORNMENT_CC
 
+#include "../proto/message.pb.h"
 #include "AddressGenerator.hh"
 #include "GlobalControl.hh"
 #include "ProcEngine.hh"
@@ -282,6 +283,11 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
 
 int sc_main(int argc, char *argv[])
 {
+    message::Message m0, m1;
+    m0.set_id("ASD");
+    std::string temp = m0.SerializeAsString();
+    m1.ParseFromString(temp);
+    cout << m1.id() << endl;
 
     int ifmap_h;
     int ifmap_w;
