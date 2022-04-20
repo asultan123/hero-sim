@@ -31,7 +31,7 @@ find_package(fmt REQUIRED)
 
 pkg_check_modules(SYSTEMC REQUIRED IMPORTED_TARGET systemc)
 
-add_subdirectory(proto)
+add_subdirectory(hero-sim-proto)
 
 add_library(cnn_processor INTERFACE)
 target_include_directories(cnn_processor INTERFACE
