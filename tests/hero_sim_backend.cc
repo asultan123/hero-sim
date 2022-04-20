@@ -1,7 +1,7 @@
 #ifndef __ESTIMATION_ENVIORNMENT_CC
 #define __ESTIMATION_ENVIORNMENT_CC
 
-#include "../proto/message.pb.h"
+#include "../proto/result.pb.h"
 #include "AddressGenerator.hh"
 #include "GlobalControl.hh"
 #include "ProcEngine.hh"
