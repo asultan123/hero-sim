@@ -33,10 +33,13 @@ pkg_check_modules(SYSTEMC REQUIRED IMPORTED_TARGET systemc)
 
 add_subdirectory(hero-sim-proto)
 
+
 add_library(cnn_processor INTERFACE)
 target_include_directories(cnn_processor INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
+
+
 target_link_libraries(cnn_processor INTERFACE PkgConfig::SYSTEMC fmt::fmt-header-only Boost::program_options xtensor xtensor-blas xtensor::optimize xtensor::use_xsimd)
 
 add_executable(hero_sim_backend "")

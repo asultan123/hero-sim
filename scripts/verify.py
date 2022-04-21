@@ -1,5 +1,4 @@
 import subprocess
-import regex as rx
 from enum import Enum
 from random import randint, choice, seed, choices
 import threading, queue
@@ -11,6 +10,9 @@ from timeit import default_timer as timer
 import colorlog
 from colorlog import ColoredFormatter
 import math
+import result_pb2
+
+os.environ["SC_COPYRIGHT_MESSAGE"] = "DISABLE"
 
 formatter = ColoredFormatter(
     "%(log_color)s%(asctime)s %(log_color)s%(levelname)-8s%(reset)s %(log_color)s%(message)s",
@@ -39,11 +41,11 @@ logger.setLevel("DEBUG")
 CORE_COUNT = 32
 TEST_CASE_COUNT = 100
 SAVE_EVERY = 10
-RESULTS_CSV_PATH = "./data/verify_results.csv"
-SUBPROCESS_OUTPUT_DIR = "./data/subprocess_output"
+RESULTS_CSV_PATH = "../data/verify_results.csv"
+SUBPROCESS_OUTPUT_DIR = "../data/subprocess_output"
 
 SEED = 1234
-LAYER_SIZE_UB = 2**15
+LAYER_SIZE_UB = 2**10
 IFMAP_LOWER = 10
 IFMAP_UPPER = 224
 LOG2_FILTER_LOWER = 0
@@ -128,7 +130,7 @@ def generate_test_cases_queue(count: int):
 
 def spawn_simulation_process(worker_id: int, test_case: TestCase):
     args = (
-        "build/hero_sim_backend",
+        "../build/hero_sim_backend",
         "--ifmap_h",
         f"{test_case.ifmap_h}",
         "--ifmap_w",
@@ -143,50 +145,32 @@ def spawn_simulation_process(worker_id: int, test_case: TestCase):
         f"{test_case.arch_filter_count}",
         "--channel_count",
         f"{test_case.arch_channel_count}",
+        "--result_as_protobuf",
     )
-    output_file_path = os.path.join(SUBPROCESS_OUTPUT_DIR, f"output_{worker_id}.temp")
-    with open(output_file_path, "w+") as output_file:
-        popen = subprocess.Popen(args, stdout=output_file, stderr=output_file)
+    stderr_file_path = os.path.join(
+        SUBPROCESS_OUTPUT_DIR, f"output_{worker_id}_stderr.temp"
+    )
+    stdout_file_path = os.path.join(
+        SUBPROCESS_OUTPUT_DIR, f"output_{worker_id}_stdout.temp"
+    )
+
+    with open(stderr_file_path, 'wb') as stderr_file, open(stdout_file_path, 'w') as stdout_file:
+        popen = subprocess.Popen(args, stdout=stdout_file, stderr=stderr_file)
         popen.wait()
-        output_file.seek(0)
-        res_str = output_file.read()
+    with open(stderr_file_path, 'rb') as stderr_file, open(stdout_file_path, 'r') as stdout_file:  
+        res = result_pb2.Result()
+        res.ParseFromString(stderr_file.read())
 
-    return res_str
-
-
-def parse_simulation_process_output(output: str):
-    if len(rx.findall("PASS", output)) > 0:
-        valid = rx.findall("PASS", output)[0]
-        dram = int(rx.findall("DRAM Access +(\w+)", output)[0], 10)
-        weight = int(rx.findall("Weight Access +(\w+)", output)[0], 10)
-        psum = int(rx.findall("Psum Access +(\w+)", output)[0], 10)
-        ifmap = int(rx.findall("Ifmap Access +(\w+)", output)[0], 10)
-        pe_util = float(rx.findall("Avg. Pe Util +([\.\w]+)", output)[0])
-        latency = int(rx.findall("Latency in cycles +(\w+)", output)[0], 10)
-        sim_time = int(rx.findall("Simulated in +(\w+)ms", output)[0], 10)
-
-    elif len(rx.findall("FAIL", output)):
-        valid = "FAIL"
-        dram = -1
-        weight = -1
-        psum = -1
-        ifmap = -1
-        pe_util = -1
-        latency = -1
-        sim_time = -1
-
-    else:
-        valid = "N/A"
-        dram = -1
-        weight = -1
-        psum = -1
-        ifmap = -1
-        pe_util = -1
-        latency = -1
-        sim_time = -1
-
-    return SimResult(valid, dram, weight, psum, ifmap, pe_util, latency, sim_time)
-
+    return SimResult(
+        res.valid,
+        res.dram_access,
+        res.weight_access,
+        res.ifmap_access,
+        res.psum_access,
+        res.avg_util,
+        res.latency,
+        res.sim_time
+    )
 
 def test_case_worker(
     worker_id, test_cases_queue: queue.Queue, results_queue: queue.Queue
@@ -194,8 +178,7 @@ def test_case_worker(
     while True:
         test_case = test_cases_queue.get()
         logger.debug(f"worker {worker_id} spawning process with test case\n{test_case}")
-        output = spawn_simulation_process(worker_id, test_case)
-        sim_result = parse_simulation_process_output(output)
+        sim_result = spawn_simulation_process(worker_id, test_case)
         results_queue.put((test_case, sim_result))
         test_cases_queue.task_done()
 

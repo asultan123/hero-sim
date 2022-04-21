@@ -1,7 +1,7 @@
 #ifndef __ESTIMATION_ENVIORNMENT_CC
 #define __ESTIMATION_ENVIORNMENT_CC
 
-#include "../proto/result.pb.h"
+#include "../hero-sim-proto/result.pb.h"
 #include "AddressGenerator.hh"
 #include "GlobalControl.hh"
 #include "ProcEngine.hh"
@@ -150,7 +150,7 @@ void load_padded_weights_into_pes(Hero::Arch<DataType> &arch, xt::xarray<int> pa
 
 template <typename DataType>
 void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, int filter_count, int channel_count,
-                         Hero::OperationMode op_mode)
+                         Hero::OperationMode op_mode, bool result_as_protobuf)
 {
     auto t1 = high_resolution_clock::now();
 
@@ -252,6 +252,8 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     auto t2 = high_resolution_clock::now();
     auto sim_time = duration_cast<milliseconds>(t2 - t1);
 
+    message::Result res;
+
     if (valid)
     {
         cout << "PASS" << endl;
@@ -270,29 +272,37 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
         cout << std::left << std::setw(20) << "Psum Access" << arch.psum_mem.mem.access_counter << endl;
         cout << std::left << std::setw(20) << "Ifmap Access" << arch.ifmap_mem.mem.access_counter << endl;
         cout << std::left << std::setw(20) << "Avg. Pe Util" << std::setprecision(2) << avg_util << endl;
-        cout << std::left << std::setw(20) << "Latency in cycles" << latency_in_cycles << endl;
+        cout << std::left << std::setw(20) << "Latency in cycles" << latency_in_cycles.value() / 1000 << endl;
         cout << std::left << std::setw(20) << "Simulated in " << sim_time.count() << "ms\n";
         cout << std::left << std::setw(20) << "ALL TESTS PASS\n";
 
-                exit(EXIT_SUCCESS); // avoids expensive de-alloc
+        res.set_valid("PASS");
+        res.set_dram_access(arch.dram_access_counter);
+        res.set_weight_access(weight_access);
+        res.set_ifmap_access(arch.psum_mem.mem.access_counter);
+        res.set_psum_access(arch.ifmap_mem.mem.access_counter);
+        res.set_avg_util(avg_util);
+        res.set_latency(latency_in_cycles.value() / 1000);
+        res.set_sim_time(sim_time.count());
     }
     else
     {
         cout << "FAIL" << endl;
+        res.set_valid("FAIL");
     }
+
+    if (result_as_protobuf)
+    {
+        std::string output_string = res.SerializeAsString();
+        cerr << output_string;
+    }
+    
+
+    exit(EXIT_SUCCESS); // avoids expensive de-alloc
 }
 
 int sc_main(int argc, char *argv[])
 {
-    int ifmap_h;
-    int ifmap_w;
-    int k;
-    int c_in;
-    int f_out;
-    int filter_count;
-    int channel_count;
-    bool result_as_protobuf;
-
     try
     {
         po::options_description config("Configuration");
@@ -305,30 +315,32 @@ int sc_main(int argc, char *argv[])
         const int f_out_default = 32;
         const int filter_count_default = 32;
         const int channel_count_default = 18;
-        const bool result_as_protobuf_default = true;
+        const bool result_as_protobuf_default = false;
 
-        config.add_options()("help", "produce help message")(
-            "ifmap_h", po::value<int>()->default_value(ifmap_h_default), "set input feature map height")(
-            "ifmap_w", po::value<int>()->default_value(ifmap_w_default),
-            "set input feature map width")("k", po::value<int>()->default_value(k_default), "set kernel size")(
-            "c_in", po::value<int>()->default_value(c_in_default), "set ifmap channel count")(
-            "f_out", po::value<int>()->default_value(f_out_default), "set weight filter count")(
-            "filter_count", po::value<int>()->default_value(filter_count_default), "set arch height")(
-            "channel_count", po::value<int>()->default_value(channel_count_default),
-            "set arch width")("result_as_protobuf", po::value<int>()->default_value(result_as_protobuf_default),
-                              "output result as serialized protobuf to stderr");
+        config.add_options()("help", "produce help message");
+        config.add_options()("ifmap_h", po::value<int>()->default_value(ifmap_h_default),
+                             "set input feature map height");
+        config.add_options()("ifmap_w", po::value<int>()->default_value(ifmap_w_default),
+                             "set input feature map width");
+        config.add_options()("k", po::value<int>()->default_value(k_default), "set kernel size");
+        config.add_options()("c_in", po::value<int>()->default_value(c_in_default), "set ifmap channel count");
+        config.add_options()("f_out", po::value<int>()->default_value(f_out_default), "set weight filter count");
+        config.add_options()("filter_count", po::value<int>()->default_value(filter_count_default), "set arch height");
+        config.add_options()("channel_count", po::value<int>()->default_value(channel_count_default), "set arch width");
+        config.add_options()("result_as_protobuf", po::bool_switch()->default_value(result_as_protobuf_default),
+                             "output result as serialized protobuf to stderr");
 
 #else
-        config.add_options()("help", "produce help message")("ifmap_h", po::value<int>()->required(),
-                                                             "set input feature map width")(
-            "ifmap_w", po::value<int>()->required(), "set input feature map height")("k", po::value<int>()->required(),
-                                                                                     "set kernel size")(
-            "c_in", po::value<int>()->required(), "set ifmap channel count")("f_out", po::value<int>()->required(),
-                                                                             "set weight filter count")(
-            "filter_count", po::value<int>()->required(),
-            "set arch width")("channel_count", po::value<int>()->required(),
-                              "set arch height")("result_as_protobuf", po::value<int>()->default_value(false),
-                                                 "output result as serialized protobuf to stderr");
+        config.add_options()("help", "produce help message");
+        config.add_options()("ifmap_h", po::value<int>()->required(), "set input feature map width");
+        config.add_options()("ifmap_w", po::value<int>()->required(), "set input feature map height");
+        config.add_options()("k", po::value<int>()->required(), "set kernel size");
+        config.add_options()("c_in", po::value<int>()->required(), "set ifmap channel count");
+        config.add_options()("f_out", po::value<int>()->required(), "set weight filter count");
+        config.add_options()("filter_count", po::value<int>()->required(), "set arch width");
+        config.add_options()("channel_count", po::value<int>()->required(), "set arch height");
+        config.add_options()("result_as_protobuf", po::bool_switch()->default_value(false),
+                             "output result as serialized protobuf to stderr");
 
 #endif
 
@@ -342,13 +354,16 @@ int sc_main(int argc, char *argv[])
             return 0;
         }
 
-        ifmap_h = vm["ifmap_h"].as<int>();
-        ifmap_w = vm["ifmap_w"].as<int>();
-        k = vm["k"].as<int>();
-        c_in = vm["c_in"].as<int>();
-        f_out = vm["f_out"].as<int>();
-        filter_count = vm["filter_count"].as<int>();
-        channel_count = vm["channel_count"].as<int>();
+        int ifmap_h = vm["ifmap_h"].as<int>();
+        int ifmap_w = vm["ifmap_w"].as<int>();
+        int k = vm["k"].as<int>();
+        int c_in = vm["c_in"].as<int>();
+
+        int f_out = vm["f_out"].as<int>();
+        int filter_count = vm["filter_count"].as<int>();
+        int channel_count = vm["channel_count"].as<int>();
+        bool result_as_protobuf = vm["result_as_protobuf"].as<bool>();
+        // bool result_as_protobuf = vm["result_as_protobuf"].as<int>();
 
         if (ifmap_h <= 0 || ifmap_w <= 0 || k <= 0 || c_in <= 0 || f_out <= 0 || filter_count <= 0 ||
             channel_count <= 0)
@@ -382,7 +397,8 @@ int sc_main(int argc, char *argv[])
         cout << std::left << std::setw(20) << "f_out" << f_out << endl;
 
         auto operation_mode = (k == 1) ? Hero::OperationMode::RUN_1x1 : Hero::OperationMode::RUN_3x3;
-        sim_and_get_results<sc_int<32>>(ifmap_h, ifmap_w, k, c_in, f_out, filter_count, channel_count, operation_mode);
+        sim_and_get_results<sc_int<32>>(ifmap_h, ifmap_w, k, c_in, f_out, filter_count, channel_count, operation_mode,
+                                        result_as_protobuf);
     }
     catch (std::exception &e)
     {
