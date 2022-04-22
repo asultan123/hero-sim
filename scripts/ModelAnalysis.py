@@ -13,10 +13,9 @@ from enum import Enum
 import torch
 from PIL import Image
 from torchvision import transforms, models
-import timm
 from tqdm import tqdm
 import urllib
-from PIL import Image
+import timm
 from timm.data import resolve_data_config
 from timm.data.transforms_factory import create_transform
 from math import floor, ceil
@@ -24,28 +23,17 @@ import numpy as np
 import urllib
 import pickle
 from typing import Optional
-
-
-class LayerType(Enum):
-    conv = 1
-    linear = 2
-
+from torch.nn.modules.linear import Linear
+from torch.nn.modules.conv import Conv2d
 
 @dataclass
-class LayerDimensions:
-    ifmap_w: int
-    ifmap_h: int
-    c_in: int
-    f_out: int
-    layer_type: LayerType
-    kernel_size: Optional[Tuple[int, int]] = None
-    stride: Optional[Tuple[int, int]] = None
-    padding: Optional[Tuple[int, int]] = None
-    groups: Optional[int] = None
-
+class IfmapLayerDimensions:
+    width: int
+    height: int
+    channels: int
 
 class ModelDimCollector:
-    default_targets = [torch.nn.modules.conv.Conv2d, torch.nn.modules.linear.Linear]
+    default_targets = [Conv2d, Linear]
 
     def __init__(self):
         self.model_stats = OrderedDict()
@@ -61,31 +49,25 @@ class ModelDimCollector:
                 yield (name, module)
 
     def extract_dims(self, name, module, input, output):
-        if isinstance(module, torch.nn.modules.linear.Linear):
-            dims = LayerDimensions(
-                ifmap_h=1,
-                ifmap_w=1,
-                c_in=module.in_features,
-                f_out=module.out_features,
-                layer_type=LayerType.linear,
+        if isinstance(module, Linear):
+            dims = IfmapLayerDimensions(
+                height=1,
+                width=1,
+                channels=input[0].size()[-1],
             )
-        elif isinstance(module, torch.nn.modules.conv.Conv2d):
-            dims = LayerDimensions(
-                ifmap_h=input[0].size()[-2],
-                ifmap_w=input[0].size()[-1],
-                c_in=module.in_channels,
-                f_out=module.out_channels,
-                kernel_size=module.kernel_size,
-                stride=module.stride,
-                groups=module.groups,
-                padding=module.padding,
-                layer_type=LayerType.conv,
+            
+        elif isinstance(module, Conv2d):
+            dims = IfmapLayerDimensions(
+                channels=input[0].size()[-3],
+                height=input[0].size()[-2],
+                width=input[0].size()[-1],
             )
+            
         else:
-            raise ArgumentError(
-                f"Unsupported module type {type} found during dimensions extraction"
+            raise TypeError(
+                f"Unsupported module type {type(module)} found during dimensions extraction"
             )
-        self.model_stats[name] = dims
+        self.model_stats[name] = (dims, module)
 
     def attach_collection_hooks_to_model(self, model):
         for name, layer in self.get_next_target_layer(model):
@@ -97,7 +79,7 @@ class ModelDimCollector:
             hook.remove()
 
     @classmethod
-    def collect_stats_from_model(cls, model, input_batch):
+    def collect_layer_dims_from_model(cls, model, input_batch):
         collector = cls()
         collector.attach_collection_hooks_to_model(model)
         if torch.cuda.is_available():
@@ -138,7 +120,7 @@ stats_dict = {}
 for model_name, model in model_list:
     transform = create_transform(**model_input_image_config[model_name])
     input_batch = transform(img).unsqueeze(0)
-    stats_dict[model_name] = ModelDimCollector.collect_stats_from_model(
+    stats_dict[model_name] = ModelDimCollector.collect_layer_dims_from_model(
         model, input_batch
     )
-    
+print('...')

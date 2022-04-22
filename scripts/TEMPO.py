@@ -2,7 +2,7 @@
 import torch
 from PIL import Image
 from torchvision import transforms, models
-from ModelAnalysis import ModelStatsAggregator, ModelStatAnalyser, ModelStatCollector
+from ModelAnalysis import ModelStatsAggregator, ModelStatAnalyser, ModelDimCollector
 from sys import version
 import timm
 from tqdm import tqdm
@@ -24,7 +24,6 @@ from math import sqrt, floor, ceil
 from sklearn.preprocessing import MinMaxScaler
 from math import inf
 import pandas as pd
-%matplotlib inline
 # get_ipython().run_line_magic('matplotlib', 'inline')
 version
 
