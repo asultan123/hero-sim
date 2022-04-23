@@ -93,34 +93,33 @@ class ModelDimCollector:
         collected_stats = deepcopy(collector.model_stats)
         return collected_stats
 
+if __name__ == "__main__":
+    model_list = [
+        (model_name, timm.create_model(model_name, pretrained=False))
+        for model_name in ["resnet50", "vgg19", "mobilenetv3_rw"]
+    ]
+    model_input_image_config = {
+        model_name: resolve_data_config({}, model=model) for model_name, model in model_list
+    }
 
-model_list = [
-    (model_name, timm.create_model(model_name, pretrained=False))
-    for model_name in ["resnet50", "vgg19", "mobilenetv3_rw"]
-]
-model_input_image_config = {
-    model_name: resolve_data_config({}, model=model) for model_name, model in model_list
-}
+    last_config = list(model_input_image_config.values())[0]
+    for config in list(model_input_image_config.values())[1:]:
+        if config["input_size"] != last_config["input_size"]:
+            raise Exception(
+                "Mismatch in required input image dimensions for desired models"
+            )
 
-last_config = list(model_input_image_config.values())[0]
-for config in list(model_input_image_config.values())[1:]:
-    if config["input_size"] != last_config["input_size"]:
-        raise Exception(
-            "Mismatch in required input image dimensions for desired models"
-        )
-
-url, filename = (
-    "https://github.com/pytorch/hub/raw/master/images/dog.jpg",
-    "dog.jpg",
-)
-urllib.request.urlretrieve(url, filename)
-img = Image.open(filename).convert("RGB")
-
-stats_dict = {}
-for model_name, model in model_list:
-    transform = create_transform(**model_input_image_config[model_name])
-    input_batch = transform(img).unsqueeze(0)
-    stats_dict[model_name] = ModelDimCollector.collect_layer_dims_from_model(
-        model, input_batch
+    url, filename = (
+        "https://github.com/pytorch/hub/raw/master/images/dog.jpg",
+        "dog.jpg",
     )
-print('...')
+    urllib.request.urlretrieve(url, filename)
+    img = Image.open(filename).convert("RGB")
+
+    stats_dict = {}
+    for model_name, model in model_list:
+        transform = create_transform(**model_input_image_config[model_name])
+        input_batch = transform(img).unsqueeze(0)
+        stats_dict[model_name] = ModelDimCollector.collect_layer_dims_from_model(
+            model, input_batch
+        )
