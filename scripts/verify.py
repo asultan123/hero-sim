@@ -73,7 +73,7 @@ DIRECTLY_SUPPORTED_KERNELS = [(1, 1), (3, 3)]
 
 ARCH_CONFIG_DICT = {
     "small": {"filter_count": 9, "channel_count": 9},
-    "medium": {"filter_count": 12, "channel_count": 27},
+    "medium": {"filter_count": 18, "channel_count": 18},
     "large": {"filter_count": 32, "channel_count": 18},
 }
 
@@ -111,7 +111,7 @@ class SimResult:
     sim_time: int
 
 
-@dataclass
+@dataclass(frozen=True)
 class TestCase:
     ifmap_h: int
     ifmap_w: int
@@ -182,7 +182,7 @@ def spawn_simulation_process(worker_id: int, test_case: TestCase):
         f"{test_case.arch_channel_count}",
         "--result_as_protobuf",
     )
-    layer_name = test_case.layer_name if test_case.layer_name is not None else ''
+    layer_name = test_case.layer_name if test_case.layer_name is not None else ""
     stderr_file_path = os.path.join(
         SUBPROCESS_OUTPUT_DIR, f"output_{worker_id}_{layer_name}_stderr.temp"
     )
@@ -229,17 +229,49 @@ def results_collection_worker(
     test_case_count: int,
     results_queue: queue.Queue,
     done_queue: queue.Queue,
+    layer_name_tracker: Dict[TestCase, str] = None,
 ):
     collection_counter = 0
     results_dataframe = DataFrame()
     aggregate_dataframe = DataFrame()
+    
+    def create_new_sim_result_rows(test_case, result, layer_name_tracker):
+        rows = []
+        for layer_name in layer_name_tracker[test_case]:
+            test_case_with_name = TestCase(
+                ifmap_h=test_case.ifmap_h,
+                ifmap_w=test_case.ifmap_w,
+                kernel=test_case.kernel,
+                c_in=test_case.c_in,
+                f_out=test_case.f_out,
+                arch_filter_count=test_case.arch_filter_count,
+                arch_channel_count=test_case.arch_channel_count,
+                layer_name=layer_name,
+            )
+            combined_dict = {}
+            combined_dict.update(asdict(test_case_with_name))
+            combined_dict.update(asdict(result))
+            rows.append(DataFrame([combined_dict]))
+        return rows
+
     while True:
         test_case, result = results_queue.get()
-        combined_dict = {}
-        combined_dict.update(asdict(test_case))
-        combined_dict.update(asdict(result))
-        new_row = DataFrame([combined_dict])
-        aggregate_dataframe = concat([aggregate_dataframe, new_row])
+
+        if layer_name_tracker is None:
+            layer_name_tracker = {}
+            layer_name_tracker[test_case] = [
+                test_case.layer_name if test_case.layer_name is not None else "RANDOM"
+            ]
+            
+            new_rows = create_new_sim_result_rows(test_case, result, layer_name_tracker)
+            layer_name_tracker = None
+            
+        else:
+            new_rows = create_new_sim_result_rows(test_case, result, layer_name_tracker)
+            
+
+        aggregate_dataframe = concat([aggregate_dataframe, *new_rows])
+
 
         if (collection_counter + 1) % SAVE_EVERY == 0:
             results_dataframe = concat([results_dataframe, aggregate_dataframe])
@@ -355,25 +387,30 @@ def get_layer_equivelents(
     return new_layer_dims
 
 
-def convert_layer_dims_to_test_cases(layer_dims : Dict[str, Tuple[IfmapLayerDimensions, Conv2d]], arch_config : Dict[str, int]):
+def convert_layer_dims_to_test_cases(
+    layer_dims: Dict[str, Tuple[IfmapLayerDimensions, Conv2d]],
+    arch_config: Dict[str, int],
+):
     test_cases_queue = queue.Queue(0)
     for layer_name, (ifmap_dim, layer) in layer_dims.items():
         test_cases_queue.put(
             TestCase(
                 ifmap_h=ifmap_dim.height,
                 ifmap_w=ifmap_dim.width,
-                c_in = layer.in_channels,
+                c_in=layer.in_channels,
                 f_out=layer.out_channels,
                 kernel=layer.kernel_size[0],
-                arch_channel_count=arch_config['channel_count'],
-                arch_filter_count=arch_config['filter_count'],
-                layer_name=layer_name
+                arch_channel_count=arch_config["channel_count"],
+                arch_filter_count=arch_config["filter_count"],
+                layer_name=layer_name,
             )
         )
     return test_cases_queue
 
 
-def launch_workers_with_test_cases(test_cases_queue: queue.Queue):
+def launch_workers_with_test_cases(
+    test_cases_queue: queue.Queue, layer_name_tracker: Dict[TestCase, str] = None
+):
     queue_size = test_cases_queue.qsize()
     results_queue = queue.Queue(0)
     done_queue = queue.Queue(0)
@@ -386,13 +423,38 @@ def launch_workers_with_test_cases(test_cases_queue: queue.Queue):
     threading.Thread(
         target=results_collection_worker,
         daemon=True,
-        args=[CORE_COUNT, queue_size, results_queue, done_queue],
+        args=[CORE_COUNT, queue_size, results_queue, done_queue, layer_name_tracker],
     ).start()
 
     for _ in range(queue_size):
         _ = done_queue.get()
 
     print("Processed all test cases... exiting...")
+
+
+def remove_duplicate_test_cases(test_cases_queue: queue.Queue[TestCase]):
+    layer_name_tracker = {}
+    for case in test_cases_queue.queue:
+        layer_name = case.layer_name
+        case_without_layer_name = TestCase(
+            ifmap_h=case.ifmap_h,
+            ifmap_w=case.ifmap_w,
+            kernel=case.kernel,
+            c_in=case.c_in,
+            f_out=case.f_out,
+            arch_filter_count=case.arch_filter_count,
+            arch_channel_count=case.arch_channel_count,
+        )
+        try:
+            layer_name_tracker[case_without_layer_name].append(layer_name)
+        except KeyError:
+            layer_name_tracker[case_without_layer_name] = [layer_name]
+        except:
+            raise
+    test_cases_queue = queue.Queue()
+    for case in layer_name_tracker.keys():
+        test_cases_queue.put(case)
+    return test_cases_queue, layer_name_tracker
 
 
 def main():
@@ -405,16 +467,19 @@ def main():
             layer_dims, arch_config, DIRECTLY_SUPPORTED_KERNELS
         )
         test_cases_queue = convert_layer_dims_to_test_cases(layer_dims, arch_config)
+        test_cases_queue, layer_name_tracker = remove_duplicate_test_cases(
+            test_cases_queue
+        )
 
     elif VERIFY_MODE is VerifyMode.random_test_cases:
         Path(SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
         test_cases_queue = generate_test_cases_queue(TEST_CASE_COUNT)
+        layer_name_tracker = None
 
-    launch_workers_with_test_cases(test_cases_queue)
+    launch_workers_with_test_cases(test_cases_queue, layer_name_tracker)
 
 
 if __name__ == "__main__":
-
 
     start = timer()
     main()
