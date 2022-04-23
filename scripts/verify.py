@@ -349,7 +349,7 @@ def get_layer_equivelents(
     for layer_name, (ifmap_dims, layer) in layer_dims.items():
         if isinstance(layer, Linear):
             new_dims = pad_ifmap_dims(
-                ifmap_dims, (arch_config["channel_count"], arch_config["channel_count"])
+                ifmap_dims, (arch_config["channel_count"]+2, 0)
             )
             layer_out_channels = layer.out_features
             new_layer_dims[layer_name] = (
@@ -357,11 +357,14 @@ def get_layer_equivelents(
                 Conv2d(new_dims.channels, layer_out_channels, kernel_size=(1, 1)),
             )
         elif isinstance(layer, Conv2d):
-            new_dims = pad_ifmap_dims(ifmap_dims, layer.padding)
-            in_channels = int(layer.in_channels / layer.groups)
-            new_dims.channels = in_channels
-            out_channels = int(layer.out_channels / layer.groups)
             for group_idx in range(layer.groups):
+                new_dims = pad_ifmap_dims(ifmap_dims, layer.padding)
+                if new_dims.height * new_dims.width < arch_config["channel_count"]:
+                    new_dims = pad_ifmap_dims(ifmap_dims, (arch_config["channel_count"]+1, 0))
+                in_channels = int(layer.in_channels / layer.groups)
+                new_dims.channels = in_channels
+                out_channels = int(layer.out_channels / layer.groups)
+
                 if (
                     layer.stride == (1, 1)
                     and layer.kernel_size in directly_supported_kernels
@@ -460,7 +463,7 @@ def remove_duplicate_test_cases(test_cases_queue: queue.Queue[TestCase]):
 def main():
     if VERIFY_MODE is VerifyMode.network:
         arch_config = ARCH_CONFIG_DICT["medium"]
-        model = load_model_from_timm("resnet50")
+        model = load_model_from_timm("vgg16_bn") # mobilenetv3_rw
         input = load_default_input_tensor_for_model(model)
         layer_dims = ModelDimCollector.collect_layer_dims_from_model(model, input)
         layer_dims = get_layer_equivelents(
@@ -472,7 +475,6 @@ def main():
         )
 
     elif VERIFY_MODE is VerifyMode.random_test_cases:
-        Path(SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
         test_cases_queue = generate_test_cases_queue(TEST_CASE_COUNT)
         layer_name_tracker = None
 
@@ -480,6 +482,8 @@ def main():
 
 
 if __name__ == "__main__":
+    
+    Path(SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
 
     start = timer()
     main()
