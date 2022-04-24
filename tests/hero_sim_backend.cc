@@ -246,7 +246,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     }
 
     fmt::print("Validating output\n");
-    auto valid = LayerGeneration::validate_output(ifmap, weights, arch_output);
+    bool valid = LayerGeneration::validate_output(ifmap, weights, arch_output);
     auto end_cycle_time = sc_time_stamp();
 
     auto t2 = high_resolution_clock::now();
@@ -397,7 +397,7 @@ int sc_main(int argc, char *argv[])
         cout << std::left << std::setw(20) << "f_out" << f_out << endl;
 
         auto operation_mode = (k == 1) ? Hero::OperationMode::RUN_1x1 : Hero::OperationMode::RUN_3x3;
-        sim_and_get_results<sc_int<32>>(ifmap_h, ifmap_w, k, c_in, f_out, filter_count, channel_count, operation_mode,
+        sim_and_get_results<char>(ifmap_h, ifmap_w, k, c_in, f_out, filter_count, channel_count, operation_mode,
                                         result_as_protobuf);
     }
     catch (std::exception &e)
