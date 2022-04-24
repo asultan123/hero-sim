@@ -345,12 +345,13 @@ def get_layer_equivelents(
     arch_config,
     directly_supported_kernels: List[int],
 ) -> Dict[str, Tuple[IfmapLayerDimensions, Conv2d]]:
+    
     new_layer_dims = {}
     for layer_name, (ifmap_dims, layer) in layer_dims.items():
         if isinstance(layer, Linear):
-            new_dims = pad_ifmap_dims(
-                ifmap_dims, (arch_config["channel_count"]+2, 0)
-            )
+            if ifmap_dims.height * ifmap_dims.width < arch_config["channel_count"]:
+                new_dims = pad_ifmap_dims(ifmap_dims, (arch_config["channel_count"]+1, 0))
+
             layer_out_channels = layer.out_features
             new_layer_dims[layer_name] = (
                 new_dims,
@@ -359,8 +360,6 @@ def get_layer_equivelents(
         elif isinstance(layer, Conv2d):
             for group_idx in range(layer.groups):
                 new_dims = pad_ifmap_dims(ifmap_dims, layer.padding)
-                if new_dims.height * new_dims.width < arch_config["channel_count"]:
-                    new_dims = pad_ifmap_dims(ifmap_dims, (arch_config["channel_count"]+1, 0))
                 in_channels = int(layer.in_channels / layer.groups)
                 new_dims.channels = in_channels
                 out_channels = int(layer.out_channels / layer.groups)
@@ -369,14 +368,11 @@ def get_layer_equivelents(
                     layer.stride == (1, 1)
                     and layer.kernel_size in directly_supported_kernels
                 ):
-                    new_dims = (
-                        new_dims,
-                        Conv2d(
+                    conv_layer = Conv2d(
                             in_channels, out_channels, kernel_size=layer.kernel_size
-                        ),
-                    )
+                        )
                 else:
-                    new_dims = lower_ifmap_and_convert_to_conv(
+                    new_dims, conv_layer = lower_ifmap_and_convert_to_conv(
                         new_dims,
                         in_channels,
                         out_channels,
@@ -384,7 +380,10 @@ def get_layer_equivelents(
                         stride=layer.stride,
                     )
 
-                new_layer_dims[f"{layer_name}.grp_{group_idx}"] = new_dims
+                if new_dims.height * new_dims.width < arch_config["channel_count"]:
+                    new_dims = pad_ifmap_dims(new_dims, (arch_config["channel_count"]+1, 0))
+
+                new_layer_dims[f"{layer_name}.grp_{group_idx}"] = (new_dims, conv_layer)
         else:
             raise TypeError(f"Invalid layer type {type(layer)}")
     return new_layer_dims
@@ -463,7 +462,7 @@ def remove_duplicate_test_cases(test_cases_queue: queue.Queue[TestCase]):
 def main():
     if VERIFY_MODE is VerifyMode.network:
         arch_config = ARCH_CONFIG_DICT["medium"]
-        model = load_model_from_timm("vgg16_bn") # mobilenetv3_rw
+        model = load_model_from_timm("mobilenetv3_rw") # mobilenetv3_rw
         input = load_default_input_tensor_for_model(model)
         layer_dims = ModelDimCollector.collect_layer_dims_from_model(model, input)
         layer_dims = get_layer_equivelents(
