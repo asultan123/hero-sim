@@ -325,7 +325,6 @@ def eval_arch(
     channel_tiling,
     orientation,
     kernel_sizes_supported_in_direct_mode,
-    multi_processing_pool=None,
     include_group_conv=False,
 ):
 
@@ -351,9 +350,6 @@ def eval_arch(
                     continue
                 yield layer
 
-    # result_dict_list = list(
-    #     multi_processing_pool.map(specialized_layer_stats_evaluator, layer_generator())
-    # )
     result_dict_list = [
         specialized_layer_stats_evaluator(layer) for layer in layer_generator()
     ]
@@ -378,16 +374,64 @@ def eval_arch(
     )
 
 
+def get_arch_score(
+    stats_dict,
+    kernel_sizes_supported_in_direct_mode,
+    include_group_conv,
+    weights,
+    obj_fn,
+    arch_config,
+):
+    filter_tiling, channel_tiling, orientation = arch_config
+    (adjusted_pe_count, layer_util, layer_latency, layer_access_counts,) = eval_arch(
+        stats_dict,
+        filter_tiling,
+        channel_tiling,
+        orientation,
+        kernel_sizes_supported_in_direct_mode,
+        include_group_conv,
+    )
+
+    (
+        arch_score,
+        avg_util,
+        avg_latency,
+        avg_ifmap_access_counts,
+        avg_ofmap_access_counts,
+        avg_weight_access_counts,
+        util_score,
+        latency_score,
+        ifmap_access_counts_score,
+        ofmap_access_counts_score,
+    ) = eval_obj(layer_util, layer_latency, layer_access_counts, weights, obj_fn)
+
+    arch_metrics = {
+        "avg_util": avg_util,
+        "avg_latency": avg_latency,
+        "avg_ifmap_access_counts": avg_ifmap_access_counts / channel_tiling,
+        "avg_ofmap_access_counts": avg_ofmap_access_counts / filter_tiling,
+        "avg_weight_access_counts": avg_weight_access_counts
+        / (channel_tiling * filter_tiling),
+    }
+    result_dict = {
+        "arch_config": arch_config,
+        "adjusted_pe_count": adjusted_pe_count,
+        "arch_score": arch_score,
+        "arch_metrics": arch_metrics,
+    }
+
+    return result_dict
+
+
 def optimize(
     obj_fn,
-    maximize=True,
     pe_count=9 * 3,
     kernel_sizes_supported_in_direct_mode=[1, 3],
     weights=[1, 0.5, 0.35, 0.15],
     include_group_conv=False,
 ):
     max_supported_k = max([k**2 for k in kernel_sizes_supported_in_direct_mode])
-    max_arch_score = -inf if maximize else inf
+    max_arch_score = -inf
     opt_arch_metrics = {}
     opt_arch_config = {}
 
@@ -406,103 +450,37 @@ def optimize(
 
                 yield filter_tiling, channel_tiling, orientation
 
-    def get_arch_score():
-        (
-            adjusted_pe_count,
-            layer_util,
-            layer_latency,
-            layer_access_counts,
-        ) = eval_arch(
-            stats_dict,
-            filter_tiling,
-            channel_tiling,
-            orientation,
-            kernel_sizes_supported_in_direct_mode,
-            multiprocessing_pool,
-            include_group_conv,
+    with multiprocessing.Pool(32) as multiprocessing_pool:
+        result_dict_list = list(
+            multiprocessing_pool.map(
+                partial(
+                    get_arch_score,
+                    stats_dict,
+                    kernel_sizes_supported_in_direct_mode,
+                    include_group_conv,
+                    weights,
+                    obj_fn,
+                ),
+                arch_gen(),
+            )
         )
 
-        (
-            arch_score,
-            avg_util,
-            avg_latency,
-            avg_ifmap_access_counts,
-            avg_ofmap_access_counts,
-            avg_weight_access_counts,
-            util_score,
-            latency_score,
-            ifmap_access_counts_score,
-            ofmap_access_counts_score,
-        ) = eval_obj(layer_util, layer_latency, layer_access_counts, weights, obj_fn)
+    for result in result_dict_list:
+        arch_score = result["arch_score"]
+        arch_metrics = result["arch_metrics"]
+        adjusted_pe_count = result["adjusted_pe_count"]
+        filter_tiling, channel_tiling, orientation = result["arch_config"]
 
-    with multiprocessing.Pool(32) as multiprocessing_pool:
-        for filter_tiling in factors(pe_count):
-            for orientation in ["verticle", "horizontal"]:
-                channel_tiling = pe_count // filter_tiling
-
-                if filter_tiling < max_supported_k and orientation == "verticle":
-                    continue
-                if channel_tiling < max_supported_k and orientation == "horizontal":
-                    continue
-                (
-                    adjusted_pe_count,
-                    layer_util,
-                    layer_latency,
-                    layer_access_counts,
-                ) = eval_arch(
-                    stats_dict,
-                    filter_tiling,
-                    channel_tiling,
-                    orientation,
-                    kernel_sizes_supported_in_direct_mode,
-                    multiprocessing_pool,
-                    include_group_conv,
-                )
-
-                (
-                    arch_score,
-                    avg_util,
-                    avg_latency,
-                    avg_ifmap_access_counts,
-                    avg_ofmap_access_counts,
-                    avg_weight_access_counts,
-                    util_score,
-                    latency_score,
-                    ifmap_access_counts_score,
-                    ofmap_access_counts_score,
-                ) = eval_obj(
-                    layer_util, layer_latency, layer_access_counts, weights, obj_fn
-                )
-
-                arch_metrics = {
-                    "avg_util": avg_util,
-                    "avg_latency": avg_latency,
-                    "avg_ifmap_access_counts": avg_ifmap_access_counts / channel_tiling,
-                    "avg_ofmap_access_counts": avg_ofmap_access_counts / filter_tiling,
-                    "avg_weight_access_counts": avg_weight_access_counts
-                    / (channel_tiling * filter_tiling),
-                }
-
-                if maximize and arch_score > max_arch_score:
-                    max_arch_score = arch_score
-                    opt_arch_config = {
-                        "filter_tiling": filter_tiling,
-                        "channel_tiling": channel_tiling,
-                        "orientation": orientation,
-                        "adjusted_pe_count": adjusted_pe_count,
-                        "max_score": max_arch_score,
-                    }
-                    opt_arch_metrics = arch_metrics
-                elif not maximize and arch_score < max_arch_score:
-                    max_arch_score = arch_score
-                    opt_arch_config = {
-                        "filter_tiling": filter_tiling,
-                        "channel_tiling": channel_tiling,
-                        "orientation": orientation,
-                        "adjusted_pe_count": adjusted_pe_count,
-                        "max_score": max_arch_score,
-                    }
-                    opt_arch_metrics = arch_metrics
+        if arch_score > max_arch_score:
+            max_arch_score = arch_score
+            opt_arch_config = {
+                "filter_tiling": filter_tiling,
+                "channel_tiling": channel_tiling,
+                "orientation": orientation,
+                "adjusted_pe_count": adjusted_pe_count,
+                "max_score": max_arch_score,
+            }
+            opt_arch_metrics = arch_metrics
 
     return opt_arch_config, opt_arch_metrics
 
@@ -560,10 +538,10 @@ res_list = []
 for pe in tqdm(r):
     res = optimize(
         obj_fn,
-        maximize=True,
         pe_count=pe,
         weights=[1, 0, 0, 0],
         kernel_sizes_supported_in_direct_mode=[1, 3],
+        include_group_conv=True,
     )
     print(res)
     res_list.append(res)
