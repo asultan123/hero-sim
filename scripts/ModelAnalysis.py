@@ -28,6 +28,47 @@ from torch.nn.modules.conv import Conv2d
 
 
 @dataclass
+class LayerDimensions:
+    kernel_size: Tuple[int, int]
+    stride: Tuple[int, int]
+    padding: Tuple[int, int]
+    groups: int
+    input_size: List[int]
+    output_size: List[int]
+
+
+class StatsCounter:
+    def __init__(self):
+        self._dict = {}
+
+    def update(self, key, v=None):
+        if key not in self._dict:
+            self._dict[key] = 1
+        else:
+            self._dict[key] += v if v is not None else 1
+
+    def __iadd__(self, other):
+        if isinstance(other, StatsCounter):
+            for k, v in other.items():
+                self.update(k, v)
+        else:
+            raise TypeError("Can only add other StatsCounters to other StatsCounters")
+        return self
+
+    def __getitem__(self, key):
+        return self._dict[key]
+
+    def __str__(self):
+        return self._dict.__str__()
+
+    def __repr__(self):
+        return self._dict.__repr__()
+
+    def items(self):
+        return self._dict.items()
+
+
+@dataclass
 class IfmapLayerDimensions:
     width: int
     height: int
