@@ -26,11 +26,13 @@ from typing import Optional
 from torch.nn.modules.linear import Linear
 from torch.nn.modules.conv import Conv2d
 
+
 @dataclass
 class IfmapLayerDimensions:
     width: int
     height: int
     channels: int
+
 
 class ModelDimCollector:
     default_targets = [Conv2d, Linear]
@@ -50,19 +52,21 @@ class ModelDimCollector:
 
     def extract_dims(self, name, module, input, output):
         if isinstance(module, Linear):
+            if len(input[0].size()) != 2 or input[0].size()[0] != 1:
+                raise ArgumentError("Linear layer with non 1x1 feature unsupported")
             dims = IfmapLayerDimensions(
                 height=1,
                 width=1,
                 channels=input[0].size()[-1],
             )
-            
+
         elif isinstance(module, Conv2d):
             dims = IfmapLayerDimensions(
                 channels=input[0].size()[-3],
                 height=input[0].size()[-2],
                 width=input[0].size()[-1],
             )
-            
+
         else:
             raise TypeError(
                 f"Unsupported module type {type(module)} found during dimensions extraction"
@@ -93,13 +97,15 @@ class ModelDimCollector:
         collected_stats = deepcopy(collector.model_stats)
         return collected_stats
 
+
 if __name__ == "__main__":
     model_list = [
         (model_name, timm.create_model(model_name, pretrained=False))
         for model_name in ["resnet50", "vgg19", "mobilenetv3_rw"]
     ]
     model_input_image_config = {
-        model_name: resolve_data_config({}, model=model) for model_name, model in model_list
+        model_name: resolve_data_config({}, model=model)
+        for model_name, model in model_list
     }
 
     last_config = list(model_input_image_config.values())[0]
