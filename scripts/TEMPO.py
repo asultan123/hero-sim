@@ -423,11 +423,17 @@ def get_arch_score(
     return result_dict
 
 
+def find_optimal_allocation(model_layers, pe_budget):
+    for layer_name, (ifmap_dims, layer) in model_layers:
+        ...
+
+
 def optimize(
     obj_fn,
     pe_count=9 * 3,
     kernel_sizes_supported_in_direct_mode=[1, 3],
     weights=[1, 0.5, 0.35, 0.15],
+    allowed_orientations=["verticle", "horizontal"],
     include_group_conv=False,
 ):
     max_supported_k = max([k**2 for k in kernel_sizes_supported_in_direct_mode])
@@ -440,7 +446,7 @@ def optimize(
 
     def arch_gen():
         for filter_tiling in factors(pe_count):
-            for orientation in ["verticle", "horizontal"]:
+            for orientation in allowed_orientations:
                 channel_tiling = pe_count // filter_tiling
 
                 if filter_tiling < max_supported_k and orientation == "verticle":
@@ -530,68 +536,20 @@ def obj_fn(layer_util, layer_latency, layer_access_counts, weights):
     )
 
 
-r = [324]
-# r = [27, 32, 64, 81, 144, 128, 256, 324, 512, 576]
-# r.extend(list(i**2 for i in range(4, 10)))
-r.sort()
-res_list = []
-for pe in tqdm(r):
-    res = optimize(
-        obj_fn,
-        pe_count=pe,
-        weights=[1, 0, 0, 0],
-        kernel_sizes_supported_in_direct_mode=[1, 3],
-        include_group_conv=True,
-    )
-    print(res)
-    res_list.append(res)
+if __name__ == "__main__":
+    r = [324]
+    # r = [27, 32, 64, 81, 144, 128, 256, 324, 512, 576]
+    # r.extend(list(i**2 for i in range(4, 10)))
+    r.sort()
+    res_list = []
+    for pe in tqdm(r):
+        res = optimize(
+            obj_fn,
+            pe_count=pe,
+            weights=[1, 0, 0, 0],
+            kernel_sizes_supported_in_direct_mode=[1, 3],
+            include_group_conv=True,
+        )
 
-
-# config_performances = pd.DataFrame()
-# for config in res_list:
-#     filter_tiling, channel_tiling, orientation, _, _ = config[0].values()
-#     adjusted_pe_count, layer_util, layer_latency, layer_access_counts = eval_arch(
-#         stats_dict, filter_tiling, channel_tiling, orientation, [1, 3]
-#     )
-#     ifmap_access_count = [accesses[0] for accesses in layer_access_counts]
-#     ofmap_access_count = [accesses[1] for accesses in layer_access_counts]
-#     weight_access_count = [accesses[2] for accesses in layer_access_counts]
-
-#     arch_performance = pd.DataFrame(
-#         {
-#             "Config": [
-#                 f"F: {filter_tiling}\nC: {channel_tiling}\nOr: {'V' if orientation == 'verticle' else 'H'}\npe:{filter_tiling*channel_tiling}"
-#             ]
-#             * len(layer_latency),
-#             "layer_util": layer_util,
-#             "layer_latency": layer_latency,
-#             "ifmap_access_count": ifmap_access_count,
-#             "ofmap_access_count": ofmap_access_count,
-#             "weight_access_count": weight_access_count,
-#         }
-#     )
-#     config_performances = config_performances.append(arch_performance)
-
-
-# sns_plt = sns.boxenplot(data=config_performances, x="Config", y="layer_util")
-# plt.ylabel("Utilization")
-
-
-# sns_plt = sns.boxenplot(data=config_performances, x="Config", y="layer_latency")
-# plt.yscale("log")
-# plt.ylabel("Latency in cycles")
-
-
-# sns_plt = sns.boxenplot(data=config_performances, x="config", y="ifmap_access_count")
-# plt.yscale("log")
-# plt.ylabel("Latency in cycles")
-
-
-# sns_plt = sns.boxenplot(data=config_performances, x="Config", y="ofmap_access_count")
-# plt.yscale("log")
-# plt.ylabel("Latency in cycles")
-
-
-# sns_plt = sns.boxenplot(data=config_performances, x="Config", y="weight_access_count")
-# plt.yscale("log")
-# plt.ylabel("Latency in cycles")
+        print(res)
+        res_list.append(res)

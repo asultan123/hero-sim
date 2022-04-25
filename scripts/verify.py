@@ -361,24 +361,13 @@ def find_minimal_fmap_padding(
 
 def get_layer_equivelents(
     layer_dims: Dict[str, IfmapLayerDimensions],
-    arch_config,
     directly_supported_kernels: List[int],
+    arch_config: Dict[str, int] = None,
 ) -> Dict[str, Tuple[IfmapLayerDimensions, Conv2d]]:
 
     new_layer_dims = {}
     for layer_name, (ifmap_dims, layer) in layer_dims.items():
         if isinstance(layer, Linear):
-            if ifmap_dims.height * ifmap_dims.width < arch_config["channel_count"]:
-                new_dims = pad_ifmap_dims(
-                    ifmap_dims,
-                    (
-                        arch_config["channel_count"]
-                        + 1
-                        - (ifmap_dims.height * ifmap_dims.width),
-                        0,
-                    ),
-                )
-
             layer_out_channels = layer.out_features
             new_layer_dims[layer_name] = (
                 new_dims,
@@ -405,11 +394,6 @@ def get_layer_equivelents(
                         out_channels,
                         kernel_size=layer.kernel_size,
                         stride=layer.stride,
-                    )
-
-                if new_dims.height * new_dims.width < arch_config["channel_count"]:
-                    new_dims = pad_ifmap_dims(
-                        new_dims, find_minimal_fmap_padding(new_dims, arch_config)
                     )
 
                 new_layer_dims[f"{layer_name}.grp_{group_idx}"] = (new_dims, conv_layer)
