@@ -255,9 +255,10 @@ def get_layer_stats_for_arch(
     orientation,
     adjusted_pe_count,
     include_group_conv,
+    pad_input,
     layer,
 ):
-    if layer.padding != "same":
+    if pad_input and layer.padding != "same":
         layer.input_size[-2] += layer.padding[0]
         layer.input_size[-1] += layer.padding[1]
 
@@ -326,6 +327,7 @@ def eval_arch(
     orientation,
     kernel_sizes_supported_in_direct_mode,
     include_group_conv=False,
+    pad_input = False
 ):
 
     adjusted_pe_count = filter_tiling * channel_tiling
@@ -341,6 +343,7 @@ def eval_arch(
         orientation,
         adjusted_pe_count,
         include_group_conv,
+        pad_input
     )
 
     def layer_generator():
