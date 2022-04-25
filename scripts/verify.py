@@ -8,6 +8,7 @@ from dataclasses import dataclass, asdict
 from tkinter import ARC
 from typing import Dict, Tuple, List, Optional
 from click import Argument
+from numpy import mat
 from pandas import DataFrame, concat
 from pathlib import Path
 import os
@@ -55,15 +56,15 @@ logger.setLevel("DEBUG")
 
 
 CORE_COUNT = 32
-TEST_CASE_COUNT = 100
+TEST_CASE_COUNT = 5000
 SAVE_EVERY = 10
 RESULTS_CSV_PATH = "../data/verify_results.csv"
 SUBPROCESS_OUTPUT_DIR = "../data/subprocess_output"
 
 SEED = 1234
-LAYER_SIZE_UB = 2**10
-IFMAP_LOWER = 10
-IFMAP_UPPER = 224
+LAYER_SIZE_UB = 2**5
+IFMAP_LOWER = 1
+IFMAP_UPPER = 64
 LOG2_FILTER_LOWER = 0
 LOG2_FILTER_UPPER = 10
 LOG2_CHANNEL_LOWER = 0
@@ -234,7 +235,7 @@ def results_collection_worker(
     collection_counter = 0
     results_dataframe = DataFrame()
     aggregate_dataframe = DataFrame()
-    
+
     def create_new_sim_result_rows(test_case, result, layer_name_tracker):
         rows = []
         for layer_name in layer_name_tracker[test_case]:
@@ -262,16 +263,14 @@ def results_collection_worker(
             layer_name_tracker[test_case] = [
                 test_case.layer_name if test_case.layer_name is not None else "RANDOM"
             ]
-            
+
             new_rows = create_new_sim_result_rows(test_case, result, layer_name_tracker)
             layer_name_tracker = None
-            
+
         else:
             new_rows = create_new_sim_result_rows(test_case, result, layer_name_tracker)
-            
 
         aggregate_dataframe = concat([aggregate_dataframe, *new_rows])
-
 
         if (collection_counter + 1) % SAVE_EVERY == 0:
             results_dataframe = concat([results_dataframe, aggregate_dataframe])
@@ -340,17 +339,45 @@ def lower_ifmap_and_convert_to_conv(
         raise ArgumentError("Invalid lowering method requested")
 
 
+def find_minimal_fmap_padding(
+    ifmap_dim: IfmapLayerDimensions, arch_config: Dict[str, int]
+):
+    arch_channel_count = arch_config["channel_count"] + 2
+    min_pad = (0, 0)
+    min_ifmap_total_size = math.inf
+    for hpad in range(arch_channel_count):
+        wpad = (
+            arch_channel_count
+            - ifmap_dim.width * hpad
+            - ifmap_dim.height * ifmap_dim.width
+        ) / (ifmap_dim.height + hpad)
+        new_ifmap_total_size = (ifmap_dim.height + hpad) * (ifmap_dim.width + wpad)
+        if wpad == math.floor(wpad) and new_ifmap_total_size >= arch_channel_count:
+            if min_ifmap_total_size > new_ifmap_total_size:
+                min_ifmap_total_size = new_ifmap_total_size
+                min_pad = (int(hpad), int(wpad))
+    return min_pad
+
+
 def get_layer_equivelents(
     layer_dims: Dict[str, IfmapLayerDimensions],
     arch_config,
     directly_supported_kernels: List[int],
 ) -> Dict[str, Tuple[IfmapLayerDimensions, Conv2d]]:
-    
+
     new_layer_dims = {}
     for layer_name, (ifmap_dims, layer) in layer_dims.items():
         if isinstance(layer, Linear):
             if ifmap_dims.height * ifmap_dims.width < arch_config["channel_count"]:
-                new_dims = pad_ifmap_dims(ifmap_dims, (arch_config["channel_count"]+1, 0))
+                new_dims = pad_ifmap_dims(
+                    ifmap_dims,
+                    (
+                        arch_config["channel_count"]
+                        + 1
+                        - (ifmap_dims.height * ifmap_dims.width),
+                        0,
+                    ),
+                )
 
             layer_out_channels = layer.out_features
             new_layer_dims[layer_name] = (
@@ -369,8 +396,8 @@ def get_layer_equivelents(
                     and layer.kernel_size in directly_supported_kernels
                 ):
                     conv_layer = Conv2d(
-                            in_channels, out_channels, kernel_size=layer.kernel_size
-                        )
+                        in_channels, out_channels, kernel_size=layer.kernel_size
+                    )
                 else:
                     new_dims, conv_layer = lower_ifmap_and_convert_to_conv(
                         new_dims,
@@ -381,7 +408,9 @@ def get_layer_equivelents(
                     )
 
                 if new_dims.height * new_dims.width < arch_config["channel_count"]:
-                    new_dims = pad_ifmap_dims(new_dims, (arch_config["channel_count"]+1, 0))
+                    new_dims = pad_ifmap_dims(
+                        new_dims, find_minimal_fmap_padding(new_dims, arch_config)
+                    )
 
                 new_layer_dims[f"{layer_name}.grp_{group_idx}"] = (new_dims, conv_layer)
         else:
@@ -462,7 +491,7 @@ def remove_duplicate_test_cases(test_cases_queue: queue.Queue[TestCase]):
 def main():
     if VERIFY_MODE is VerifyMode.network:
         arch_config = ARCH_CONFIG_DICT["medium"]
-        model = load_model_from_timm("mobilenetv3_rw") # mobilenetv3_rw
+        model = load_model_from_timm("mobilenetv3_rw")  # mobilenetv3_rw
         input = load_default_input_tensor_for_model(model)
         layer_dims = ModelDimCollector.collect_layer_dims_from_model(model, input)
         layer_dims = get_layer_equivelents(
@@ -481,7 +510,7 @@ def main():
 
 
 if __name__ == "__main__":
-    
+
     Path(SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
 
     start = timer()
