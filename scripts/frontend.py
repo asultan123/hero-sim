@@ -281,7 +281,7 @@ def results_collection_worker(
                 f"Worker {worker_id} processed %{percent_complete} of test cases",
             )
 
-        done_queue.put(collection_counter)
+        done_queue.put(aggregate_dataframe)
         collection_counter += 1
         results_queue.task_done()
 
@@ -345,14 +345,14 @@ def find_minimal_fmap_padding(
     arch_channel_count = arch_config["channel_count"] + 2
     min_pad = (0, 0)
     min_ifmap_total_size = math.inf
-    for hpad in range(arch_channel_count):
-        wpad = (
+    for wpad in range(arch_channel_count):
+        hpad = (
             arch_channel_count
-            - ifmap_dim.width * hpad
+            - ifmap_dim.height * wpad
             - ifmap_dim.height * ifmap_dim.width
-        ) / (ifmap_dim.height + hpad)
+        ) / (ifmap_dim.width + wpad)
         new_ifmap_total_size = (ifmap_dim.height + hpad) * (ifmap_dim.width + wpad)
-        if wpad == math.floor(wpad) and new_ifmap_total_size >= arch_channel_count:
+        if hpad == math.floor(hpad) and new_ifmap_total_size >= arch_channel_count:
             if min_ifmap_total_size > new_ifmap_total_size:
                 min_ifmap_total_size = new_ifmap_total_size
                 min_pad = (int(hpad), int(wpad))
@@ -362,7 +362,6 @@ def find_minimal_fmap_padding(
 def get_layer_equivelents(
     layer_dims: Dict[str, IfmapLayerDimensions],
     directly_supported_kernels: List[int],
-    arch_config: Dict[str, int] = None,
 ) -> Dict[str, Tuple[IfmapLayerDimensions, Conv2d]]:
 
     new_layer_dims = {}
@@ -472,6 +471,20 @@ def remove_duplicate_test_cases(test_cases_queue: queue.Queue[TestCase]):
     return test_cases_queue, layer_name_tracker
 
 
+def pad_layer_dims_based_on_arch_config(layer_dims, arch_config):
+    new_layer_dims = {}
+    for layer_name, (ifmap_dims, layer) in layer_dims.items():
+        if ifmap_dims.height * ifmap_dims.width < arch_config["channel_count"]:
+            ifmap_dims = pad_ifmap_dims(
+                ifmap_dims, find_minimal_fmap_padding(ifmap_dims, arch_config)
+            )
+        new_layer_dims[layer_name] = (ifmap_dims, layer)
+    return new_layer_dims
+
+
+def reduce_conv_groups():
+    ...
+
 def main():
     if VERIFY_MODE is VerifyMode.network:
         arch_config = ARCH_CONFIG_DICT["medium"]
@@ -479,8 +492,9 @@ def main():
         input = load_default_input_tensor_for_model(model)
         layer_dims = ModelDimCollector.collect_layer_dims_from_model(model, input)
         layer_dims = get_layer_equivelents(
-            layer_dims, arch_config, DIRECTLY_SUPPORTED_KERNELS
+            layer_dims, DIRECTLY_SUPPORTED_KERNELS
         )
+        layer_dims = pad_layer_dims_based_on_arch_config(layer_dims, arch_config)
         test_cases_queue = convert_layer_dims_to_test_cases(layer_dims, arch_config)
         test_cases_queue, layer_name_tracker = remove_duplicate_test_cases(
             test_cases_queue
