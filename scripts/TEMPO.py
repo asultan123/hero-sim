@@ -27,6 +27,7 @@ from copy import copy, deepcopy
 from functools import partial
 from ModelAnalysis import LayerDimensions
 from timeit import default_timer as timer
+import os
 
 # get_ipython().run_line_magic('matplotlib', 'inline')
 version
@@ -459,7 +460,7 @@ def optimize(
 
                 yield filter_tiling, channel_tiling, orientation
 
-    with multiprocessing.Pool(32) as multiprocessing_pool:
+    with multiprocessing.Pool(len(os.sched_getaffinity(0))) as multiprocessing_pool:
         result_dict_list = list(
             multiprocessing_pool.map(
                 partial(
