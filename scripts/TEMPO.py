@@ -290,14 +290,14 @@ def get_layer_stats_for_arch(
         adjusted_pe_count,
     )
 
-    layer_util = [weighted_avg_util] * layer.groups
+    layer_util = [weighted_avg_util]
 
     layer_latency = [
-        eval_latency(kernel_sizes_supported_in_direct_mode, layer, total_tiles)
-    ] * layer.groups
+        eval_latency(kernel_sizes_supported_in_direct_mode, layer, total_tiles) * layer.groups
+    ] 
 
     layer_access_counts = [
-        eval_access_counts(
+        tuple(access * layer.groups for access in eval_access_counts(
             ifmap_size,
             filters,
             channels,
@@ -305,8 +305,9 @@ def get_layer_stats_for_arch(
             effective_channel_tiling,
             channel_tiling,
             filter_tiling,
-        )
-    ] * layer.groups
+        ) )
+        
+    ] 
 
     if include_group_conv:
         layer.input_size[-3] = old_in_channels
@@ -383,6 +384,7 @@ def get_arch_score(
     kernel_sizes_supported_in_direct_mode,
     include_group_conv,
     weights,
+    pad_layers,
     obj_fn,
     arch_config,
 ):
@@ -394,6 +396,7 @@ def get_arch_score(
         orientation,
         kernel_sizes_supported_in_direct_mode,
         include_group_conv,
+        pad_layers
     )
 
     (
@@ -427,73 +430,11 @@ def get_arch_score(
     return result_dict
 
 
-def find_optimal_allocation(model_layers, pe_budget):
-    for layer_name, (ifmap_dims, layer) in model_layers:
+def find_optimal_pe_allocation(model_layers, pe_budget):
+    def convert_frontend_layer_to_tempo_layer(frontend_layer):
         ...
-
-
-def optimize(
-    obj_fn,
-    pe_count=9 * 3,
-    kernel_sizes_supported_in_direct_mode=[1, 3],
-    weights=[1, 0.5, 0.35, 0.15],
-    allowed_orientations=["verticle", "horizontal"],
-    include_group_conv=False,
-):
-    max_supported_k = max([k**2 for k in kernel_sizes_supported_in_direct_mode])
-    max_arch_score = -inf
-    opt_arch_metrics = {}
-    opt_arch_config = {}
-
-    with open("../data/stats_dict.backup", "rb") as backup:
-        stats_dict = pickle.load(backup)
-
-    def arch_gen():
-        for filter_tiling in factors(pe_count):
-            for orientation in allowed_orientations:
-                channel_tiling = pe_count // filter_tiling
-
-                if filter_tiling < max_supported_k and orientation == "verticle":
-                    continue
-                if channel_tiling < max_supported_k and orientation == "horizontal":
-                    continue
-
-                yield filter_tiling, channel_tiling, orientation
-
-    with multiprocessing.Pool(len(os.sched_getaffinity(0))) as multiprocessing_pool:
-        result_dict_list = list(
-            multiprocessing_pool.map(
-                partial(
-                    get_arch_score,
-                    stats_dict,
-                    kernel_sizes_supported_in_direct_mode,
-                    include_group_conv,
-                    weights,
-                    obj_fn,
-                ),
-                arch_gen(),
-            )
-        )
-
-    for result in result_dict_list:
-        arch_score = result["arch_score"]
-        arch_metrics = result["arch_metrics"]
-        adjusted_pe_count = result["adjusted_pe_count"]
-        filter_tiling, channel_tiling, orientation = result["arch_config"]
-
-        if arch_score > max_arch_score:
-            max_arch_score = arch_score
-            opt_arch_config = {
-                "filter_tiling": filter_tiling,
-                "channel_tiling": channel_tiling,
-                "orientation": orientation,
-                "adjusted_pe_count": adjusted_pe_count,
-                "max_score": max_arch_score,
-            }
-            opt_arch_metrics = arch_metrics
-
-    return opt_arch_config, opt_arch_metrics
-
+    for layer_name, (ifmap_dims, frontend_layer) in model_layers:
+        ...
 
 def obj_fn(layer_util, layer_latency, layer_access_counts, weights):
     util_scaler = MinMaxScaler()
@@ -540,6 +481,73 @@ def obj_fn(layer_util, layer_latency, layer_access_counts, weights):
     )
 
 
+
+def optimize(
+    obj_fn = obj_fn,
+    pe_count=9 * 3,
+    kernel_sizes_supported_in_direct_mode=[1, 3],
+    weights=[1, 0, 0, 0],
+    allowed_orientations=["verticle", "horizontal"],
+    include_group_conv=False,
+    stats_dict = None,
+    pad_layers = False
+):
+    max_supported_k = max([k**2 for k in kernel_sizes_supported_in_direct_mode])
+    max_arch_score = -inf
+    opt_arch_metrics = {}
+    opt_arch_config = {}
+
+    if stats_dict is None:
+        with open("../data/stats_dict.backup", "rb") as backup:
+            stats_dict = pickle.load(backup)
+
+    def arch_gen():
+        for filter_tiling in factors(pe_count):
+            for orientation in allowed_orientations:
+                channel_tiling = pe_count // filter_tiling
+
+                if filter_tiling < max_supported_k and orientation == "verticle":
+                    continue
+                if channel_tiling < max_supported_k and orientation == "horizontal":
+                    continue
+
+                yield filter_tiling, channel_tiling, orientation
+
+    with multiprocessing.Pool(len(os.sched_getaffinity(0))) as multiprocessing_pool:
+        result_dict_list = list(
+            multiprocessing_pool.map(
+                partial(
+                    get_arch_score,
+                    stats_dict,
+                    kernel_sizes_supported_in_direct_mode,
+                    include_group_conv,
+                    weights,
+                    pad_layers,
+                    obj_fn,
+                ),
+                arch_gen(),
+            )
+        )
+
+    for result in result_dict_list:
+        arch_score = result["arch_score"]
+        arch_metrics = result["arch_metrics"]
+        adjusted_pe_count = result["adjusted_pe_count"]
+        filter_tiling, channel_tiling, orientation = result["arch_config"]
+
+        if arch_score > max_arch_score:
+            max_arch_score = arch_score
+            opt_arch_config = {
+                "filter_tiling": filter_tiling,
+                "channel_tiling": channel_tiling,
+                "orientation": orientation,
+                "adjusted_pe_count": adjusted_pe_count,
+                "max_score": max_arch_score,
+            }
+            opt_arch_metrics = arch_metrics
+
+    return opt_arch_config, opt_arch_metrics
+
 if __name__ == "__main__":
     r = [324]
     # r = [27, 32, 64, 81, 144, 128, 256, 324, 512, 576]
@@ -548,11 +556,10 @@ if __name__ == "__main__":
     res_list = []
     for pe in tqdm(r):
         res = optimize(
-            obj_fn,
             pe_count=pe,
-            weights=[1, 0, 0, 0],
             kernel_sizes_supported_in_direct_mode=[1, 3],
             include_group_conv=True,
+            pad_layers=True
         )
 
         print(res)
