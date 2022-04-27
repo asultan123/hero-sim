@@ -1,5 +1,7 @@
+from argparse import ArgumentError
 import multiprocessing
 from unittest import result
+from click import Argument
 from regex import E
 import torch
 from PIL import Image
@@ -25,9 +27,13 @@ from math import sqrt, floor, ceil
 from sklearn.preprocessing import MinMaxScaler
 from copy import copy, deepcopy
 from functools import partial
-from ModelAnalysis import LayerDimensions
 from timeit import default_timer as timer
 import os
+from torch.nn.modules.linear import Linear
+from torch.nn.modules.conv import Conv2d
+from schema import LayerDimensions, IfmapLayerDimensions, TestCase
+from typing import Dict, Tuple, List, Optional
+from collections import deque
 
 # get_ipython().run_line_magic('matplotlib', 'inline')
 version
@@ -221,6 +227,7 @@ def eval_obj(layer_util, layer_latency, layer_access_counts, weights, obj_fn):
 
 
 def layer_conversion(layer, kernel_sizes_supported_in_direct_mode):
+
     current_k = layer.kernel_size[0]
     if current_k in kernel_sizes_supported_in_direct_mode:
         current_k = current_k**2
@@ -237,7 +244,7 @@ def layer_conversion(layer, kernel_sizes_supported_in_direct_mode):
 
 
 def get_effective_tiling_factors(channel_tiling, filter_tiling, current_k, orientation):
-    if orientation == "verticle":
+    if orientation == "vertical":
         effective_channel_tiling = channel_tiling
         effective_filter_tiling = filter_tiling // current_k
 
@@ -247,6 +254,11 @@ def get_effective_tiling_factors(channel_tiling, filter_tiling, current_k, orien
     else:
         raise Exception("WTF")
     return effective_channel_tiling, effective_filter_tiling
+
+
+def validate_layer_config(layer: LayerDimensions):
+    if layer.stride != (1, 1):
+        raise ArgumentError(f"Unsupported layer stride size")
 
 
 def get_layer_stats_for_arch(
@@ -272,7 +284,6 @@ def get_layer_stats_for_arch(
         layer.input_size[-3] = in_channels
         layer.output_size[-3] = out_channels
 
-    # unsupported kernel check
     current_k, channels, filters, ifmap_size = layer_conversion(
         layer, kernel_sizes_supported_in_direct_mode
     )
@@ -293,21 +304,24 @@ def get_layer_stats_for_arch(
     layer_util = [weighted_avg_util]
 
     layer_latency = [
-        eval_latency(kernel_sizes_supported_in_direct_mode, layer, total_tiles) * layer.groups
-    ] 
+        eval_latency(kernel_sizes_supported_in_direct_mode, layer, total_tiles)
+        * layer.groups
+    ]
 
     layer_access_counts = [
-        tuple(access * layer.groups for access in eval_access_counts(
-            ifmap_size,
-            filters,
-            channels,
-            effective_filter_tiling,
-            effective_channel_tiling,
-            channel_tiling,
-            filter_tiling,
-        ) )
-        
-    ] 
+        tuple(
+            access * layer.groups
+            for access in eval_access_counts(
+                ifmap_size,
+                filters,
+                channels,
+                effective_filter_tiling,
+                effective_channel_tiling,
+                channel_tiling,
+                filter_tiling,
+            )
+        )
+    ]
 
     if include_group_conv:
         layer.input_size[-3] = old_in_channels
@@ -329,7 +343,7 @@ def eval_arch(
     orientation,
     kernel_sizes_supported_in_direct_mode,
     include_group_conv=False,
-    pad_input = False
+    pad_input=False,
 ):
 
     adjusted_pe_count = filter_tiling * channel_tiling
@@ -345,7 +359,7 @@ def eval_arch(
         orientation,
         adjusted_pe_count,
         include_group_conv,
-        pad_input
+        pad_input,
     )
 
     def layer_generator():
@@ -396,7 +410,7 @@ def get_arch_score(
         orientation,
         kernel_sizes_supported_in_direct_mode,
         include_group_conv,
-        pad_layers
+        pad_layers,
     )
 
     (
@@ -429,12 +443,6 @@ def get_arch_score(
 
     return result_dict
 
-
-def find_optimal_pe_allocation(model_layers, pe_budget):
-    def convert_frontend_layer_to_tempo_layer(frontend_layer):
-        ...
-    for layer_name, (ifmap_dims, frontend_layer) in model_layers:
-        ...
 
 def obj_fn(layer_util, layer_latency, layer_access_counts, weights):
     util_scaler = MinMaxScaler()
@@ -481,16 +489,16 @@ def obj_fn(layer_util, layer_latency, layer_access_counts, weights):
     )
 
 
-
 def optimize(
-    obj_fn = obj_fn,
+    obj_fn=obj_fn,
     pe_count=9 * 3,
     kernel_sizes_supported_in_direct_mode=[1, 3],
     weights=[1, 0, 0, 0],
-    allowed_orientations=["verticle", "horizontal"],
+    allowed_orientations=["vertical", "horizontal"],
     include_group_conv=False,
-    stats_dict = None,
-    pad_layers = False
+    stats_dict=None,
+    pad_layers=False,
+    tiling_is_multiple_of_kernel_size=False,
 ):
     max_supported_k = max([k**2 for k in kernel_sizes_supported_in_direct_mode])
     max_arch_score = -inf
@@ -506,10 +514,18 @@ def optimize(
             for orientation in allowed_orientations:
                 channel_tiling = pe_count // filter_tiling
 
-                if filter_tiling < max_supported_k and orientation == "verticle":
+                if filter_tiling < max_supported_k and orientation == "vertical":
                     continue
                 if channel_tiling < max_supported_k and orientation == "horizontal":
                     continue
+
+                if orientation == "horizontal" and tiling_is_multiple_of_kernel_size:
+                    if channel_tiling % max_supported_k != 0:
+                        continue
+
+                if orientation == "vertical" and tiling_is_multiple_of_kernel_size:
+                    if filter_tiling % max_supported_k != 0:
+                        continue
 
                 yield filter_tiling, channel_tiling, orientation
 
@@ -529,6 +545,18 @@ def optimize(
             )
         )
 
+    # fun = partial(
+    #     get_arch_score,
+    #     stats_dict,
+    #     kernel_sizes_supported_in_direct_mode,
+    #     include_group_conv,
+    #     weights,
+    #     pad_layers,
+    #     obj_fn,
+    # )
+    # for i in arch_gen():
+    #     fun(i)
+
     for result in result_dict_list:
         arch_score = result["arch_score"]
         arch_metrics = result["arch_metrics"]
@@ -538,8 +566,8 @@ def optimize(
         if arch_score > max_arch_score:
             max_arch_score = arch_score
             opt_arch_config = {
-                "filter_tiling": filter_tiling,
-                "channel_tiling": channel_tiling,
+                "filter_count": filter_tiling,
+                "channel_count": channel_tiling,
                 "orientation": orientation,
                 "adjusted_pe_count": adjusted_pe_count,
                 "max_score": max_arch_score,
@@ -547,6 +575,42 @@ def optimize(
             opt_arch_metrics = arch_metrics
 
     return opt_arch_config, opt_arch_metrics
+
+
+def convert_frontend_testcase_to_tempo_layer(frontend_layer: TestCase):
+    return LayerDimensions(
+        kernel_size=(frontend_layer.kernel, frontend_layer.kernel),
+        stride=(1, 1),
+        padding=(0, 0),
+        groups=1,
+        input_size=[
+            1,
+            frontend_layer.c_in,
+            frontend_layer.ifmap_h,
+            frontend_layer.ifmap_w,
+        ],
+        output_size=[
+            frontend_layer.f_out,
+            frontend_layer.ifmap_h - frontend_layer.kernel + 1,
+            frontend_layer.ifmap_w - frontend_layer.kernel + 1,
+        ],
+    )
+
+
+def find_optimal_pe_allocation(model_layers: deque, pe_budget: int):
+    stats_dict = {"model": {"raw_stats": {}}}
+    for idx, test_case in enumerate(model_layers):
+        stats_dict["model"]["raw_stats"][
+            idx
+        ] = convert_frontend_testcase_to_tempo_layer(test_case)
+    return optimize(
+        stats_dict=stats_dict,
+        pe_count=pe_budget,
+        allowed_orientations=["horizontal"],
+        include_group_conv=True,
+        tiling_is_multiple_of_kernel_size=True,
+    )
+
 
 if __name__ == "__main__":
     r = [324]
@@ -559,7 +623,7 @@ if __name__ == "__main__":
             pe_count=pe,
             kernel_sizes_supported_in_direct_mode=[1, 3],
             include_group_conv=True,
-            pad_layers=True
+            pad_layers=True,
         )
 
         print(res)
