@@ -58,7 +58,7 @@ logger.setLevel("DEBUG")
 
 CORE_COUNT = 32
 TEST_CASE_COUNT = 5000
-SAVE_EVERY = 10
+SAVE_EVERY = 1
 RESULTS_CSV_PATH = "../data/verify_results.csv"
 SUBPROCESS_OUTPUT_DIR = "../data/subprocess_output"
 
@@ -222,6 +222,7 @@ def results_collection_worker(
                 kernel=test_case.kernel,
                 c_in=test_case.c_in,
                 f_out=test_case.f_out,
+                groups=test_case.groups,
                 arch_filter_count=test_case.arch_filter_count,
                 arch_channel_count=test_case.arch_channel_count,
                 layer_name=layer_name,
@@ -258,7 +259,7 @@ def results_collection_worker(
                 f"Worker {worker_id} processed %{percent_complete} of test cases",
             )
 
-        done_queue.put(aggregate_dataframe)
+        done_queue.put(results_dataframe)
         collection_counter += 1
         results_queue.task_done()
 
@@ -297,7 +298,7 @@ def lower_ifmap_and_convert_to_conv(
 ) -> Tuple[IfmapLayerDimensions, Conv2d]:
 
     if ifmap_dims.height != ifmap_dims.width:
-        raise ArgumentError("Asymmetric input feature map cannot be lowered")
+        raise NotImplementedError("Asymmetric input feature map cannot be lowered")
 
     # invalid pads due to non (1, 1) strides filtered out during lifting
     if method is LoweringMethod.balanced:
@@ -313,7 +314,7 @@ def lower_ifmap_and_convert_to_conv(
             "Expensive lowering dimension calculation unavailable"
         )
     else:
-        raise ArgumentError("Invalid lowering method requested")
+        raise NotImplementedError("Invalid lowering method requested")
 
 
 def find_minimal_fmap_padding(
@@ -336,7 +337,7 @@ def find_minimal_fmap_padding(
     return min_pad
 
 
-def get_layer_equivelents(
+def get_layer_equivalents(
     layer_dims: Dict[str, IfmapLayerDimensions],
     directly_supported_kernels: List[int],
 ) -> Dict[str, Tuple[IfmapLayerDimensions, Conv2d]]:
@@ -350,29 +351,30 @@ def get_layer_equivelents(
                 Conv2d(new_dims.channels, layer_out_channels, kernel_size=(1, 1)),
             )
         elif isinstance(layer, Conv2d):
-            for group_idx in range(layer.groups):
-                new_dims = pad_ifmap_dims(ifmap_dims, layer.padding)
-                in_channels = int(layer.in_channels / layer.groups)
-                new_dims.channels = in_channels
-                out_channels = int(layer.out_channels / layer.groups)
+            new_dims = pad_ifmap_dims(ifmap_dims, layer.padding)
+            in_channels = int(layer.in_channels / layer.groups)
+            new_dims.channels = in_channels
+            out_channels = int(layer.out_channels / layer.groups)
 
-                if (
-                    layer.stride == (1, 1)
-                    and layer.kernel_size in directly_supported_kernels
-                ):
-                    conv_layer = Conv2d(
-                        in_channels, out_channels, kernel_size=layer.kernel_size
-                    )
-                else:
-                    new_dims, conv_layer = lower_ifmap_and_convert_to_conv(
-                        new_dims,
-                        in_channels,
-                        out_channels,
-                        kernel_size=layer.kernel_size,
-                        stride=layer.stride,
-                    )
+            if (
+                layer.stride == (1, 1)
+                and layer.kernel_size in directly_supported_kernels
+            ):
+                conv_layer = Conv2d(
+                    in_channels,
+                    out_channels,
+                    kernel_size=layer.kernel_size,
+                )
+            else:
+                new_dims, conv_layer = lower_ifmap_and_convert_to_conv(
+                    new_dims,
+                    in_channels,
+                    out_channels,
+                    kernel_size=layer.kernel_size,
+                    stride=layer.stride,
+                )
 
-                new_layer_dims[f"{layer_name}.grp_{group_idx}"] = (new_dims, conv_layer)
+            new_layer_dims[f"{layer_name}"] = (layer.groups, new_dims, conv_layer)
         else:
             raise TypeError(f"Invalid layer type {type(layer)}")
     return new_layer_dims
@@ -383,7 +385,7 @@ def convert_layer_dims_to_test_cases(
     arch_config: Dict[str, int] = None,
 ):
     test_cases_queue = queue.Queue(0)
-    for layer_name, (ifmap_dim, layer) in layer_dims.items():
+    for layer_name, (groups, ifmap_dim, layer) in layer_dims.items():
         test_cases_queue.put(
             TestCase(
                 ifmap_h=ifmap_dim.height,
@@ -391,6 +393,7 @@ def convert_layer_dims_to_test_cases(
                 c_in=layer.in_channels,
                 f_out=layer.out_channels,
                 kernel=layer.kernel_size[0],
+                groups=groups,
                 arch_channel_count=arch_config["channel_count"]
                 if arch_config is not None
                 else 0,
@@ -437,6 +440,7 @@ def remove_duplicate_test_cases(test_cases_queue: queue.Queue[TestCase]):
             kernel=case.kernel,
             c_in=case.c_in,
             f_out=case.f_out,
+            groups=case.groups,
             arch_filter_count=case.arch_filter_count,
             arch_channel_count=case.arch_channel_count,
         )
@@ -455,12 +459,12 @@ def remove_duplicate_test_cases(test_cases_queue: queue.Queue[TestCase]):
 def pad_layer_dims_based_on_arch_config(layer_dims, arch_config=None):
     if arch_config is not None:
         new_layer_dims = {}
-        for layer_name, (ifmap_dims, layer) in layer_dims.items():
+        for layer_name, (groups, ifmap_dims, layer) in layer_dims.items():
             if ifmap_dims.height * ifmap_dims.width < arch_config["channel_count"]:
                 ifmap_dims = pad_ifmap_dims(
                     ifmap_dims, find_minimal_fmap_padding(ifmap_dims, arch_config)
                 )
-            new_layer_dims[layer_name] = (ifmap_dims, layer)
+            new_layer_dims[layer_name] = (groups, ifmap_dims, layer)
         return new_layer_dims
     else:
         return layer_dims
@@ -471,7 +475,7 @@ def reduce_conv_groups():
 
 
 def find_optimal_arch(layer_dims, pe_budget: int):
-    layer_dims = get_layer_equivelents(layer_dims, DIRECTLY_SUPPORTED_KERNELS)
+    layer_dims = get_layer_equivalents(layer_dims, DIRECTLY_SUPPORTED_KERNELS)
     layer_dims = pad_layer_dims_based_on_arch_config(layer_dims)
     test_cases_queue = convert_layer_dims_to_test_cases(layer_dims)
     test_cases_queue, _ = remove_duplicate_test_cases(test_cases_queue)
@@ -479,31 +483,27 @@ def find_optimal_arch(layer_dims, pe_budget: int):
 
 
 def main():
-    if VERIFY_MODE is VerifyMode.network:
-        model = load_model_from_timm("mobilenetv3_rw")  # mobilenetv3_rw
-        input = load_default_input_tensor_for_model(model)
-        layer_dims = ModelDimCollector.collect_layer_dims_from_model(model, input)
-        opt_arch_config, opt_arch_metrics = find_optimal_arch(layer_dims, 324)
-        layer_dims = get_layer_equivelents(layer_dims, DIRECTLY_SUPPORTED_KERNELS)
-        layer_dims = pad_layer_dims_based_on_arch_config(layer_dims, opt_arch_config)
-        test_cases_queue = convert_layer_dims_to_test_cases(layer_dims, opt_arch_config)
-        test_cases_queue, layer_name_tracker = remove_duplicate_test_cases(
-            test_cases_queue
-        )
+    Path(SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
 
-    elif VERIFY_MODE is VerifyMode.random_test_cases:
-        test_cases_queue = generate_test_cases_queue(TEST_CASE_COUNT)
-        layer_name_tracker = None
+    model = load_model_from_timm("mobilenetv3_rw")  # mobilenetv3_rw
+    input = load_default_input_tensor_for_model(model)
+    layer_dims = ModelDimCollector.collect_layer_dims_from_model(model, input)
+    opt_arch_config, opt_arch_metrics = find_optimal_arch(layer_dims, 324)
+    layer_dims = get_layer_equivalents(layer_dims, DIRECTLY_SUPPORTED_KERNELS)
+    layer_dims = pad_layer_dims_based_on_arch_config(layer_dims, opt_arch_config)
+    test_cases_queue = convert_layer_dims_to_test_cases(layer_dims, opt_arch_config)
+    test_cases_queue, layer_name_tracker = remove_duplicate_test_cases(test_cases_queue)
 
-    launch_workers_with_test_cases(test_cases_queue, layer_name_tracker)
+    result_df = launch_workers_with_test_cases(test_cases_queue, layer_name_tracker)
+    return result_df
 
 
 if __name__ == "__main__":
-
     Path(SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
-
-    start = timer()
     main()
-    end = timer()
+    # start = timer()
+    # test_cases_queue = generate_test_cases_queue(TEST_CASE_COUNT)
+    # launch_workers_with_test_cases(test_cases_queue)
+    # end = timer()
 
-    print(f"Evaluated {TEST_CASE_COUNT} testcases in {(end - start):.2f} seconds")
+    # print(f"Evaluated {TEST_CASE_COUNT} testcases in {(end - start):.2f} seconds")
