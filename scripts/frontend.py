@@ -20,13 +20,14 @@ import result_pb2
 import timm
 from timm.data import resolve_data_config
 from timm.data.transforms_factory import create_transform
-from ModelAnalysis import ModelDimCollector, IfmapLayerDimensions
+from ModelAnalysis import ModelDimCollector
 import urllib
 from PIL import Image
 import torch
 from torch.nn.modules.linear import Linear
 from torch.nn.modules.conv import Conv2d
-
+from TEMPO import find_optimal_pe_allocation, optimize
+from schema import IfmapLayerDimensions, SimResult, TestCase
 
 os.environ["SC_COPYRIGHT_MESSAGE"] = "DISABLE"
 
@@ -98,30 +99,6 @@ class VerifyMode(Enum):
 
 
 VERIFY_MODE = VerifyMode.network
-
-
-@dataclass
-class SimResult:
-    valid: str
-    dram: int
-    weight: int
-    psum: int
-    ifmap: int
-    pe_util: float
-    latency: int
-    sim_time: int
-
-
-@dataclass(frozen=True)
-class TestCase:
-    ifmap_h: int
-    ifmap_w: int
-    kernel: int
-    c_in: int
-    f_out: int
-    arch_filter_count: int
-    arch_channel_count: int
-    layer_name: Optional[str] = None
 
 
 def generate_test_cases_queue(count: int):
@@ -403,7 +380,7 @@ def get_layer_equivelents(
 
 def convert_layer_dims_to_test_cases(
     layer_dims: Dict[str, Tuple[IfmapLayerDimensions, Conv2d]],
-    arch_config: Dict[str, int],
+    arch_config: Dict[str, int] = None,
 ):
     test_cases_queue = queue.Queue(0)
     for layer_name, (ifmap_dim, layer) in layer_dims.items():
@@ -414,8 +391,12 @@ def convert_layer_dims_to_test_cases(
                 c_in=layer.in_channels,
                 f_out=layer.out_channels,
                 kernel=layer.kernel_size[0],
-                arch_channel_count=arch_config["channel_count"],
-                arch_filter_count=arch_config["filter_count"],
+                arch_channel_count=arch_config["channel_count"]
+                if arch_config is not None
+                else 0,
+                arch_filter_count=arch_config["filter_count"]
+                if arch_config is not None
+                else 0,
                 layer_name=layer_name,
             )
         )
@@ -441,9 +422,9 @@ def launch_workers_with_test_cases(
     ).start()
 
     for _ in range(queue_size):
-        _ = done_queue.get()
+        result_df = done_queue.get()
 
-    print("Processed all test cases... exiting...")
+    return result_df
 
 
 def remove_duplicate_test_cases(test_cases_queue: queue.Queue[TestCase]):
@@ -471,31 +452,41 @@ def remove_duplicate_test_cases(test_cases_queue: queue.Queue[TestCase]):
     return test_cases_queue, layer_name_tracker
 
 
-def pad_layer_dims_based_on_arch_config(layer_dims, arch_config):
-    new_layer_dims = {}
-    for layer_name, (ifmap_dims, layer) in layer_dims.items():
-        if ifmap_dims.height * ifmap_dims.width < arch_config["channel_count"]:
-            ifmap_dims = pad_ifmap_dims(
-                ifmap_dims, find_minimal_fmap_padding(ifmap_dims, arch_config)
-            )
-        new_layer_dims[layer_name] = (ifmap_dims, layer)
-    return new_layer_dims
+def pad_layer_dims_based_on_arch_config(layer_dims, arch_config=None):
+    if arch_config is not None:
+        new_layer_dims = {}
+        for layer_name, (ifmap_dims, layer) in layer_dims.items():
+            if ifmap_dims.height * ifmap_dims.width < arch_config["channel_count"]:
+                ifmap_dims = pad_ifmap_dims(
+                    ifmap_dims, find_minimal_fmap_padding(ifmap_dims, arch_config)
+                )
+            new_layer_dims[layer_name] = (ifmap_dims, layer)
+        return new_layer_dims
+    else:
+        return layer_dims
 
 
 def reduce_conv_groups():
     ...
 
+
+def find_optimal_arch(layer_dims, pe_budget: int):
+    layer_dims = get_layer_equivelents(layer_dims, DIRECTLY_SUPPORTED_KERNELS)
+    layer_dims = pad_layer_dims_based_on_arch_config(layer_dims)
+    test_cases_queue = convert_layer_dims_to_test_cases(layer_dims)
+    test_cases_queue, _ = remove_duplicate_test_cases(test_cases_queue)
+    return find_optimal_pe_allocation(test_cases_queue.queue, pe_budget)
+
+
 def main():
     if VERIFY_MODE is VerifyMode.network:
-        arch_config = ARCH_CONFIG_DICT["medium"]
         model = load_model_from_timm("mobilenetv3_rw")  # mobilenetv3_rw
         input = load_default_input_tensor_for_model(model)
         layer_dims = ModelDimCollector.collect_layer_dims_from_model(model, input)
-        layer_dims = get_layer_equivelents(
-            layer_dims, DIRECTLY_SUPPORTED_KERNELS
-        )
-        layer_dims = pad_layer_dims_based_on_arch_config(layer_dims, arch_config)
-        test_cases_queue = convert_layer_dims_to_test_cases(layer_dims, arch_config)
+        opt_arch_config, opt_arch_metrics = find_optimal_arch(layer_dims, 324)
+        layer_dims = get_layer_equivelents(layer_dims, DIRECTLY_SUPPORTED_KERNELS)
+        layer_dims = pad_layer_dims_based_on_arch_config(layer_dims, opt_arch_config)
+        test_cases_queue = convert_layer_dims_to_test_cases(layer_dims, opt_arch_config)
         test_cases_queue, layer_name_tracker = remove_duplicate_test_cases(
             test_cases_queue
         )

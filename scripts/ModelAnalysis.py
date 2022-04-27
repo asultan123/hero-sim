@@ -25,17 +25,7 @@ import pickle
 from typing import Optional
 from torch.nn.modules.linear import Linear
 from torch.nn.modules.conv import Conv2d
-
-
-@dataclass
-class LayerDimensions:
-    kernel_size: Tuple[int, int]
-    stride: Tuple[int, int]
-    padding: Tuple[int, int]
-    groups: int
-    input_size: List[int]
-    output_size: List[int]
-
+from schema import IfmapLayerDimensions, LayerDimensions
 
 class StatsCounter:
     def __init__(self):
@@ -68,11 +58,6 @@ class StatsCounter:
         return self._dict.items()
 
 
-@dataclass
-class IfmapLayerDimensions:
-    width: int
-    height: int
-    channels: int
 
 
 class ModelDimCollector:
