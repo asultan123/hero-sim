@@ -28,6 +28,10 @@ from TEMPO import find_optimal_pe_allocation, optimize
 from schema import IfmapLayerDimensions, SimResult, TestCase
 from config import *
 
+RESULTS_CSV_PATH = ""
+
+os.environ["SC_COPYRIGHT_MESSAGE"] = "DISABLE" # Disable system-c copyright message over stdout
+Path(SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
 
 seed(SEED)
 
@@ -175,6 +179,8 @@ def results_collection_worker(
                 arch_filter_count=test_case.arch_filter_count,
                 arch_channel_count=test_case.arch_channel_count,
                 layer_name=layer_name,
+                lowering_ops=test_case.lowering_ops,
+                lifting_ops=test_case.lifting_ops
             )
             combined_dict = {}
             combined_dict.update(asdict(test_case_with_name))
@@ -248,16 +254,20 @@ def lower_ifmap_and_convert_to_conv(
 
     if ifmap_dims.height != ifmap_dims.width:
         raise NotImplementedError("Asymmetric input feature map cannot be lowered")
+    if kernel_size[0] != kernel_size[1]:
+        raise NotImplementedError("Asymmetric kernel sizes cannot be lowered")
 
     # invalid pads due to non (1, 1) strides filtered out during lifting
     if method is LoweringMethod.balanced:
+        ofmap_h = ifmap_dims.height - kernel_size[0] + 1
         ifmap_w = 1
-        ifmap_h = ifmap_dims.height * (ifmap_dims.height - kernel_size[0] + 1)
+        ifmap_h = ifmap_dims.height * ofmap_h
         in_channels = int(in_channels * kernel_size[0])
         out_channels = int(in_channels * kernel_size[0])
         new_dims = IfmapLayerDimensions(ifmap_w, ifmap_h, in_channels)
         layer = Conv2d(in_channels, out_channels, kernel_size=(1, 1))
-        return (new_dims, layer)
+        lowering = lifting = (ofmap_h**2) * kernel_size[0]
+        return (new_dims, layer, lowering, lifting)
     elif method is LoweringMethod.expensive:
         raise NotImplementedError(
             "Expensive lowering dimension calculation unavailable"
@@ -295,9 +305,13 @@ def get_layer_equivalents(
     for layer_name, (ifmap_dims, layer) in layer_dims.items():
         if isinstance(layer, Linear):
             layer_out_channels = layer.out_features
+            lowering_ops = lifting_ops = 0
             new_layer_dims[layer_name] = (
+                1,
                 new_dims,
                 Conv2d(new_dims.channels, layer_out_channels, kernel_size=(1, 1)),
+                lowering_ops,
+                lifting_ops
             )
         elif isinstance(layer, Conv2d):
             new_dims = pad_ifmap_dims(ifmap_dims, layer.padding)
@@ -314,8 +328,10 @@ def get_layer_equivalents(
                     out_channels,
                     kernel_size=layer.kernel_size,
                 )
+                
+                lowering_ops = lifting_ops = 0
             else:
-                new_dims, conv_layer = lower_ifmap_and_convert_to_conv(
+                new_dims, conv_layer, lowering_ops, lifting_ops = lower_ifmap_and_convert_to_conv(
                     new_dims,
                     in_channels,
                     out_channels,
@@ -323,7 +339,7 @@ def get_layer_equivalents(
                     stride=layer.stride,
                 )
 
-            new_layer_dims[f"{layer_name}"] = (layer.groups, new_dims, conv_layer)
+            new_layer_dims[f"{layer_name}"] = (layer.groups, new_dims, conv_layer, lowering_ops, lifting_ops)
         else:
             raise TypeError(f"Invalid layer type {type(layer)}")
     return new_layer_dims
@@ -334,7 +350,7 @@ def convert_layer_dims_to_test_cases(
     arch_config: Dict[str, int] = None,
 ):
     test_cases_list = []
-    for layer_name, (groups, ifmap_dim, layer) in layer_dims.items():
+    for layer_name, (groups, ifmap_dim, layer, lowering_ops, lifting_ops) in layer_dims.items():
         test_cases_list.append(
             TestCase(
                 ifmap_h=ifmap_dim.height,
@@ -350,6 +366,8 @@ def convert_layer_dims_to_test_cases(
                 if arch_config is not None
                 else 0,
                 layer_name=layer_name,
+                lowering_ops=lowering_ops,
+                lifting_ops=lifting_ops
             )
         )
     return test_cases_list
@@ -396,6 +414,8 @@ def remove_duplicate_test_cases(test_cases_list: List[TestCase]):
             groups=case.groups,
             arch_filter_count=case.arch_filter_count,
             arch_channel_count=case.arch_channel_count,
+            lowering_ops=case.lowering_ops,
+            lifting_ops=case.lifting_ops
         )
         try:
             layer_name_tracker[case_without_layer_name].append(layer_name)
@@ -412,12 +432,12 @@ def remove_duplicate_test_cases(test_cases_list: List[TestCase]):
 def pad_layer_dims_based_on_arch_config(layer_dims, arch_config=None):
     if arch_config is not None:
         new_layer_dims = {}
-        for layer_name, (groups, ifmap_dims, layer) in layer_dims.items():
+        for layer_name, (groups, ifmap_dims, layer, lowering_ops, lifting_ops) in layer_dims.items():
             if ifmap_dims.height * ifmap_dims.width < arch_config["channel_count"]:
                 ifmap_dims = pad_ifmap_dims(
                     ifmap_dims, find_minimal_fmap_padding(ifmap_dims, arch_config)
                 )
-            new_layer_dims[layer_name] = (groups, ifmap_dims, layer)
+            new_layer_dims[layer_name] = (groups, ifmap_dims, layer, lowering_ops, lifting_ops)
         return new_layer_dims
     else:
         return layer_dims
@@ -455,12 +475,22 @@ def eval_network(model, arch_config):
     return result_df
 
 if __name__ == "__main__":
+    models = []
+    models.append(("mobilenetv3_rw", load_model_from_timm("mobilenetv3_rw")))
+    # models.append(("vgg16", load_model_from_timm("vgg16")))
+    # models.append(("resnet50", load_model_from_timm("resnet50")))
     
-    os.environ["SC_COPYRIGHT_MESSAGE"] = "DISABLE" # Disable system-c copyright message over stdout
-    Path(SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
-    model = load_model_from_timm("mobilenetv3_rw")  # mobilenetv3_rw
-    arch_config, metrics =  find_opt_arch([model], 324)
-    eval_network(model, arch_config)
+    # arch_config, metrics =  find_opt_arch([model], 576)
+    # print(arch_config)
+    arch_config = {"filter_count": 32, 
+                   "channel_count": 18, 
+                   "directly_supported_kernels": [(1,1), (3,3)]
+                   }
+    
+    for model_name, model in models:
+        RESULTS_CSV_PATH = f'../data/{model_name}.csv'
+        eval_network(model, arch_config)
+
     # start = timer()
     # test_cases_queue = generate_test_cases_queue(TEST_CASE_COUNT)
     # launch_workers_with_test_cases(test_cases_queue)

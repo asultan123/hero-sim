@@ -41,4 +41,6 @@ class TestCase:
     arch_filter_count: int
     arch_channel_count: int
     groups: int
+    lowering_ops: int
+    lifting_ops: int
     layer_name: Optional[str] = None
