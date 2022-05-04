@@ -433,8 +433,10 @@ def find_opt_arch(models, pe_budget: int, directly_supported_kernels = DIRECTLY_
         test_cases = convert_layer_dims_to_test_cases(layer_dims)
         test_cases, _ = remove_duplicate_test_cases(test_cases)
         aggregate_test_case_list.extend(test_cases)
-        
-    return find_optimal_pe_allocation(aggregate_test_case_list, pe_budget)
+    
+    arch_config, metrics = find_optimal_pe_allocation(aggregate_test_case_list, pe_budget)
+    arch_config['directly_supported_kernels'] = directly_supported_kernels
+    return arch_config, metrics
 
 
 
@@ -444,7 +446,7 @@ def eval_network(model, arch_config):
     
     input = load_default_input_tensor_for_model(model)
     layer_dims = ModelDimCollector.collect_layer_dims_from_model(model, input)
-    layer_dims = get_layer_equivalents(layer_dims, DIRECTLY_SUPPORTED_KERNELS)
+    layer_dims = get_layer_equivalents(layer_dims, arch_config['directly_supported_kernels'])
     layer_dims = pad_layer_dims_based_on_arch_config(layer_dims, arch_config)
     test_cases_list = convert_layer_dims_to_test_cases(layer_dims, arch_config)
     test_cases_list, layer_name_tracker = remove_duplicate_test_cases(test_cases_list)
