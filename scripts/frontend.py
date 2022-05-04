@@ -13,8 +13,6 @@ from pandas import DataFrame, concat
 from pathlib import Path
 import os
 from timeit import default_timer as timer
-import colorlog
-from colorlog import ColoredFormatter
 import math
 import result_pb2
 import timm
@@ -28,60 +26,10 @@ from torch.nn.modules.linear import Linear
 from torch.nn.modules.conv import Conv2d
 from TEMPO import find_optimal_pe_allocation, optimize
 from schema import IfmapLayerDimensions, SimResult, TestCase
-
-os.environ["SC_COPYRIGHT_MESSAGE"] = "DISABLE"
-
-formatter = ColoredFormatter(
-    "%(log_color)s%(asctime)s %(log_color)s%(levelname)-8s%(reset)s %(log_color)s%(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    reset=True,
-    log_colors={
-        "DEBUG": "green",
-        "INFO": "yellow",
-        "WARNING": "orange",
-        "ERROR": "red",
-        "CRITICAL": "red,bg_white",
-    },
-    secondary_log_colors={},
-    style="%",
-)
-
-handler = colorlog.StreamHandler()
-handler.setFormatter(formatter)
-
-logger = colorlog.getLogger()
-
-logger.addHandler(handler)
-
-logger.setLevel("DEBUG")
-
-
-CORE_COUNT = 32
-TEST_CASE_COUNT = 5000
-SAVE_EVERY = 1
-RESULTS_CSV_PATH = "../data/verify_results.csv"
-SUBPROCESS_OUTPUT_DIR = "../data/subprocess_output"
-
-SEED = 1234
-LAYER_SIZE_UB = 2**5
-IFMAP_LOWER = 1
-IFMAP_UPPER = 64
-LOG2_FILTER_LOWER = 0
-LOG2_FILTER_UPPER = 10
-LOG2_CHANNEL_LOWER = 0
-LOG2_CHANNEL_UPPER = 10
-
-DIRECTLY_SUPPORTED_KERNELS = [(1, 1), (3, 3)]
-
-ARCH_CONFIG_DICT = {
-    "small": {"filter_count": 9, "channel_count": 9},
-    "medium": {"filter_count": 18, "channel_count": 18},
-    "large": {"filter_count": 32, "channel_count": 18},
-}
+from config import *
 
 
 seed(SEED)
-
 
 class OperationMode(Enum):
     linear = 0
@@ -134,6 +82,7 @@ def generate_test_cases_queue(count: int):
                 f_out,
                 arch_filter_counts,
                 arch_channel_counts,
+                groups=1
             )
         )
 
@@ -384,9 +333,9 @@ def convert_layer_dims_to_test_cases(
     layer_dims: Dict[str, Tuple[IfmapLayerDimensions, Conv2d]],
     arch_config: Dict[str, int] = None,
 ):
-    test_cases_queue = queue.Queue(0)
+    test_cases_list = []
     for layer_name, (groups, ifmap_dim, layer) in layer_dims.items():
-        test_cases_queue.put(
+        test_cases_list.append(
             TestCase(
                 ifmap_h=ifmap_dim.height,
                 ifmap_w=ifmap_dim.width,
@@ -403,12 +352,16 @@ def convert_layer_dims_to_test_cases(
                 layer_name=layer_name,
             )
         )
-    return test_cases_queue
+    return test_cases_list
 
 
 def launch_workers_with_test_cases(
-    test_cases_queue: queue.Queue, layer_name_tracker: Dict[TestCase, str] = None
+    test_cases_list: List[TestCase], layer_name_tracker: Dict[TestCase, str] = None
 ):
+    test_cases_queue = queue.Queue(0)
+    for case in test_cases_list:
+        test_cases_queue.put(case)
+    
     queue_size = test_cases_queue.qsize()
     results_queue = queue.Queue(0)
     done_queue = queue.Queue(0)
@@ -430,9 +383,9 @@ def launch_workers_with_test_cases(
     return result_df
 
 
-def remove_duplicate_test_cases(test_cases_queue: queue.Queue[TestCase]):
+def remove_duplicate_test_cases(test_cases_list: List[TestCase]):
     layer_name_tracker = {}
-    for case in test_cases_queue.queue:
+    for case in test_cases_list:
         layer_name = case.layer_name
         case_without_layer_name = TestCase(
             ifmap_h=case.ifmap_h,
@@ -450,10 +403,10 @@ def remove_duplicate_test_cases(test_cases_queue: queue.Queue[TestCase]):
             layer_name_tracker[case_without_layer_name] = [layer_name]
         except:
             raise
-    test_cases_queue = queue.Queue()
+    test_cases_list = []
     for case in layer_name_tracker.keys():
-        test_cases_queue.put(case)
-    return test_cases_queue, layer_name_tracker
+        test_cases_list.append(case)
+    return test_cases_list, layer_name_tracker
 
 
 def pad_layer_dims_based_on_arch_config(layer_dims, arch_config=None):
@@ -470,37 +423,42 @@ def pad_layer_dims_based_on_arch_config(layer_dims, arch_config=None):
         return layer_dims
 
 
-def reduce_conv_groups():
-    ...
+def find_opt_arch(models, pe_budget: int, directly_supported_kernels = DIRECTLY_SUPPORTED_KERNELS):
+    aggregate_test_case_list = []
+    for model in models:
+        input = load_default_input_tensor_for_model(model)
+        layer_dims = ModelDimCollector.collect_layer_dims_from_model(model, input)
+        layer_dims = get_layer_equivalents(layer_dims, directly_supported_kernels)
+
+        test_cases = convert_layer_dims_to_test_cases(layer_dims)
+        test_cases, _ = remove_duplicate_test_cases(test_cases)
+        aggregate_test_case_list.extend(test_cases)
+        
+    return find_optimal_pe_allocation(aggregate_test_case_list, pe_budget)
 
 
-def find_optimal_arch(layer_dims, pe_budget: int):
-    layer_dims = get_layer_equivalents(layer_dims, DIRECTLY_SUPPORTED_KERNELS)
-    layer_dims = pad_layer_dims_based_on_arch_config(layer_dims)
-    test_cases_queue = convert_layer_dims_to_test_cases(layer_dims)
-    test_cases_queue, _ = remove_duplicate_test_cases(test_cases_queue)
-    return find_optimal_pe_allocation(test_cases_queue.queue, pe_budget)
 
-
-def main():
+def eval_network(model, arch_config):
     Path(SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
-
-    model = load_model_from_timm("mobilenetv3_rw")  # mobilenetv3_rw
+    os.environ["SC_COPYRIGHT_MESSAGE"] = "DISABLE"
+    
     input = load_default_input_tensor_for_model(model)
     layer_dims = ModelDimCollector.collect_layer_dims_from_model(model, input)
-    opt_arch_config, opt_arch_metrics = find_optimal_arch(layer_dims, 324)
     layer_dims = get_layer_equivalents(layer_dims, DIRECTLY_SUPPORTED_KERNELS)
-    layer_dims = pad_layer_dims_based_on_arch_config(layer_dims, opt_arch_config)
-    test_cases_queue = convert_layer_dims_to_test_cases(layer_dims, opt_arch_config)
-    test_cases_queue, layer_name_tracker = remove_duplicate_test_cases(test_cases_queue)
+    layer_dims = pad_layer_dims_based_on_arch_config(layer_dims, arch_config)
+    test_cases_list = convert_layer_dims_to_test_cases(layer_dims, arch_config)
+    test_cases_list, layer_name_tracker = remove_duplicate_test_cases(test_cases_list)
 
-    result_df = launch_workers_with_test_cases(test_cases_queue, layer_name_tracker)
+    result_df = launch_workers_with_test_cases(test_cases_list, layer_name_tracker)
     return result_df
 
-
 if __name__ == "__main__":
+    
+    os.environ["SC_COPYRIGHT_MESSAGE"] = "DISABLE" # Disable system-c copyright message over stdout
     Path(SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
-    main()
+    model = load_model_from_timm("mobilenetv3_rw")  # mobilenetv3_rw
+    arch_config, metrics =  find_opt_arch([model], 324)
+    eval_network(model, arch_config)
     # start = timer()
     # test_cases_queue = generate_test_cases_queue(TEST_CASE_COUNT)
     # launch_workers_with_test_cases(test_cases_queue)
