@@ -269,12 +269,14 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
     if (valid)
     {
         cout << "PASS" << endl;
-        int weight_access = 0;
+        uint64_t weight_access = 0;
         xt::xarray<float> pe_utilization = xt::zeros<float>({1, (int)arch.pe_array.size()});
         int pe_idx = 0;
+        uint64_t total_macs = 0;
         for (auto &pe : arch.pe_array)
         {
             weight_access += pe.weight_access_counter;
+            total_macs += pe.active_counter;
             pe_utilization(0, pe_idx++) = (float)pe.active_counter / (float)(pe.active_counter + pe.inactive_counter);
         }
         float avg_util = xt::average(pe_utilization)(0);
@@ -285,6 +287,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
         cout << std::left << std::setw(20) << "Ifmap Access" << arch.ifmap_mem.mem.access_counter << endl;
         cout << std::left << std::setw(20) << "Avg. Pe Util" << std::setprecision(2) << avg_util << endl;
         cout << std::left << std::setw(20) << "Latency in cycles" << latency_in_cycles.value() / 1000 << endl;
+        cout << std::left << std::setw(20) << "MACs Performed" << total_macs << endl;
         cout << std::left << std::setw(20) << "Simulated in " << sim_time.count() << "ms\n";
         cout << std::left << std::setw(20) << "ALL TESTS PASS\n";
 
@@ -295,6 +298,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
         res.set_psum_access(arch.ifmap_mem.mem.access_counter);
         res.set_avg_util(avg_util);
         res.set_latency(latency_in_cycles.value() / 1000);
+        res.set_macs(total_macs);
         res.set_sim_time(sim_time.count());
     }
     else
