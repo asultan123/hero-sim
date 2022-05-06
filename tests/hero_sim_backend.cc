@@ -45,7 +45,7 @@ using std::chrono::milliseconds;
 namespace po = boost::program_options;
 
 template <typename DataType>
-void dram_load(Hero::Arch<DataType> &arch, xt::xarray<int> ifmap, int channel_in, int ifmap_h, int ifmap_w)
+void dram_load_ifmap(Hero::Arch<DataType> &arch, xt::xarray<int> ifmap, int channel_in, int ifmap_h, int ifmap_w)
 {
     // TODO #42
     for (int c = 0; c < channel_in; c++)
@@ -63,6 +63,19 @@ void dram_load(Hero::Arch<DataType> &arch, xt::xarray<int> ifmap, int channel_in
     }
     sc_start(1, SC_NS);
     cout << "Loaded dram contents into ifmap mem" << endl;
+}
+
+template <typename DataType>
+void dram_sim_load_bias(Hero::Arch<DataType> &arch)
+{
+    for(auto& _ : arch.psum_mem.mem.ram)
+    {
+        arch.dram_access_counter++;
+        arch.psum_mem.mem.access_counter++;
+    }
+
+    sc_start(1, SC_NS);
+    cout << "Loaded bias into psum mem" << endl;
 }
 
 template <typename DataType>
@@ -150,7 +163,7 @@ void load_padded_weights_into_pes(Hero::Arch<DataType> &arch, xt::xarray<int> pa
 
 template <typename DataType>
 void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, int filter_count, int channel_count,
-                         Hero::OperationMode op_mode, bool result_as_protobuf)
+                         Hero::OperationMode op_mode, bool result_as_protobuf, bool sim_bias)
 {
     auto t1 = high_resolution_clock::now();
 
@@ -198,7 +211,12 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
 
     auto ifmap = LayerGeneration::generate_ifmap<DataType>(arch, c_in, ifmap_h, ifmap_w);
 
-    dram_load(arch, ifmap, c_in, ifmap_h, ifmap_w);
+    dram_load_ifmap(arch, ifmap, c_in, ifmap_h, ifmap_w);
+
+    if(sim_bias)
+    {
+        dram_sim_load_bias(arch);
+    }
 
     weights = LayerGeneration::generate_weights<DataType>(f_out, c_in, k);
 
@@ -206,21 +224,15 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
 
     load_padded_weights_into_pes(arch, padded_weights);
 
-    try
-    {
-        GenerateDescriptors::generate_and_load_arch_descriptors(arch, ifmap_h, ifmap_w, padded_weights, ofmap_h,
-                                                                ofmap_w);
-    }
-    catch (...)
-    {
-        fmt::print("Caught exception during program generation... continuing");
-    }
+    GenerateDescriptors::generate_and_load_arch_descriptors(arch, ifmap_h, ifmap_w, padded_weights, ofmap_h,
+                                                            ofmap_w);
 
     control.set_program(true);
     arch.set_channel_modes();
     sc_start(1, SC_NS);
     control.set_enable(true);
     control.set_program(false);
+
     try
     {
         sc_start();
@@ -316,6 +328,7 @@ int sc_main(int argc, char *argv[])
         const int filter_count_default = 32;
         const int channel_count_default = 18;
         const bool result_as_protobuf_default = false;
+        const bool sim_bias = false;
 
         config.add_options()("help", "produce help message");
         config.add_options()("ifmap_h", po::value<int>()->default_value(ifmap_h_default),
@@ -329,6 +342,8 @@ int sc_main(int argc, char *argv[])
         config.add_options()("channel_count", po::value<int>()->default_value(channel_count_default), "set arch width");
         config.add_options()("result_as_protobuf", po::bool_switch()->default_value(result_as_protobuf_default),
                              "output result as serialized protobuf to stderr");
+        config.add_options()("sim_bias", po::bool_switch()->default_value(sim_bias),
+                             "output result as serialized protobuf to stderr");                             
 
 #else
         config.add_options()("help", "produce help message");
@@ -341,6 +356,8 @@ int sc_main(int argc, char *argv[])
         config.add_options()("channel_count", po::value<int>()->required(), "set arch height");
         config.add_options()("result_as_protobuf", po::bool_switch()->default_value(false),
                              "output result as serialized protobuf to stderr");
+        config.add_options()("sim_bias", po::bool_switch()->default_value(false),
+                             "Simulate a bias load into psum");                             
 
 #endif
 
@@ -363,6 +380,7 @@ int sc_main(int argc, char *argv[])
         int filter_count = vm["filter_count"].as<int>();
         int channel_count = vm["channel_count"].as<int>();
         bool result_as_protobuf = vm["result_as_protobuf"].as<bool>();
+        bool sim_bias = vm["sim_bias"].as<bool>();
         // bool result_as_protobuf = vm["result_as_protobuf"].as<int>();
 
         if (ifmap_h <= 0 || ifmap_w <= 0 || k <= 0 || c_in <= 0 || f_out <= 0 || filter_count <= 0 ||
@@ -398,7 +416,7 @@ int sc_main(int argc, char *argv[])
 
         auto operation_mode = (k == 1) ? Hero::OperationMode::RUN_1x1 : Hero::OperationMode::RUN_3x3;
         sim_and_get_results<char>(ifmap_h, ifmap_w, k, c_in, f_out, filter_count, channel_count, operation_mode,
-                                        result_as_protobuf);
+                                        result_as_protobuf, sim_bias);
     }
     catch (std::exception &e)
     {
