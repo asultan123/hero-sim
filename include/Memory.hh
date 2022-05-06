@@ -32,7 +32,7 @@ template <typename DataType> struct Memory : public sc_module
     sc_port<GlobalControlChannel_IF> control;
     sc_vector<sc_port<MemoryChannel_IF<DataType>>> channels;
     const unsigned int width, length, channel_count;
-    int access_counter;
+    uint64_t access_counter;
 
     void update();
 
