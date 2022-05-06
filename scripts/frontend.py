@@ -503,8 +503,27 @@ def decompose_large_ifmaps(layer_dims, ifmap_ub: Union[int, None] = None):
     if ifmap_ub is None:
         return layer_dims
 
+    new_layer_dims = {}
     for layer_name, layer_data in layer_dims.items():
-        ifmap_dims = layer_data["dims"]
+        ifmap_dims: IfmapLayerDimensions = layer_data["dims"]
+        ifmap_single_size = ifmap_dims.width * ifmap_dims.height
+        if ifmap_single_size > ifmap_ub:
+            raise ArgumentError(
+                "Input feature map for layer requested is too large to decompose"
+            )
+
+        total_ifmap_tensor_size = ifmap_dims.channels * ifmap_single_size
+
+        if total_ifmap_tensor_size <= ifmap_ub:
+            new_layer_dims[layer_name] = layer_data
+            continue
+
+        channels_per_sub_layer = ifmap_ub // ifmap_single_size
+        for layer in range(ifmap_dims.channels // channels_per_sub_layer):
+            sub_layer_name = f"{layer_name}.s{layer}"
+            new_layer_dims[sub_layer_name] = layer_data
+            new_layer_dims[sub_layer_name]["dims"].channels = channels_per_sub_layer
+            new_layer_dims[sub_layer_name]["conv_layer"]
         # ifmap_size = ifmap_dims.
 
 
