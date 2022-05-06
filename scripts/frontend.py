@@ -8,6 +8,7 @@ import threading, queue
 from dataclasses import dataclass, asdict
 from tkinter import ARC
 from typing import Dict, Tuple, List, Optional
+from black import Line
 from click import Argument
 from numpy import mat
 from pandas import DataFrame, concat
@@ -28,6 +29,7 @@ from torch.nn.modules.conv import Conv2d
 from TEMPO import find_optimal_pe_allocation, optimize
 from schema import IfmapLayerDimensions, SimResult, TestCase
 from config import *
+from typing import Union
 
 RESULTS_CSV_PATH = ""
 
@@ -315,18 +317,18 @@ def get_layer_equivalents(
         if isinstance(layer, Linear):
             layer_out_channels = layer.out_features
             lowering_ops = lifting_ops = 0
-            new_layer_dims[layer_name] = (
-                1,
-                new_dims,
-                Conv2d(
+            new_layer_dims[layer_name] = {
+                "groups": 1,
+                "dims": IfmapLayerDimensions(1, 1, layer_out_channels),
+                "conv_layer": Conv2d(
                     new_dims.channels,
                     layer_out_channels,
                     kernel_size=(1, 1),
                     bias=layer.bias is not None,
                 ),
-                lowering_ops,
-                lifting_ops,
-            )
+                "lowering_ops": lowering_ops,
+                "lifting_ops": lifting_ops,
+            }
         elif isinstance(layer, Conv2d):
             new_dims = pad_ifmap_dims(ifmap_dims, layer.padding)
             in_channels = int(layer.in_channels / layer.groups)
@@ -360,13 +362,13 @@ def get_layer_equivalents(
                     stride=layer.stride,
                 )
 
-            new_layer_dims[f"{layer_name}"] = (
-                layer.groups,
-                new_dims,
-                conv_layer,
-                lowering_ops,
-                lifting_ops,
-            )
+            new_layer_dims[f"{layer_name}"] = {
+                "groups": layer.groups,
+                "dims": new_dims,
+                "conv_layer": conv_layer,
+                "lowering_ops": lowering_ops,
+                "lifting_ops": lifting_ops,
+            }
         else:
             raise TypeError(f"Invalid layer type {type(layer)}")
     return new_layer_dims
@@ -377,17 +379,16 @@ def convert_layer_dims_to_test_cases(
     arch_config: Dict[str, int] = None,
 ):
     test_cases_list = []
-    for layer_name, (
-        groups,
-        ifmap_dim,
-        layer,
-        lowering_ops,
-        lifting_ops,
-    ) in layer_dims.items():
+    for layer_name, layer_data in layer_dims.items():
+        groups = layer_data["groups"]
+        ifmap_dims = layer_data["dims"]
+        layer = layer_data["conv_layer"]
+        lowering_ops = layer_data["lowering_ops"]
+        lifting_ops = layer_data["lifting_ops"]
         test_cases_list.append(
             TestCase(
-                ifmap_h=ifmap_dim.height,
-                ifmap_w=ifmap_dim.width,
+                ifmap_h=ifmap_dims.height,
+                ifmap_w=ifmap_dims.width,
                 c_in=layer.in_channels,
                 f_out=layer.out_channels,
                 kernel=layer.kernel_size[0],
@@ -466,28 +467,16 @@ def remove_duplicate_test_cases(test_cases_list: List[TestCase]):
 
 def pad_layer_dims_based_on_arch_config(layer_dims, arch_config=None):
     if arch_config is not None:
-        new_layer_dims = {}
-        for layer_name, (
-            groups,
-            ifmap_dims,
-            layer,
-            lowering_ops,
-            lifting_ops,
-        ) in layer_dims.items():
+        for layer_name, layer_data in layer_dims.items():
+            ifmap_dims = layer_data["dims"]
+
             if ifmap_dims.height * ifmap_dims.width < arch_config["channel_count"]:
                 ifmap_dims = pad_ifmap_dims(
                     ifmap_dims, find_minimal_fmap_padding(ifmap_dims, arch_config)
                 )
-            new_layer_dims[layer_name] = (
-                groups,
-                ifmap_dims,
-                layer,
-                lowering_ops,
-                lifting_ops,
-            )
-        return new_layer_dims
-    else:
-        return layer_dims
+
+                layer_dims[layer_name]["dims"] = ifmap_dims
+    return layer_dims
 
 
 def find_opt_arch(
@@ -510,6 +499,15 @@ def find_opt_arch(
     return arch_config, metrics
 
 
+def decompose_large_ifmaps(layer_dims, ifmap_ub: Union[int, None] = None):
+    if ifmap_ub is None:
+        return layer_dims
+
+    for layer_name, layer_data in layer_dims.items():
+        ifmap_dims = layer_data["dims"]
+        # ifmap_size = ifmap_dims.
+
+
 def eval_network(model, arch_config):
     Path(SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
     os.environ["SC_COPYRIGHT_MESSAGE"] = "DISABLE"
@@ -529,9 +527,9 @@ def eval_network(model, arch_config):
 
 if __name__ == "__main__":
     models = []
-    models.append(("mobilenetv3_rw", load_model_from_timm("mobilenetv3_rw")))
+    # models.append(("mobilenetv3_rw", load_model_from_timm("mobilenetv3_rw")))
     # models.append(("vgg16", load_model_from_timm("vgg16")))
-    # models.append(("resnet50", load_model_from_timm("resnet50")))
+    models.append(("resnet50", load_model_from_timm("resnet50")))
 
     # arch_config, metrics =  find_opt_arch([model], 576)
     # print(arch_config)
