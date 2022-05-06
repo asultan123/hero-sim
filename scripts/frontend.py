@@ -30,6 +30,7 @@ from TEMPO import find_optimal_pe_allocation, optimize
 from schema import IfmapLayerDimensions, SimResult, TestCase
 from config import *
 from typing import Union
+from copy import deepcopy
 
 RESULTS_CSV_PATH = ""
 
@@ -99,7 +100,6 @@ def generate_test_cases_queue(count: int):
     return test_cases_queue
 
 
-# CACHE?
 def spawn_simulation_process(worker_id: int, test_case: TestCase):
     args = (
         "../build/hero_sim_backend",
@@ -140,16 +140,39 @@ def spawn_simulation_process(worker_id: int, test_case: TestCase):
         res.ParseFromString(stderr_file.read())
 
     return SimResult(
-        res.valid,
-        res.dram_access,
-        res.weight_access,
-        res.ifmap_access,
-        res.psum_access,
-        res.avg_util,
-        res.latency,
-        res.sim_time,
+        valid = res.valid,
+        dram = res.dram_access,
+        weight = res.weight_access,
+        psum = res.ifmap_access,
+        ifmap = res.psum_access,
+        pe_util = res.avg_util,
+        latency = res.latency,
+        sim_time = res.sim_time,
+        macs = res.macs
     )
 
+def create_new_sim_result_rows(test_case, result, layer_name_tracker):
+    rows = []
+    for layer_name in layer_name_tracker[test_case]:
+        test_case_with_name = TestCase(
+            ifmap_h=test_case.ifmap_h,
+            ifmap_w=test_case.ifmap_w,
+            kernel=test_case.kernel,
+            c_in=test_case.c_in,
+            f_out=test_case.f_out,
+            groups=test_case.groups,
+            arch_filter_count=test_case.arch_filter_count,
+            arch_channel_count=test_case.arch_channel_count,
+            layer_name=layer_name,
+            lowering_ops=test_case.lowering_ops,
+            lifting_ops=test_case.lifting_ops,
+            bias=test_case.bias,
+        )
+        combined_dict = {}
+        combined_dict.update(asdict(test_case_with_name))
+        combined_dict.update(asdict(result))
+        rows.append(DataFrame([combined_dict]))
+    return rows
 
 def test_case_worker(
     worker_id, test_cases_queue: queue.Queue, results_queue: queue.Queue
@@ -172,29 +195,6 @@ def results_collection_worker(
     collection_counter = 0
     results_dataframe = DataFrame()
     aggregate_dataframe = DataFrame()
-
-    def create_new_sim_result_rows(test_case, result, layer_name_tracker):
-        rows = []
-        for layer_name in layer_name_tracker[test_case]:
-            test_case_with_name = TestCase(
-                ifmap_h=test_case.ifmap_h,
-                ifmap_w=test_case.ifmap_w,
-                kernel=test_case.kernel,
-                c_in=test_case.c_in,
-                f_out=test_case.f_out,
-                groups=test_case.groups,
-                arch_filter_count=test_case.arch_filter_count,
-                arch_channel_count=test_case.arch_channel_count,
-                layer_name=layer_name,
-                lowering_ops=test_case.lowering_ops,
-                lifting_ops=test_case.lifting_ops,
-                bias=test_case.bias,
-            )
-            combined_dict = {}
-            combined_dict.update(asdict(test_case_with_name))
-            combined_dict.update(asdict(result))
-            rows.append(DataFrame([combined_dict]))
-        return rows
 
     while True:
         test_case, result = results_queue.get()
@@ -308,10 +308,9 @@ def find_minimal_fmap_padding(
 
 
 def get_layer_equivalents(
-    layer_dims: Dict[str, IfmapLayerDimensions],
-    directly_supported_kernels: List[int],
-) -> Dict[str, Tuple[IfmapLayerDimensions, Conv2d]]:
-
+    layer_dims,
+    directly_supported_kernels: List[Tuple[int, int]],
+):
     new_layer_dims = {}
     for layer_name, (ifmap_dims, layer) in layer_dims.items():
         if isinstance(layer, Linear):
@@ -499,6 +498,48 @@ def find_opt_arch(
     return arch_config, metrics
 
 
+def create_sub_layers_from_layer_with_large_ifmap(layer_data, ifmap_ub):
+    ifmap_dims: IfmapLayerDimensions = layer_data["dims"]
+    ifmap_single_size = ifmap_dims.width * ifmap_dims.height
+
+    new_layer_dim_list = []
+    channels_per_sub_layer = ifmap_ub // ifmap_single_size
+    for sub_layer in range(ifmap_dims.channels // channels_per_sub_layer):
+        new_layer_dim = deepcopy(layer_data)
+        new_layer_dim["dims"].channels = channels_per_sub_layer
+        conv_op: Conv2d = new_layer_dim["conv_layer"]
+        if sub_layer == 0:
+            new_conv_op = Conv2d(
+                in_channels=channels_per_sub_layer,
+                out_channels=conv_op.out_channels,
+                kernel_size=conv_op.kernel_size,
+                bias=conv_op.bias is not None,
+            )
+        else:
+            new_conv_op = Conv2d(
+                in_channels=channels_per_sub_layer,
+                out_channels=conv_op.out_channels,
+                kernel_size=conv_op.kernel_size,
+                bias=True,  # bias required for all sub layers after the first one
+            )
+        new_layer_dim["conv_layer"] = new_conv_op
+        new_layer_dim_list.append(new_layer_dim)
+
+    remaining_channels = ifmap_dims.channels % channels_per_sub_layer
+    if remaining_channels > 0:
+        new_layer_dim = deepcopy(layer_data)
+        new_layer_dim["dims"].channels = remaining_channels
+        new_conv_op = Conv2d(
+            in_channels=remaining_channels,
+            out_channels=conv_op.out_channels,
+            kernel_size=conv_op.kernel_size,
+            bias=True,  # bias required for all sub layers after the first one
+        )
+        new_layer_dim["conv_layer"] = new_conv_op
+        new_layer_dim_list.append(new_layer_dim)
+    return new_layer_dim_list
+
+
 def decompose_large_ifmaps(layer_dims, ifmap_ub: Union[int, None] = None):
     if ifmap_ub is None:
         return layer_dims
@@ -513,19 +554,17 @@ def decompose_large_ifmaps(layer_dims, ifmap_ub: Union[int, None] = None):
             )
 
         total_ifmap_tensor_size = ifmap_dims.channels * ifmap_single_size
-
         if total_ifmap_tensor_size <= ifmap_ub:
             new_layer_dims[layer_name] = layer_data
             continue
 
-        channels_per_sub_layer = ifmap_ub // ifmap_single_size
-        for layer in range(ifmap_dims.channels // channels_per_sub_layer):
-            sub_layer_name = f"{layer_name}.s{layer}"
-            new_layer_dims[sub_layer_name] = layer_data
-            new_layer_dims[sub_layer_name]["dims"].channels = channels_per_sub_layer
-            new_layer_dims[sub_layer_name]["conv_layer"]
-        # ifmap_size = ifmap_dims.
+        sub_layers = create_sub_layers_from_layer_with_large_ifmap(layer_data, ifmap_ub)
+        for layer_idx, layer in enumerate(sub_layers):
+            sub_layer_name = f"{layer_name}.s{layer_idx}"
+            new_layer_dims[sub_layer_name] = layer
 
+    return new_layer_dims
+        # ifmap_size = ifmap_dims.
 
 def eval_network(model, arch_config):
     Path(SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
@@ -537,6 +576,7 @@ def eval_network(model, arch_config):
         layer_dims, arch_config["directly_supported_kernels"]
     )
     layer_dims = pad_layer_dims_based_on_arch_config(layer_dims, arch_config)
+    layer_dims = decompose_large_ifmaps(layer_dims, arch_config["ifmap_mem_ub"])
     test_cases_list = convert_layer_dims_to_test_cases(layer_dims, arch_config)
     test_cases_list, layer_name_tracker = remove_duplicate_test_cases(test_cases_list)
 
@@ -546,9 +586,9 @@ def eval_network(model, arch_config):
 
 if __name__ == "__main__":
     models = []
-    # models.append(("mobilenetv3_rw", load_model_from_timm("mobilenetv3_rw")))
+    models.append(("mobilenetv3_rw", load_model_from_timm("mobilenetv3_rw")))
     # models.append(("vgg16", load_model_from_timm("vgg16")))
-    models.append(("resnet50", load_model_from_timm("resnet50")))
+    # models.append(("resnet50", load_model_from_timm("resnet50")))
 
     # arch_config, metrics =  find_opt_arch([model], 576)
     # print(arch_config)
@@ -556,6 +596,7 @@ if __name__ == "__main__":
         "filter_count": 32,
         "channel_count": 18,
         "directly_supported_kernels": [(1, 1), (3, 3)],
+        "ifmap_mem_ub": 2**17
     }
 
     for model_name, model in models:
