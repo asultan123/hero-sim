@@ -29,6 +29,7 @@ class SimResult:
     pe_util: float
     latency: int
     sim_time: int
+    macs: int
 
 
 @dataclass(frozen=True)
