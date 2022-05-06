@@ -1,5 +1,6 @@
 from argparse import ArgumentError
 from ast import If
+from audioop import bias
 import subprocess
 from enum import Enum
 from random import randint, choice, seed, choices
@@ -30,10 +31,13 @@ from config import *
 
 RESULTS_CSV_PATH = ""
 
-os.environ["SC_COPYRIGHT_MESSAGE"] = "DISABLE" # Disable system-c copyright message over stdout
+os.environ[
+    "SC_COPYRIGHT_MESSAGE"
+] = "DISABLE"  # Disable system-c copyright message over stdout
 Path(SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
 
 seed(SEED)
+
 
 class OperationMode(Enum):
     linear = 0
@@ -86,7 +90,7 @@ def generate_test_cases_queue(count: int):
                 f_out,
                 arch_filter_counts,
                 arch_channel_counts,
-                groups=1
+                groups=1,
             )
         )
 
@@ -112,6 +116,7 @@ def spawn_simulation_process(worker_id: int, test_case: TestCase):
         "--channel_count",
         f"{test_case.arch_channel_count}",
         "--result_as_protobuf",
+        "--sim_bias" if test_case.bias is True else "",
     )
     layer_name = test_case.layer_name if test_case.layer_name is not None else ""
     stderr_file_path = os.path.join(
@@ -180,7 +185,8 @@ def results_collection_worker(
                 arch_channel_count=test_case.arch_channel_count,
                 layer_name=layer_name,
                 lowering_ops=test_case.lowering_ops,
-                lifting_ops=test_case.lifting_ops
+                lifting_ops=test_case.lifting_ops,
+                bias=test_case.bias,
             )
             combined_dict = {}
             combined_dict.update(asdict(test_case_with_name))
@@ -249,6 +255,7 @@ def lower_ifmap_and_convert_to_conv(
     out_channels: int,
     kernel_size: Tuple[int, int],
     stride: Tuple[int, int],
+    bias: bool,
     method: LoweringMethod = LoweringMethod.balanced,
 ) -> Tuple[IfmapLayerDimensions, Conv2d]:
 
@@ -265,7 +272,9 @@ def lower_ifmap_and_convert_to_conv(
         in_channels = int(in_channels * kernel_size[0])
         out_channels = int(in_channels * kernel_size[0])
         new_dims = IfmapLayerDimensions(ifmap_w, ifmap_h, in_channels)
-        layer = Conv2d(in_channels, out_channels, kernel_size=(1, 1))
+        layer = Conv2d(
+            in_channels, out_channels, kernel_size=(1, 1), bias=bias is not None
+        )
         lowering = lifting = (ofmap_h**2) * kernel_size[0]
         return (new_dims, layer, lowering, lifting)
     elif method is LoweringMethod.expensive:
@@ -309,9 +318,14 @@ def get_layer_equivalents(
             new_layer_dims[layer_name] = (
                 1,
                 new_dims,
-                Conv2d(new_dims.channels, layer_out_channels, kernel_size=(1, 1)),
+                Conv2d(
+                    new_dims.channels,
+                    layer_out_channels,
+                    kernel_size=(1, 1),
+                    bias=layer.bias is not None,
+                ),
                 lowering_ops,
-                lifting_ops
+                lifting_ops,
             )
         elif isinstance(layer, Conv2d):
             new_dims = pad_ifmap_dims(ifmap_dims, layer.padding)
@@ -327,19 +341,32 @@ def get_layer_equivalents(
                     in_channels,
                     out_channels,
                     kernel_size=layer.kernel_size,
+                    bias=layer.bias is not None,
                 )
-                
+
                 lowering_ops = lifting_ops = 0
             else:
-                new_dims, conv_layer, lowering_ops, lifting_ops = lower_ifmap_and_convert_to_conv(
+                (
+                    new_dims,
+                    conv_layer,
+                    lowering_ops,
+                    lifting_ops,
+                ) = lower_ifmap_and_convert_to_conv(
                     new_dims,
                     in_channels,
                     out_channels,
+                    bias=layer.bias,
                     kernel_size=layer.kernel_size,
                     stride=layer.stride,
                 )
 
-            new_layer_dims[f"{layer_name}"] = (layer.groups, new_dims, conv_layer, lowering_ops, lifting_ops)
+            new_layer_dims[f"{layer_name}"] = (
+                layer.groups,
+                new_dims,
+                conv_layer,
+                lowering_ops,
+                lifting_ops,
+            )
         else:
             raise TypeError(f"Invalid layer type {type(layer)}")
     return new_layer_dims
@@ -350,7 +377,13 @@ def convert_layer_dims_to_test_cases(
     arch_config: Dict[str, int] = None,
 ):
     test_cases_list = []
-    for layer_name, (groups, ifmap_dim, layer, lowering_ops, lifting_ops) in layer_dims.items():
+    for layer_name, (
+        groups,
+        ifmap_dim,
+        layer,
+        lowering_ops,
+        lifting_ops,
+    ) in layer_dims.items():
         test_cases_list.append(
             TestCase(
                 ifmap_h=ifmap_dim.height,
@@ -367,7 +400,8 @@ def convert_layer_dims_to_test_cases(
                 else 0,
                 layer_name=layer_name,
                 lowering_ops=lowering_ops,
-                lifting_ops=lifting_ops
+                lifting_ops=lifting_ops,
+                bias=layer.bias is not None,
             )
         )
     return test_cases_list
@@ -379,7 +413,7 @@ def launch_workers_with_test_cases(
     test_cases_queue = queue.Queue(0)
     for case in test_cases_list:
         test_cases_queue.put(case)
-    
+
     queue_size = test_cases_queue.qsize()
     results_queue = queue.Queue(0)
     done_queue = queue.Queue(0)
@@ -415,7 +449,8 @@ def remove_duplicate_test_cases(test_cases_list: List[TestCase]):
             arch_filter_count=case.arch_filter_count,
             arch_channel_count=case.arch_channel_count,
             lowering_ops=case.lowering_ops,
-            lifting_ops=case.lifting_ops
+            lifting_ops=case.lifting_ops,
+            bias=case.bias,
         )
         try:
             layer_name_tracker[case_without_layer_name].append(layer_name)
@@ -432,18 +467,32 @@ def remove_duplicate_test_cases(test_cases_list: List[TestCase]):
 def pad_layer_dims_based_on_arch_config(layer_dims, arch_config=None):
     if arch_config is not None:
         new_layer_dims = {}
-        for layer_name, (groups, ifmap_dims, layer, lowering_ops, lifting_ops) in layer_dims.items():
+        for layer_name, (
+            groups,
+            ifmap_dims,
+            layer,
+            lowering_ops,
+            lifting_ops,
+        ) in layer_dims.items():
             if ifmap_dims.height * ifmap_dims.width < arch_config["channel_count"]:
                 ifmap_dims = pad_ifmap_dims(
                     ifmap_dims, find_minimal_fmap_padding(ifmap_dims, arch_config)
                 )
-            new_layer_dims[layer_name] = (groups, ifmap_dims, layer, lowering_ops, lifting_ops)
+            new_layer_dims[layer_name] = (
+                groups,
+                ifmap_dims,
+                layer,
+                lowering_ops,
+                lifting_ops,
+            )
         return new_layer_dims
     else:
         return layer_dims
 
 
-def find_opt_arch(models, pe_budget: int, directly_supported_kernels = DIRECTLY_SUPPORTED_KERNELS):
+def find_opt_arch(
+    models, pe_budget: int, directly_supported_kernels=DIRECTLY_SUPPORTED_KERNELS
+):
     aggregate_test_case_list = []
     for model in models:
         input = load_default_input_tensor_for_model(model)
@@ -453,20 +502,23 @@ def find_opt_arch(models, pe_budget: int, directly_supported_kernels = DIRECTLY_
         test_cases = convert_layer_dims_to_test_cases(layer_dims)
         test_cases, _ = remove_duplicate_test_cases(test_cases)
         aggregate_test_case_list.extend(test_cases)
-    
-    arch_config, metrics = find_optimal_pe_allocation(aggregate_test_case_list, pe_budget)
-    arch_config['directly_supported_kernels'] = directly_supported_kernels
-    return arch_config, metrics
 
+    arch_config, metrics = find_optimal_pe_allocation(
+        aggregate_test_case_list, pe_budget
+    )
+    arch_config["directly_supported_kernels"] = directly_supported_kernels
+    return arch_config, metrics
 
 
 def eval_network(model, arch_config):
     Path(SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
     os.environ["SC_COPYRIGHT_MESSAGE"] = "DISABLE"
-    
+
     input = load_default_input_tensor_for_model(model)
     layer_dims = ModelDimCollector.collect_layer_dims_from_model(model, input)
-    layer_dims = get_layer_equivalents(layer_dims, arch_config['directly_supported_kernels'])
+    layer_dims = get_layer_equivalents(
+        layer_dims, arch_config["directly_supported_kernels"]
+    )
     layer_dims = pad_layer_dims_based_on_arch_config(layer_dims, arch_config)
     test_cases_list = convert_layer_dims_to_test_cases(layer_dims, arch_config)
     test_cases_list, layer_name_tracker = remove_duplicate_test_cases(test_cases_list)
@@ -474,21 +526,23 @@ def eval_network(model, arch_config):
     result_df = launch_workers_with_test_cases(test_cases_list, layer_name_tracker)
     return result_df
 
+
 if __name__ == "__main__":
     models = []
     models.append(("mobilenetv3_rw", load_model_from_timm("mobilenetv3_rw")))
     # models.append(("vgg16", load_model_from_timm("vgg16")))
     # models.append(("resnet50", load_model_from_timm("resnet50")))
-    
+
     # arch_config, metrics =  find_opt_arch([model], 576)
     # print(arch_config)
-    arch_config = {"filter_count": 32, 
-                   "channel_count": 18, 
-                   "directly_supported_kernels": [(1,1), (3,3)]
-                   }
-    
+    arch_config = {
+        "filter_count": 32,
+        "channel_count": 18,
+        "directly_supported_kernels": [(1, 1), (3, 3)],
+    }
+
     for model_name, model in models:
-        RESULTS_CSV_PATH = f'../data/{model_name}.csv'
+        RESULTS_CSV_PATH = f"../data/{model_name}.csv"
         eval_network(model, arch_config)
 
     # start = timer()

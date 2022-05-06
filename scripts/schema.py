@@ -43,4 +43,5 @@ class TestCase:
     groups: int
     lowering_ops: int
     lifting_ops: int
+    bias: bool
     layer_name: Optional[str] = None

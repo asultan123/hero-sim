@@ -4,8 +4,6 @@ from colorlog import ColoredFormatter
 CORE_COUNT = 32
 TEST_CASE_COUNT = 5000
 SAVE_EVERY = 1
-RESULTS_CSV_PATH = "../data/verify_results.csv"
-SUBPROCESS_OUTPUT_DIR = "../data/subprocess_output"
 SEED = 1234
 LAYER_SIZE_UB = 2**5
 IFMAP_LOWER = 1
@@ -15,6 +13,7 @@ LOG2_FILTER_UPPER = 10
 LOG2_CHANNEL_LOWER = 0
 LOG2_CHANNEL_UPPER = 10
 DIRECTLY_SUPPORTED_KERNELS = [(1, 1), (3, 3)]
+SUBPROCESS_OUTPUT_DIR = "../data/subprocess_output"
 
 ARCH_CONFIG_DICT = {
     "small": {"filter_count": 9, "channel_count": 9},
