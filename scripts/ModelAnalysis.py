@@ -27,6 +27,7 @@ from torch.nn.modules.linear import Linear
 from torch.nn.modules.conv import Conv2d
 from schema import IfmapLayerDimensions, LayerDimensions
 
+
 class StatsCounter:
     def __init__(self):
         self._dict = {}
@@ -56,8 +57,6 @@ class StatsCounter:
 
     def items(self):
         return self._dict.items()
-
-
 
 
 class ModelDimCollector:
@@ -113,12 +112,13 @@ class ModelDimCollector:
         collector = cls()
         collector.attach_collection_hooks_to_model(model)
         if torch.cuda.is_available():
-            model.cuda()
-            input_batch.cuda()
+            model = model.cuda()
+            input_batch = input_batch.cuda()
         model.eval()
         with torch.no_grad():
             model(input_batch)
         model.cpu()
+        input_batch = input_batch.cpu()
         collector.detach_stats_collection_hooks()
         collected_stats = deepcopy(collector.model_stats)
         return collected_stats
