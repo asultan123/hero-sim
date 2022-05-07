@@ -1,36 +1,29 @@
 from argparse import ArgumentError
-from ast import If
-from audioop import bias
 import subprocess
 from enum import Enum
 from random import randint, choice, seed, choices
 import threading, queue
-from dataclasses import dataclass, asdict
-from tkinter import ARC
+from dataclasses import asdict
 from typing import Dict, Tuple, List, Optional
-from black import Line
-from click import Argument
-from numpy import mat
 from pandas import DataFrame, concat
 from pathlib import Path
 import os
 from timeit import default_timer as timer
 import math
 import result_pb2
-import timm
-from timm.data import resolve_data_config
-from timm.data.transforms_factory import create_transform
-from ModelAnalysis import ModelDimCollector
-import urllib
+from ModelAnalysis import (
+    ModelDimCollector,
+    load_default_input_tensor_for_model,
+)
 from PIL import Image
-import torch
 from torch.nn.modules.linear import Linear
 from torch.nn.modules.conv import Conv2d
-from TEMPO import find_optimal_pe_allocation, optimize
+from TEMPO import find_optimal_pe_allocation
 from schema import IfmapLayerDimensions, SimResult, TestCase
 from config import *
 from typing import Union
 from copy import deepcopy
+import pickle 
 
 RESULTS_CSV_PATH = ""
 
@@ -140,16 +133,17 @@ def spawn_simulation_process(worker_id: int, test_case: TestCase):
         res.ParseFromString(stderr_file.read())
 
     return SimResult(
-        valid = res.valid,
-        dram = res.dram_access,
-        weight = res.weight_access,
-        psum = res.ifmap_access,
-        ifmap = res.psum_access,
-        pe_util = res.avg_util,
-        latency = res.latency,
-        sim_time = res.sim_time,
-        macs = res.macs
+        valid=res.valid,
+        dram=res.dram_access,
+        weight=res.weight_access,
+        psum=res.ifmap_access,
+        ifmap=res.psum_access,
+        pe_util=res.avg_util,
+        latency=res.latency,
+        sim_time=res.sim_time,
+        macs=res.macs,
     )
+
 
 def create_new_sim_result_rows(test_case, result, layer_name_tracker):
     rows = []
@@ -173,6 +167,7 @@ def create_new_sim_result_rows(test_case, result, layer_name_tracker):
         combined_dict.update(asdict(result))
         rows.append(DataFrame([combined_dict]))
     return rows
+
 
 def test_case_worker(
     worker_id, test_cases_queue: queue.Queue, results_queue: queue.Queue
@@ -225,22 +220,6 @@ def results_collection_worker(
         done_queue.put(results_dataframe)
         collection_counter += 1
         results_queue.task_done()
-
-
-def load_model_from_timm(model_name):
-    return timm.create_model(model_name, pretrained=False)
-
-
-def load_default_input_tensor_for_model(model):
-    url, filename = (
-        "https://github.com/pytorch/hub/raw/master/images/dog.jpg",
-        "dog.jpg",
-    )
-    urllib.request.urlretrieve(url, filename)
-    img = Image.open(filename).convert("RGB")
-    config = resolve_data_config({}, model=model)
-    transform = create_transform(**config)
-    return transform(img).unsqueeze(0)
 
 
 def pad_ifmap_dims(ifmap_dims: IfmapLayerDimensions, padding: Tuple[int, int]):
@@ -549,7 +528,7 @@ def decompose_large_ifmaps(layer_dims, ifmap_ub: Union[int, None] = None):
         ifmap_dims: IfmapLayerDimensions = layer_data["dims"]
         ifmap_single_size = ifmap_dims.width * ifmap_dims.height
         if ifmap_single_size > ifmap_ub:
-            raise ArgumentError(
+            raise Exception(
                 "Input feature map for layer requested is too large to decompose"
             )
 
@@ -564,7 +543,8 @@ def decompose_large_ifmaps(layer_dims, ifmap_ub: Union[int, None] = None):
             new_layer_dims[sub_layer_name] = layer
 
     return new_layer_dims
-        # ifmap_size = ifmap_dims.
+    # ifmap_size = ifmap_dims.
+
 
 def eval_network(model, arch_config):
     Path(SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
@@ -572,6 +552,9 @@ def eval_network(model, arch_config):
 
     input = load_default_input_tensor_for_model(model)
     layer_dims = ModelDimCollector.collect_layer_dims_from_model(model, input)
+    return eval_template_adapted_layers(layer_dims)
+
+def eval_template_adapted_layers(layer_dims):
     layer_dims = get_layer_equivalents(
         layer_dims, arch_config["directly_supported_kernels"]
     )
@@ -585,8 +568,8 @@ def eval_network(model, arch_config):
 
 
 if __name__ == "__main__":
-    models = []
-    models.append(("mobilenetv3_rw", load_model_from_timm("mobilenetv3_rw")))
+    # models = []
+    # models.append(("mobilenetv3_rw", load_model_from_timm("mobilenetv3_rw")))
     # models.append(("vgg16", load_model_from_timm("vgg16")))
     # models.append(("resnet50", load_model_from_timm("resnet50")))
 
@@ -596,12 +579,19 @@ if __name__ == "__main__":
         "filter_count": 32,
         "channel_count": 18,
         "directly_supported_kernels": [(1, 1), (3, 3)],
-        "ifmap_mem_ub": 2**17
+        "ifmap_mem_ub": 2**20,
     }
 
-    for model_name, model in models:
-        RESULTS_CSV_PATH = f"../data/{model_name}.csv"
-        eval_network(model, arch_config)
+    # for model_name, model in models:
+    #     RESULTS_CSV_PATH = f"../data/{model_name}.csv"
+    #     eval_network(model, arch_config)
+    RESULTS_CSV_PATH = "../data/mobilenetv3_rw.csv"
+    start = timer()
+    with open('../data/processed_models/mobilenetv3_rw.model.pickle', 'rb') as file:
+        layer_dims = pickle.load(file)
+    end = timer()
+    print(end - start)
+    eval_template_adapted_layers(layer_dims)    
 
     # start = timer()
     # test_cases_queue = generate_test_cases_queue(TEST_CASE_COUNT)

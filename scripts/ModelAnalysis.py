@@ -26,8 +26,8 @@ from typing import Optional
 from torch.nn.modules.linear import Linear
 from torch.nn.modules.conv import Conv2d
 from schema import IfmapLayerDimensions, LayerDimensions
-
-
+from joblib import Memory
+import os
 class StatsCounter:
     def __init__(self):
         self._dict = {}
@@ -77,10 +77,11 @@ class ModelDimCollector:
 
     def extract_dims(self, name, module, input, output):
         if isinstance(module, Linear):
-            if len(input[0].size()) != 2 or input[0].size()[0] != 1:
-                raise ArgumentError("Linear layer with non 1x1 feature unsupported")
+            if input[0].size()[0] != 1:
+                raise Exception("Only a batch size of 1 is allowed when extracting model dims")
+            
             dims = IfmapLayerDimensions(
-                height=1,
+                height=prod(list(input[0].size())[:-1]),
                 width=1,
                 channels=input[0].size()[-1],
             )
@@ -122,36 +123,34 @@ class ModelDimCollector:
         collector.detach_stats_collection_hooks()
         collected_stats = deepcopy(collector.model_stats)
         return collected_stats
+    
+def load_model_from_timm(model_name):
+    return timm.create_model(model_name, pretrained=False)
 
 
-if __name__ == "__main__":
-    model_list = [
-        (model_name, timm.create_model(model_name, pretrained=False))
-        for model_name in ["resnet50", "vgg19", "mobilenetv3_rw"]
-    ]
-    model_input_image_config = {
-        model_name: resolve_data_config({}, model=model)
-        for model_name, model in model_list
-    }
-
-    last_config = list(model_input_image_config.values())[0]
-    for config in list(model_input_image_config.values())[1:]:
-        if config["input_size"] != last_config["input_size"]:
-            raise Exception(
-                "Mismatch in required input image dimensions for desired models"
-            )
-
+def load_default_input_tensor_for_model(model):
     url, filename = (
         "https://github.com/pytorch/hub/raw/master/images/dog.jpg",
         "dog.jpg",
     )
     urllib.request.urlretrieve(url, filename)
     img = Image.open(filename).convert("RGB")
+    config = resolve_data_config({}, model=model)
+    transform = create_transform(**config)
+    return transform(img).unsqueeze(0)
 
-    stats_dict = {}
-    for model_name, model in model_list:
-        transform = create_transform(**model_input_image_config[model_name])
-        input_batch = transform(img).unsqueeze(0)
-        stats_dict[model_name] = ModelDimCollector.collect_layer_dims_from_model(
-            model, input_batch
-        )
+
+if __name__ == "__main__":
+    model_name_list = timm.list_models(exclude_filters=['*_iabn', 'swin_*', 'tnt_*', 'tresnet_*'], pretrained=False)
+    
+    processed_models_list = os.listdir('../data/processed_models')
+    processed_models_list = [filename.split('.')[-3] for filename in processed_models_list]
+    
+    for model_name in tqdm(model_name_list):
+        if model_name in processed_models_list:
+            continue
+        model = load_model_from_timm(model_name)
+        input = load_default_input_tensor_for_model(model)
+        model_stats = ModelDimCollector.collect_layer_dims_from_model(model, input)
+        with open(f'../data/processed_models/{model_name}.model.pickle', 'wb') as model_file:
+            pickle.dump(model_stats, model_file)
