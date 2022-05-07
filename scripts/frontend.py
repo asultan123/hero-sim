@@ -1,21 +1,25 @@
 from argparse import ArgumentError
+from concurrent.futures import thread
 import subprocess
 from enum import Enum
 from random import randint, choice, seed, choices
 import threading, queue
 from dataclasses import asdict
+from time import sleep
 from typing import Dict, Tuple, List, Optional
+from matplotlib.style import available
 from pandas import DataFrame, concat
 from pathlib import Path
 import os
 from timeit import default_timer as timer
 import math
 import result_pb2
+import ModelAnalysis
 from ModelAnalysis import (
     ModelDimCollector,
     load_default_input_tensor_for_model,
 )
-from PIL import Image
+from tqdm import tqdm
 from torch.nn.modules.linear import Linear
 from torch.nn.modules.conv import Conv2d
 from TEMPO import find_optimal_pe_allocation
@@ -23,7 +27,9 @@ from schema import IfmapLayerDimensions, SimResult, TestCase
 from config import *
 from typing import Union
 from copy import deepcopy
-import pickle 
+import pickle
+from multiprocessing import Pool
+import psutil
 
 RESULTS_CSV_PATH = ""
 
@@ -147,7 +153,7 @@ def spawn_simulation_process(worker_id: int, test_case: TestCase):
 
 def create_new_sim_result_rows(test_case, result, layer_name_tracker):
     rows = []
-    for layer_name in layer_name_tracker[test_case]:
+    for layer_name, model_name in layer_name_tracker[test_case]:
         test_case_with_name = TestCase(
             ifmap_h=test_case.ifmap_h,
             ifmap_w=test_case.ifmap_w,
@@ -161,6 +167,7 @@ def create_new_sim_result_rows(test_case, result, layer_name_tracker):
             lowering_ops=test_case.lowering_ops,
             lifting_ops=test_case.lifting_ops,
             bias=test_case.bias,
+            model_name=model_name,
         )
         combined_dict = {}
         combined_dict.update(asdict(test_case_with_name))
@@ -169,16 +176,51 @@ def create_new_sim_result_rows(test_case, result, layer_name_tracker):
     return rows
 
 
+class AtomicCount():
+    def __init__(self):
+        self.count = 0
+        self.lock = threading.Lock()
+    def set_val(self, val):
+        self.lock.acquire()
+        self.count = val
+        self.lock.release()
+    def get_value(self):
+        self.lock.acquire()
+        val = self.count
+        self.lock.release()
+        return val
+    def increment(self, val):
+        self.lock.acquire()
+        self.count += val
+        self.lock.release()
+    def decrement(self, val):
+        self.lock.acquire()
+        self.count -= val
+        self.lock.release()
+        
+def get_available_mem():
+    return psutil.virtual_memory().available / 2**30
+
+launch_lock = threading.Lock()
+
 def test_case_worker(
-    worker_id, test_cases_queue: queue.Queue, results_queue: queue.Queue
+    worker_id, test_cases_queue: queue.Queue, results_queue: queue.Queue, available_mem: AtomicCount
 ):
     while True:
-        test_case = test_cases_queue.get()
-        logger.debug(f"worker {worker_id} spawning process with test case\n{test_case}")
+        test_case: TestCase = test_cases_queue.get()
+        estimated_mem_required = (
+            test_case.f_out * test_case.c_in * test_case.ifmap_h * test_case.ifmap_w * 150 / 2**30
+        )
+        
+        # while available_mem.get_value() < estimated_mem_required:
+        #     sleep(2)
+                
+        # available_mem.decrement(estimated_mem_required)
+        logger.debug(f"worker {worker_id} spawning process with test case\n{test_case}, estimated available mem: {available_mem.get_value()}")
         sim_result = spawn_simulation_process(worker_id, test_case)
         results_queue.put((test_case, sim_result))
         test_cases_queue.task_done()
-
+        # available_mem.increment(estimated_mem_required)
 
 def results_collection_worker(
     worker_id: int,
@@ -354,7 +396,8 @@ def get_layer_equivalents(
 
 def convert_layer_dims_to_test_cases(
     layer_dims: Dict[str, Tuple[IfmapLayerDimensions, Conv2d]],
-    arch_config: Dict[str, int] = None,
+    arch_config: Dict[str, int],
+    model_name: str = None,
 ):
     test_cases_list = []
     for layer_name, layer_data in layer_dims.items():
@@ -371,27 +414,29 @@ def convert_layer_dims_to_test_cases(
                 f_out=layer.out_channels,
                 kernel=layer.kernel_size[0],
                 groups=groups,
-                arch_channel_count=arch_config["channel_count"]
-                if arch_config is not None
-                else 0,
-                arch_filter_count=arch_config["filter_count"]
-                if arch_config is not None
-                else 0,
+                arch_channel_count=arch_config["channel_count"],
+                arch_filter_count=arch_config["filter_count"],
                 layer_name=layer_name,
                 lowering_ops=lowering_ops,
                 lifting_ops=lifting_ops,
                 bias=layer.bias is not None,
+                model_name=model_name,
             )
         )
     return test_cases_list
 
 
 def launch_workers_with_test_cases(
-    test_cases_list: List[TestCase], layer_name_tracker: Dict[TestCase, str] = None
+    test_cases_list: List[TestCase],
+    layer_name_tracker: Dict[TestCase, str] = None,
+    core_count=CORE_COUNT,
 ):
     test_cases_queue = queue.Queue(0)
     for case in test_cases_list:
         test_cases_queue.put(case)
+
+    available_mem = AtomicCount()
+    available_mem.set_val(get_available_mem())
 
     queue_size = test_cases_queue.qsize()
     results_queue = queue.Queue(0)
@@ -400,7 +445,7 @@ def launch_workers_with_test_cases(
         threading.Thread(
             target=test_case_worker,
             daemon=True,
-            args=[worker_id, test_cases_queue, results_queue],
+            args=[worker_id, test_cases_queue, results_queue, available_mem],
         ).start()
     threading.Thread(
         target=results_collection_worker,
@@ -414,10 +459,14 @@ def launch_workers_with_test_cases(
     return result_df
 
 
-def remove_duplicate_test_cases(test_cases_list: List[TestCase]):
-    layer_name_tracker = {}
+def remove_duplicate_test_cases(
+    test_cases_list: List[TestCase], layer_name_tracker=None
+):
+    if layer_name_tracker is None:
+        layer_name_tracker = {}
     for case in test_cases_list:
         layer_name = case.layer_name
+        model_name = case.model_name
         case_without_layer_name = TestCase(
             ifmap_h=case.ifmap_h,
             ifmap_w=case.ifmap_w,
@@ -432,9 +481,9 @@ def remove_duplicate_test_cases(test_cases_list: List[TestCase]):
             bias=case.bias,
         )
         try:
-            layer_name_tracker[case_without_layer_name].append(layer_name)
+            layer_name_tracker[case_without_layer_name].append((layer_name, model_name))
         except KeyError:
-            layer_name_tracker[case_without_layer_name] = [layer_name]
+            layer_name_tracker[case_without_layer_name] = [(layer_name, model_name)]
         except:
             raise
     test_cases_list = []
@@ -546,35 +595,78 @@ def decompose_large_ifmaps(layer_dims, ifmap_ub: Union[int, None] = None):
     # ifmap_size = ifmap_dims.
 
 
-def eval_network(model, arch_config):
-    Path(SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
-    os.environ["SC_COPYRIGHT_MESSAGE"] = "DISABLE"
-
-    input = load_default_input_tensor_for_model(model)
-    layer_dims = ModelDimCollector.collect_layer_dims_from_model(model, input)
-    return eval_template_adapted_layers(layer_dims)
-
-def eval_template_adapted_layers(layer_dims):
+def convert_collected_model_layers_to_testcases(
+    layer_dims, arch_config, model_name=None, layer_name_tracker=None
+):
     layer_dims = get_layer_equivalents(
         layer_dims, arch_config["directly_supported_kernels"]
     )
     layer_dims = pad_layer_dims_based_on_arch_config(layer_dims, arch_config)
     layer_dims = decompose_large_ifmaps(layer_dims, arch_config["ifmap_mem_ub"])
-    test_cases_list = convert_layer_dims_to_test_cases(layer_dims, arch_config)
-    test_cases_list, layer_name_tracker = remove_duplicate_test_cases(test_cases_list)
+    test_cases_list = convert_layer_dims_to_test_cases(
+        layer_dims, arch_config, model_name
+    )
+    test_cases_list, layer_name_tracker = remove_duplicate_test_cases(
+        test_cases_list, layer_name_tracker
+    )
 
+    return test_cases_list, layer_name_tracker
+
+
+def eval_collected_model_layers(layer_dims, arch_config, model_name):
+    test_cases_list, layer_name_tracker = convert_collected_model_layers_to_testcases(
+        layer_dims, arch_config, model_name
+    )
     result_df = launch_workers_with_test_cases(test_cases_list, layer_name_tracker)
     return result_df
 
 
+def eval_network(model, arch_config, model_name=None):
+    Path(SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+    os.environ["SC_COPYRIGHT_MESSAGE"] = "DISABLE"
+
+    input = load_default_input_tensor_for_model(model)
+    layer_dims = ModelDimCollector.collect_layer_dims_from_model(model, input)
+    result_df = eval_collected_model_layers(layer_dims, arch_config, model_name)
+    return result_df
+
+
+def layer_dims_generator():
+    processed_models_files = os.listdir("../data/processed_models")
+    processed_models_names = [
+        "".join(filename.split(".")[:-2]) for filename in processed_models_files
+    ]
+    processed_models_filepaths = [
+        os.path.join("../data/processed_models", filename)
+        for filename in os.listdir("../data/processed_models")
+    ]
+
+    ignore_list = pickle.load(open("../data/frontend_ignore_list.pickle", "rb"))
+
+    for model_name, path in tqdm(
+        list(zip(processed_models_names, processed_models_filepaths))
+    ):
+        if model_name in ignore_list:
+            continue
+
+        with open(path, "rb") as file:
+            layer_dims = pickle.load(file)
+        yield model_name, layer_dims
+        
 if __name__ == "__main__":
     # models = []
-    # models.append(("mobilenetv3_rw", load_model_from_timm("mobilenetv3_rw")))
-    # models.append(("vgg16", load_model_from_timm("vgg16")))
-    # models.append(("resnet50", load_model_from_timm("resnet50")))
+    # models.append(("mobilenetv3_rw", ModelAnalysis.load_model_from_timm("mobilenetv3_rw")))
 
-    # arch_config, metrics =  find_opt_arch([model], 576)
-    # print(arch_config)
+    # arch_config = {
+    #     "filter_count": 32,
+    #     "channel_count": 18,
+    #     "directly_supported_kernels": [(1, 1), (3, 3)],
+    #     "ifmap_mem_ub": 2**20,
+    # }
+    # for model_name, model in models:
+    #     RESULTS_CSV_PATH = f"../data/{model_name}.csv"
+    #     eval_network(model, arch_config, model_name=model_name)
+
     arch_config = {
         "filter_count": 32,
         "channel_count": 18,
@@ -582,20 +674,20 @@ if __name__ == "__main__":
         "ifmap_mem_ub": 2**20,
     }
 
-    # for model_name, model in models:
-    #     RESULTS_CSV_PATH = f"../data/{model_name}.csv"
-    #     eval_network(model, arch_config)
-    RESULTS_CSV_PATH = "../data/mobilenetv3_rw.csv"
-    start = timer()
-    with open('../data/processed_models/mobilenetv3_rw.model.pickle', 'rb') as file:
-        layer_dims = pickle.load(file)
-    end = timer()
-    print(end - start)
-    eval_template_adapted_layers(layer_dims)    
+    RESULTS_CSV_PATH = "../data/timm_0_5314.csv"
 
-    # start = timer()
-    # test_cases_queue = generate_test_cases_queue(TEST_CASE_COUNT)
-    # launch_workers_with_test_cases(test_cases_queue)
-    # end = timer()
+    with open("../data/timm_lib_testcases.pickle", "rb") as file:
+        test_case_list, layer_name_tracker = pickle.load(file)
 
-    # print(f"Evaluated {TEST_CASE_COUNT} testcases in {(end - start):.2f} seconds")
+    
+    test_case_list = sorted(test_case_list, reverse=True)
+    result_df = launch_workers_with_test_cases(test_case_list[1000:], layer_name_tracker)
+
+    # layer_name_tracker = {}
+    # for model_name, layer_dims in tqdm(layer_dims_generator()):
+    #     test_case_list, layer_name_tracker = convert_collected_model_layers_to_testcases(
+    #         layer_dims, arch_config, model_name, layer_name_tracker
+    #     )
+
+    # #     total_test_cases_count += len(cases)
+    # print(len(test_case_list))

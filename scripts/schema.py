@@ -46,3 +46,10 @@ class TestCase:
     lifting_ops: int
     bias: bool
     layer_name: Optional[str] = None
+    model_name: Optional[str] = None
+    
+    def get_size(self):
+        return self.ifmap_h * self.ifmap_w * self.c_in * self.f_out
+    
+    def __lt__(self, other):
+        return self.get_size() < other.get_size()
