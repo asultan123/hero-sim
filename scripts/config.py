@@ -29,9 +29,9 @@ formatter = ColoredFormatter(
     log_colors={
         "DEBUG": "green",
         "INFO": "yellow",
-        "WARNING": "orange",
-        "ERROR": "red",
-        "CRITICAL": "red,bg_white",
+        "WARNING": "red",
+        "ERROR": "red,bg_white",
+        "CRITICAL": "black,bg_white",
     },
     secondary_log_colors={},
     style="%",
