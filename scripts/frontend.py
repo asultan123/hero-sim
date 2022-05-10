@@ -491,46 +491,72 @@ def find_opt_arch(
 
 
 def create_sub_layers_from_layer_with_large_ifmap(
-    layer_data, ifmap_ub_per_bank, ifmap_bank_count
+    layer_data,
+    ifmap_ub_per_bank,
+    ifmap_bank_count,
+    distribute_ifmaps_across_banks=False,
 ):
     ifmap_dims: IfmapLayerDimensions = layer_data["dims"]
     ifmap_single_size = ifmap_dims.width * ifmap_dims.height
 
+    if ifmap_single_size <= ifmap_ub_per_bank:
+        channels_per_bank = ifmap_ub_per_bank // ifmap_single_size
+        channels_per_sub_layer = channels_per_bank * ifmap_bank_count
+    else:
+        if distribute_ifmaps_across_banks is False:
+            raise Exception(
+                "Input feature map for layer requested is too large to decompose \
+                    without enabling bank distribution"
+            )
+
+        banks_per_ifmap_single = math.ceil(
+            ifmap_single_size/ ifmap_ub_per_bank
+        )
+        channels_per_sub_layer = ifmap_bank_count // banks_per_ifmap_single
+
+    sub_layers = ifmap_dims.channels // channels_per_sub_layer
+
     new_layer_dim_list = []
-    channels_per_bank = ifmap_ub_per_bank // ifmap_single_size
-    channels_per_sub_layer = channels_per_bank * ifmap_bank_count
-    for sub_layer in range(ifmap_dims.channels // channels_per_sub_layer):
+
+    if sub_layers == 0:
+        new_layer_dim_list.append(layer_data)
+        return new_layer_dim_list
+    
+    for sub_layer in range(sub_layers):
         new_layer_dim = deepcopy(layer_data)
         new_layer_dim["dims"].channels = channels_per_sub_layer
         conv_op: Conv2d = new_layer_dim["conv_layer"]
         if sub_layer == 0:
-            new_conv_op = Conv2d(
+            new_layer_dim["conv_layer"] = Conv2d(
                 in_channels=channels_per_sub_layer,
                 out_channels=conv_op.out_channels,
                 kernel_size=conv_op.kernel_size,
                 bias=conv_op.bias is not None,
-            )
+            )  # Copy lifting lowering costs here
         else:
-            new_conv_op = Conv2d(
+            new_layer_dim["conv_layer"] = Conv2d(
                 in_channels=channels_per_sub_layer,
                 out_channels=conv_op.out_channels,
                 kernel_size=conv_op.kernel_size,
                 bias=True,  # bias required for all sub layers after the first one
             )
-        new_layer_dim["conv_layer"] = new_conv_op
+            new_layer_dim["lowering_ops"] = 0
+            new_layer_dim["lifting_ops"] = 0
         new_layer_dim_list.append(new_layer_dim)
 
     remaining_channels = ifmap_dims.channels % channels_per_sub_layer
     if remaining_channels > 0:
         new_layer_dim = deepcopy(layer_data)
+        conv_op: Conv2d = new_layer_dim["conv_layer"]
         new_layer_dim["dims"].channels = remaining_channels
-        new_conv_op = Conv2d(
+        new_layer_dim["lowering_ops"] = 0
+        new_layer_dim["lifting_ops"] = 0
+        new_layer_dim["conv_layer"] = Conv2d(
             in_channels=remaining_channels,
             out_channels=conv_op.out_channels,
             kernel_size=conv_op.kernel_size,
             bias=True,  # bias required for all sub layers after the first one
         )
-        new_layer_dim["conv_layer"] = new_conv_op
         new_layer_dim_list.append(new_layer_dim)
     return new_layer_dim_list
 
@@ -568,40 +594,48 @@ def decompose_layers_with_large_ofmaps(layer_dims, ofmap_ub: Union[int, None] = 
 def decompose_layers_with_large_ifmaps(layer_dims, arch_config: Dict[str, int]):
 
     ifmap_bank_count = arch_config["channel_count"]
+    distribute_ifmaps_across_banks: bool = arch_config["allow_ifmap_distribution"]
 
     try:
         ifmap_ub = arch_config["ifmap_mem_ub"]
     except KeyError:
         return layer_dims
-    
+
     ifmap_ub_per_bank = ifmap_ub // ifmap_bank_count
     bank_adjusted_ifmap_ub = ifmap_ub_per_bank * ifmap_bank_count
 
+    if bank_adjusted_ifmap_ub != ifmap_ub:
+        bank_adjusted_ifmap_ub_in_kb = bank_adjusted_ifmap_ub / 2**10
+        ifmap_ub_in_kb = ifmap_ub / 2**10
+        logger.warning(
+            f"Upper bound for IFmap memory supplied is not a multiple of arch ifmap channel count (Available banks for IFmap), \
+                will adjust ub to {bank_adjusted_ifmap_ub_in_kb :.5f} KB Instead of {ifmap_ub_in_kb :.5f} KB"
+        )
     new_layer_dims = {}
     for layer_name, layer_data in layer_dims.items():
         ifmap_dims: IfmapLayerDimensions = layer_data["dims"]
         ifmap_single_size = ifmap_dims.width * ifmap_dims.height
-        if ifmap_single_size > ifmap_ub_per_bank:
+        if ifmap_single_size > bank_adjusted_ifmap_ub:
             raise Exception(
                 "Input feature map for layer requested is too large to decompose"
             )
 
-        total_ifmap_tensor_size = ifmap_dims.channels * ifmap_single_size
         if (
-            total_ifmap_tensor_size <= bank_adjusted_ifmap_ub
-        ):  
-            new_layer_dims[layer_name] = layer_data
-            continue
+            ifmap_single_size > ifmap_ub_per_bank
+            and distribute_ifmaps_across_banks is False
+        ):
+            raise Exception(
+                "Input feature map for layer requested is too large to decompose without enabling bank distribution"
+            )
 
         sub_layers = create_sub_layers_from_layer_with_large_ifmap(
-            layer_data, ifmap_ub_per_bank, ifmap_bank_count
+            layer_data, ifmap_ub_per_bank, ifmap_bank_count, distribute_ifmaps_across_banks
         )
         for layer_idx, layer in enumerate(sub_layers):
             sub_layer_name = f"{layer_name}.s{layer_idx}"
             new_layer_dims[sub_layer_name] = layer
 
     return new_layer_dims
-    # ifmap_size = ifmap_dims.
 
 
 def convert_collected_model_layers_to_testcases(
@@ -682,7 +716,8 @@ if __name__ == "__main__":
         "filter_count": 32,
         "channel_count": 18,
         "directly_supported_kernels": [(1, 1), (3, 3)],
-        "ifmap_mem_ub": 2**20,
+        "ifmap_mem_ub": 2**17,
+        "allow_ifmap_distribution": True
     }
     for model_name, model in models:
         RESULTS_CSV_PATH = f"../data/{model_name}.csv"
