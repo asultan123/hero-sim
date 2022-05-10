@@ -176,51 +176,18 @@ def create_new_sim_result_rows(test_case, result, layer_name_tracker):
     return rows
 
 
-class AtomicCount():
-    def __init__(self):
-        self.count = 0
-        self.lock = threading.Lock()
-    def set_val(self, val):
-        self.lock.acquire()
-        self.count = val
-        self.lock.release()
-    def get_value(self):
-        self.lock.acquire()
-        val = self.count
-        self.lock.release()
-        return val
-    def increment(self, val):
-        self.lock.acquire()
-        self.count += val
-        self.lock.release()
-    def decrement(self, val):
-        self.lock.acquire()
-        self.count -= val
-        self.lock.release()
-        
-def get_available_mem():
-    return psutil.virtual_memory().available / 2**30
-
-launch_lock = threading.Lock()
-
 def test_case_worker(
-    worker_id, test_cases_queue: queue.Queue, results_queue: queue.Queue, available_mem: AtomicCount
+    worker_id,
+    test_cases_queue: queue.Queue,
+    results_queue: queue.Queue,
 ):
     while True:
         test_case: TestCase = test_cases_queue.get()
-        estimated_mem_required = (
-            test_case.f_out * test_case.c_in * test_case.ifmap_h * test_case.ifmap_w * 150 / 2**30
-        )
-        
-        # while available_mem.get_value() < estimated_mem_required:
-        #     sleep(2)
-                
-        # available_mem.decrement(estimated_mem_required)
-        logger.debug(f"worker {worker_id} spawning process with test case\n{test_case}, estimated available mem: {available_mem.get_value()}")
+        logger.debug(f"worker {worker_id} spawning process with test case\n{test_case}")
         sim_result = spawn_simulation_process(worker_id, test_case)
         results_queue.put((test_case, sim_result))
         test_cases_queue.task_done()
-        # available_mem.increment(estimated_mem_required)
+
 
 def results_collection_worker(
     worker_id: int,
@@ -435,9 +402,6 @@ def launch_workers_with_test_cases(
     for case in test_cases_list:
         test_cases_queue.put(case)
 
-    available_mem = AtomicCount()
-    available_mem.set_val(get_available_mem())
-
     queue_size = test_cases_queue.qsize()
     results_queue = queue.Queue(0)
     done_queue = queue.Queue(0)
@@ -445,7 +409,7 @@ def launch_workers_with_test_cases(
         threading.Thread(
             target=test_case_worker,
             daemon=True,
-            args=[worker_id, test_cases_queue, results_queue, available_mem],
+            args=[worker_id, test_cases_queue, results_queue],
         ).start()
     threading.Thread(
         target=results_collection_worker,
@@ -568,6 +532,7 @@ def create_sub_layers_from_layer_with_large_ifmap(layer_data, ifmap_ub):
     return new_layer_dim_list
 
 
+# need to decompose based on ofmaps too
 def decompose_large_ifmaps(layer_dims, ifmap_ub: Union[int, None] = None):
     if ifmap_ub is None:
         return layer_dims
@@ -582,7 +547,9 @@ def decompose_large_ifmaps(layer_dims, ifmap_ub: Union[int, None] = None):
             )
 
         total_ifmap_tensor_size = ifmap_dims.channels * ifmap_single_size
-        if total_ifmap_tensor_size <= ifmap_ub:
+        if (
+            total_ifmap_tensor_size <= ifmap_ub
+        ):  # need to consider size of single ifmap bank
             new_layer_dims[layer_name] = layer_data
             continue
 
@@ -602,7 +569,12 @@ def convert_collected_model_layers_to_testcases(
         layer_dims, arch_config["directly_supported_kernels"]
     )
     layer_dims = pad_layer_dims_based_on_arch_config(layer_dims, arch_config)
-    layer_dims = decompose_large_ifmaps(layer_dims, arch_config["ifmap_mem_ub"])
+    bank_adjusted_ifmap_ub = (
+        arch_config["ifmap_mem_ub"]
+        // arch_config["channel_count"]
+        * arch_config["channel_count"]
+    )
+    layer_dims = decompose_large_ifmaps(layer_dims, bank_adjusted_ifmap_ub)
     test_cases_list = convert_layer_dims_to_test_cases(
         layer_dims, arch_config, model_name
     )
@@ -652,20 +624,13 @@ def layer_dims_generator():
         with open(path, "rb") as file:
             layer_dims = pickle.load(file)
         yield model_name, layer_dims
-        
-if __name__ == "__main__":
-    # models = []
-    # models.append(("mobilenetv3_rw", ModelAnalysis.load_model_from_timm("mobilenetv3_rw")))
 
-    # arch_config = {
-    #     "filter_count": 32,
-    #     "channel_count": 18,
-    #     "directly_supported_kernels": [(1, 1), (3, 3)],
-    #     "ifmap_mem_ub": 2**20,
-    # }
-    # for model_name, model in models:
-    #     RESULTS_CSV_PATH = f"../data/{model_name}.csv"
-    #     eval_network(model, arch_config, model_name=model_name)
+
+if __name__ == "__main__":
+    models = []
+    models.append(
+        ("mobilenetv3_rw", ModelAnalysis.load_model_from_timm("mobilenetv3_rw"))
+    )
 
     arch_config = {
         "filter_count": 32,
@@ -673,15 +638,26 @@ if __name__ == "__main__":
         "directly_supported_kernels": [(1, 1), (3, 3)],
         "ifmap_mem_ub": 2**20,
     }
+    for model_name, model in models:
+        RESULTS_CSV_PATH = f"../data/{model_name}.csv"
+        eval_network(model, arch_config, model_name=model_name)
 
-    RESULTS_CSV_PATH = "../data/timm_0_5314.csv"
+    # arch_config = {
+    #     "filter_count": 32,
+    #     "channel_count": 18,
+    #     "directly_supported_kernels": [(1, 1), (3, 3)],
+    #     "ifmap_mem_ub": 2**20,
+    # }
 
-    with open("../data/timm_lib_testcases.pickle", "rb") as file:
-        test_case_list, layer_name_tracker = pickle.load(file)
+    # RESULTS_CSV_PATH = "../data/timm_0_5314.csv"
 
-    
-    test_case_list = sorted(test_case_list, reverse=True)
-    result_df = launch_workers_with_test_cases(test_case_list[1000:], layer_name_tracker)
+    # with open("../data/timm_lib_testcases.pickle", "rb") as file:
+    #     test_case_list, layer_name_tracker = pickle.load(file)
+
+    # test_case_list = sorted(test_case_list, reverse=True)
+    # result_df = launch_workers_with_test_cases(
+    #     test_case_list[2000:], layer_name_tracker
+    # )
 
     # layer_name_tracker = {}
     # for model_name, layer_dims in tqdm(layer_dims_generator()):
