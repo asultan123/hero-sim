@@ -490,12 +490,15 @@ def find_opt_arch(
     return arch_config, metrics
 
 
-def create_sub_layers_from_layer_with_large_ifmap(layer_data, ifmap_ub):
+def create_sub_layers_from_layer_with_large_ifmap(
+    layer_data, ifmap_ub_per_bank, ifmap_bank_count
+):
     ifmap_dims: IfmapLayerDimensions = layer_data["dims"]
     ifmap_single_size = ifmap_dims.width * ifmap_dims.height
 
     new_layer_dim_list = []
-    channels_per_sub_layer = ifmap_ub // ifmap_single_size
+    channels_per_bank = ifmap_ub_per_bank // ifmap_single_size
+    channels_per_sub_layer = channels_per_bank * ifmap_bank_count
     for sub_layer in range(ifmap_dims.channels // channels_per_sub_layer):
         new_layer_dim = deepcopy(layer_data)
         new_layer_dim["dims"].channels = channels_per_sub_layer
@@ -532,9 +535,8 @@ def create_sub_layers_from_layer_with_large_ifmap(layer_data, ifmap_ub):
     return new_layer_dim_list
 
 
-# need to decompose based on ofmaps too
-def decompose_large_ifmaps(layer_dims, ifmap_ub: Union[int, None] = None):
-    if ifmap_ub is None:
+def decompose_layers_with_large_ofmaps(layer_dims, ofmap_ub: Union[int, None] = None):
+    if ofmap_ub is None:
         return layer_dims
 
     new_layer_dims = {}
@@ -562,6 +564,46 @@ def decompose_large_ifmaps(layer_dims, ifmap_ub: Union[int, None] = None):
     # ifmap_size = ifmap_dims.
 
 
+# need to decompose based on ofmaps too
+def decompose_layers_with_large_ifmaps(layer_dims, arch_config: Dict[str, int]):
+
+    ifmap_bank_count = arch_config["channel_count"]
+
+    try:
+        ifmap_ub = arch_config["ifmap_mem_ub"]
+    except KeyError:
+        return layer_dims
+    
+    ifmap_ub_per_bank = ifmap_ub // ifmap_bank_count
+    bank_adjusted_ifmap_ub = ifmap_ub_per_bank * ifmap_bank_count
+
+    new_layer_dims = {}
+    for layer_name, layer_data in layer_dims.items():
+        ifmap_dims: IfmapLayerDimensions = layer_data["dims"]
+        ifmap_single_size = ifmap_dims.width * ifmap_dims.height
+        if ifmap_single_size > ifmap_ub_per_bank:
+            raise Exception(
+                "Input feature map for layer requested is too large to decompose"
+            )
+
+        total_ifmap_tensor_size = ifmap_dims.channels * ifmap_single_size
+        if (
+            total_ifmap_tensor_size <= bank_adjusted_ifmap_ub
+        ):  
+            new_layer_dims[layer_name] = layer_data
+            continue
+
+        sub_layers = create_sub_layers_from_layer_with_large_ifmap(
+            layer_data, ifmap_ub_per_bank, ifmap_bank_count
+        )
+        for layer_idx, layer in enumerate(sub_layers):
+            sub_layer_name = f"{layer_name}.s{layer_idx}"
+            new_layer_dims[sub_layer_name] = layer
+
+    return new_layer_dims
+    # ifmap_size = ifmap_dims.
+
+
 def convert_collected_model_layers_to_testcases(
     layer_dims, arch_config, model_name=None, layer_name_tracker=None
 ):
@@ -569,12 +611,8 @@ def convert_collected_model_layers_to_testcases(
         layer_dims, arch_config["directly_supported_kernels"]
     )
     layer_dims = pad_layer_dims_based_on_arch_config(layer_dims, arch_config)
-    bank_adjusted_ifmap_ub = (
-        arch_config["ifmap_mem_ub"]
-        // arch_config["channel_count"]
-        * arch_config["channel_count"]
-    )
-    layer_dims = decompose_large_ifmaps(layer_dims, bank_adjusted_ifmap_ub)
+
+    layer_dims = decompose_layers_with_large_ifmaps(layer_dims, arch_config)
     test_cases_list = convert_layer_dims_to_test_cases(
         layer_dims, arch_config, model_name
     )
@@ -593,12 +631,15 @@ def eval_collected_model_layers(layer_dims, arch_config, model_name):
     return result_df
 
 
-def eval_network(model, arch_config, model_name=None):
+def eval_network(model, arch_config, model_name=None, processed_network=False):
     Path(SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
     os.environ["SC_COPYRIGHT_MESSAGE"] = "DISABLE"
 
-    input = load_default_input_tensor_for_model(model)
-    layer_dims = ModelDimCollector.collect_layer_dims_from_model(model, input)
+    if not processed_network:
+        input = load_default_input_tensor_for_model(model)
+        layer_dims = ModelDimCollector.collect_layer_dims_from_model(model, input)
+    else:
+        layer_dims = model
     result_df = eval_collected_model_layers(layer_dims, arch_config, model_name)
     return result_df
 
@@ -629,7 +670,12 @@ def layer_dims_generator():
 if __name__ == "__main__":
     models = []
     models.append(
-        ("mobilenetv3_rw", ModelAnalysis.load_model_from_timm("mobilenetv3_rw"))
+        (
+            "mobilenetv3_rw",
+            pickle.load(
+                open("../data/processed_models/mobilenetv3_rw.model.pickle", "rb")
+            ),
+        )
     )
 
     arch_config = {
@@ -640,7 +686,7 @@ if __name__ == "__main__":
     }
     for model_name, model in models:
         RESULTS_CSV_PATH = f"../data/{model_name}.csv"
-        eval_network(model, arch_config, model_name=model_name)
+        eval_network(model, arch_config, model_name=model_name, processed_network=True)
 
     # arch_config = {
     #     "filter_count": 32,
