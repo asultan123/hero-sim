@@ -509,9 +509,7 @@ def create_sub_layers_from_layer_with_large_ifmap(
                     without enabling bank distribution"
             )
 
-        banks_per_ifmap_single = math.ceil(
-            ifmap_single_size/ ifmap_ub_per_bank
-        )
+        banks_per_ifmap_single = math.ceil(ifmap_single_size / ifmap_ub_per_bank)
         channels_per_sub_layer = ifmap_bank_count // banks_per_ifmap_single
 
     sub_layers = ifmap_dims.channels // channels_per_sub_layer
@@ -521,7 +519,7 @@ def create_sub_layers_from_layer_with_large_ifmap(
     if sub_layers == 0:
         new_layer_dim_list.append(layer_data)
         return new_layer_dim_list
-    
+
     for sub_layer in range(sub_layers):
         new_layer_dim = deepcopy(layer_data)
         new_layer_dim["dims"].channels = channels_per_sub_layer
@@ -532,7 +530,7 @@ def create_sub_layers_from_layer_with_large_ifmap(
                 out_channels=conv_op.out_channels,
                 kernel_size=conv_op.kernel_size,
                 bias=conv_op.bias is not None,
-            )  # Copy lifting lowering costs here
+            )
         else:
             new_layer_dim["conv_layer"] = Conv2d(
                 in_channels=channels_per_sub_layer,
@@ -544,6 +542,7 @@ def create_sub_layers_from_layer_with_large_ifmap(
             new_layer_dim["lifting_ops"] = 0
         new_layer_dim_list.append(new_layer_dim)
 
+    # do I need one last "extra" sub layer for remaining channels?
     remaining_channels = ifmap_dims.channels % channels_per_sub_layer
     if remaining_channels > 0:
         new_layer_dim = deepcopy(layer_data)
@@ -559,35 +558,6 @@ def create_sub_layers_from_layer_with_large_ifmap(
         )
         new_layer_dim_list.append(new_layer_dim)
     return new_layer_dim_list
-
-
-def decompose_layers_with_large_ofmaps(layer_dims, ofmap_ub: Union[int, None] = None):
-    if ofmap_ub is None:
-        return layer_dims
-
-    new_layer_dims = {}
-    for layer_name, layer_data in layer_dims.items():
-        ifmap_dims: IfmapLayerDimensions = layer_data["dims"]
-        ifmap_single_size = ifmap_dims.width * ifmap_dims.height
-        if ifmap_single_size > ifmap_ub:
-            raise Exception(
-                "Input feature map for layer requested is too large to decompose"
-            )
-
-        total_ifmap_tensor_size = ifmap_dims.channels * ifmap_single_size
-        if (
-            total_ifmap_tensor_size <= ifmap_ub
-        ):  # need to consider size of single ifmap bank
-            new_layer_dims[layer_name] = layer_data
-            continue
-
-        sub_layers = create_sub_layers_from_layer_with_large_ifmap(layer_data, ifmap_ub)
-        for layer_idx, layer in enumerate(sub_layers):
-            sub_layer_name = f"{layer_name}.s{layer_idx}"
-            new_layer_dims[sub_layer_name] = layer
-
-    return new_layer_dims
-    # ifmap_size = ifmap_dims.
 
 
 # need to decompose based on ofmaps too
@@ -629,10 +599,153 @@ def decompose_layers_with_large_ifmaps(layer_dims, arch_config: Dict[str, int]):
             )
 
         sub_layers = create_sub_layers_from_layer_with_large_ifmap(
-            layer_data, ifmap_ub_per_bank, ifmap_bank_count, distribute_ifmaps_across_banks
+            layer_data,
+            ifmap_ub_per_bank,
+            ifmap_bank_count,
+            distribute_ifmaps_across_banks,
         )
         for layer_idx, layer in enumerate(sub_layers):
-            sub_layer_name = f"{layer_name}.s{layer_idx}"
+            sub_layer_name = f"{layer_name}.c{layer_idx}"
+            new_layer_dims[sub_layer_name] = layer
+
+    return new_layer_dims
+
+
+def create_sub_layers_from_layer_with_large_ofmap(
+    layer_data,
+    ofmap_ub_per_bank,
+    ofmap_bank_count,
+    distribute_ofmaps_across_banks=False,
+    arch_allows_invalid_windows = True,
+):
+    ifmap_dims: IfmapLayerDimensions = layer_data["dims"]
+    
+    conv_layer: Conv2d = layer_data["conv_layer"]
+    layer_filters = conv_layer.out_channels
+    kernel_size = conv_layer.kernel_size
+
+    ofmap_height = ifmap_dims.height - kernel_size[0] + 1
+    ofmap_width = ifmap_dims.width - kernel_size[1] + 1
+
+    if kernel_size != (1, 1) and arch_allows_invalid_windows is False:
+        ofmap_single_size = ifmap_dims.width * ofmap_height
+    else:
+        ofmap_single_size = ofmap_height * ofmap_width
+        
+
+    if ofmap_single_size <= ofmap_ub_per_bank:
+        filters_per_bank = ofmap_ub_per_bank // ofmap_single_size
+        filters_per_sub_layer = filters_per_bank * ofmap_bank_count
+    else:
+        if distribute_ofmaps_across_banks is False:
+            raise Exception(
+                "Output feature map for layer requested is too large to decompose \
+                    without enabling bank distribution"
+            )
+
+        banks_per_ofmap_single = math.ceil(ofmap_single_size / ofmap_ub_per_bank)
+        filters_per_sub_layer = ofmap_bank_count // banks_per_ofmap_single
+
+    sub_layers = layer_filters // filters_per_sub_layer
+
+    new_layer_dim_list = []
+
+    if sub_layers == 0:
+        new_layer_dim_list.append(layer_data)
+        return new_layer_dim_list
+
+    for sub_layer in range(sub_layers):
+        new_layer_dim = deepcopy(layer_data)
+        conv_op: Conv2d = new_layer_dim["conv_layer"]
+        new_layer_dim["conv_layer"] = Conv2d(
+            in_channels=conv_op.in_channels,
+            out_channels=filters_per_sub_layer,
+            kernel_size=conv_op.kernel_size,
+            bias=conv_op.bias is not None,
+        )
+        if sub_layer > 0:
+            new_layer_dim["lowering_ops"] = 0
+            new_layer_dim["lifting_ops"] = 0
+        new_layer_dim_list.append(new_layer_dim)
+
+    # do I need one last "extra" sub layer for remaining filters?
+    remaining_filters = layer_filters % filters_per_sub_layer
+    if remaining_filters > 0:
+        new_layer_dim = deepcopy(layer_data)
+        conv_op: Conv2d = new_layer_dim["conv_layer"]
+        new_layer_dim["conv_layer"] = Conv2d(
+            in_channels=conv_op.in_channels,
+            out_channels=remaining_filters,
+            kernel_size=conv_op.kernel_size,
+            bias=conv_op.bias is not None, 
+        )
+        new_layer_dim["lowering_ops"] = 0
+        new_layer_dim["lifting_ops"] = 0
+        new_layer_dim_list.append(new_layer_dim)
+    return new_layer_dim_list
+
+
+def decompose_layers_with_large_ofmaps(layer_dims, arch_config: Dict[str, int], arch_allows_invalid_windows = True):
+
+    ofmap_bank_count = arch_config["filter_count"]
+    distribute_ofmaps_across_banks: bool = arch_config["allow_ofmap_distribution"]
+
+    try:
+        ofmap_ub = arch_config["ofmap_mem_ub"]
+    except KeyError:
+        return layer_dims
+
+    ofmap_ub_per_bank = ofmap_ub // ofmap_bank_count
+    bank_adjusted_ofmap_ub = ofmap_ub_per_bank * ofmap_bank_count
+
+    if bank_adjusted_ofmap_ub != ofmap_ub:
+        bank_adjusted_ofmap_ub_in_kb = bank_adjusted_ofmap_ub / 2**10
+        ofmap_ub_in_kb = ofmap_ub / 2**10
+        logger.warning(
+            f"Upper bound for IFmap memory supplied is not a multiple of arch ifmap channel count (Available banks for IFmap), \
+                will adjust ub to {bank_adjusted_ofmap_ub_in_kb :.5f} KB Instead of {ofmap_ub_in_kb :.5f} KB"
+        )
+    new_layer_dims = {}
+    for layer_name, layer_data in layer_dims.items():
+        ifmap_dims: IfmapLayerDimensions = layer_data["dims"]
+        conv_layer: Conv2d = layer_data["conv_layer"]
+        kernel_size = conv_layer.kernel_size
+        if kernel_size[0] != kernel_size[1]:
+            raise Exception(
+                "Asymmetric kernels unsupported when decomposing layers with large ofmaps"
+            )
+        
+        ofmap_height = ifmap_dims.height - kernel_size[0] + 1
+        ofmap_width = ifmap_dims.width - kernel_size[1] + 1
+
+        if kernel_size != (1, 1) and arch_allows_invalid_windows is False:
+            ofmap_single_size = ifmap_dims.width * ofmap_height
+        else:
+            ofmap_single_size = ofmap_height * ofmap_width
+            
+            
+        if ofmap_single_size > bank_adjusted_ofmap_ub:
+            raise Exception(
+                "Output feature map for layer requested is too large to decompose"
+            )
+
+        if (
+            ofmap_single_size > ofmap_ub_per_bank
+            and distribute_ofmaps_across_banks is False
+        ):
+            raise Exception(
+                "Output feature map for layer requested is too large to decompose without enabling bank distribution"
+            )
+
+        sub_layers = create_sub_layers_from_layer_with_large_ofmap(
+            layer_data,
+            ofmap_ub_per_bank,
+            ofmap_bank_count,
+            distribute_ofmaps_across_banks,
+            arch_allows_invalid_windows
+        )
+        for layer_idx, layer in enumerate(sub_layers):
+            sub_layer_name = f"{layer_name}.f{layer_idx}"
             new_layer_dims[sub_layer_name] = layer
 
     return new_layer_dims
@@ -646,6 +759,7 @@ def convert_collected_model_layers_to_testcases(
     )
     layer_dims = pad_layer_dims_based_on_arch_config(layer_dims, arch_config)
 
+    layer_dims = decompose_layers_with_large_ofmaps(layer_dims, arch_config)
     layer_dims = decompose_layers_with_large_ifmaps(layer_dims, arch_config)
     test_cases_list = convert_layer_dims_to_test_cases(
         layer_dims, arch_config, model_name
@@ -716,8 +830,10 @@ if __name__ == "__main__":
         "filter_count": 32,
         "channel_count": 18,
         "directly_supported_kernels": [(1, 1), (3, 3)],
-        "ifmap_mem_ub": 2**17,
-        "allow_ifmap_distribution": True
+        "ifmap_mem_ub": 2**20,
+        "allow_ifmap_distribution": True,
+        "ofmap_mem_ub": 2**21,
+        "allow_ofmap_distribution": True,
     }
     for model_name, model in models:
         RESULTS_CSV_PATH = f"../data/{model_name}.csv"
