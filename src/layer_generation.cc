@@ -5,7 +5,8 @@ namespace LayerGeneration
 {
 namespace
 {
-xt::xarray<int> evaluate_expected_output(xt::xarray<int> ifmap, xt::xarray<int> weights)
+template <typename DataType>
+xt::xarray<DataType> evaluate_expected_output(xt::xarray<DataType> ifmap, xt::xarray<DataType> weights)
 {
     assert(weights.shape().size() == 4);
     assert(ifmap.shape().size() == 3);
@@ -15,6 +16,7 @@ xt::xarray<int> evaluate_expected_output(xt::xarray<int> ifmap, xt::xarray<int> 
     assert(ifmap.shape(0) == weights.shape(1));
     int ifmap_w = ifmap.shape(2);
     int ifmap_h = ifmap.shape(1);
+    int ifmap_c = ifmap.shape(0);
 
     int kernel = weights.shape(3);
     assert(ifmap_w >= kernel);
@@ -24,21 +26,27 @@ xt::xarray<int> evaluate_expected_output(xt::xarray<int> ifmap, xt::xarray<int> 
     int ofmap_h = ifmap_h - (kernel - 1);
     int ofmap_c = weights.shape(0);
 
-    xt::xarray<int> ofmap = xt::arange(ofmap_c * ofmap_w * ofmap_h).reshape({ofmap_c, ofmap_h, ofmap_w});
+    xt::xarray<DataType> ofmap = xt::arange(ofmap_c * ofmap_w * ofmap_h).reshape({ofmap_c, ofmap_h, ofmap_w});
 
     // conv2d stride 1
     for (auto f = 0; f < ofmap_c; f++)
     {
         auto weight_tensor_view = xt::view(weights, f, xt::all(), xt::all(), xt::all());
-        xt::xarray<int> flatten_weight(xt::flatten(weight_tensor_view));
+        xt::xarray<DataType> flatten_weight(xt::flatten(weight_tensor_view));
         for (auto h = 0; h < ofmap_h; h++)
         {
             for (auto w = 0; w < ofmap_w; w++)
             {
                 auto ifmap_tensor_view = xt::view(ifmap, xt::all(), xt::range(h, h + kernel), xt::range(w, w + kernel));
-                xt::xarray<int> flattened_ifmap(xt::flatten(ifmap_tensor_view));
-                auto val = xt::linalg::dot(flattened_ifmap, flatten_weight);
-                ofmap(f, h, w) = val(0);
+                xt::xarray<DataType> flattened_ifmap(xt::flatten(ifmap_tensor_view));
+                DataType sum = 0;
+                for(auto ifmap_it = flattened_ifmap.begin(), weight_it = flatten_weight.begin(); ifmap_it != flattened_ifmap.end() && weight_it != flatten_weight.end(); ifmap_it++, weight_it++)
+                {
+                    sum += (*ifmap_it) * (*weight_it);
+
+                }
+                // xt::xarray<DataType> val = xt::linalg::dot(flattened_ifmap, flatten_weight);
+                ofmap(f, h, w) = sum;
             }
         }
     }
@@ -111,7 +119,7 @@ xt::xarray<int> pad_weights(Hero::Arch<DataType> &arch, xt::xarray<int> weights,
 template <typename DataType>
 bool validate_output(xt::xarray<int> ifmap, xt::xarray<int> weights, xt::xarray<DataType> arch_output)
 {
-    auto expected_output = evaluate_expected_output(ifmap, weights);
+    auto expected_output = evaluate_expected_output<DataType>(ifmap, weights);
     return expected_output == arch_output;
 }
 

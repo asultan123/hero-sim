@@ -31,9 +31,9 @@ template <typename DataType> struct PE : public sc_module
     int prog_idx;
     bool programmed;
     vector<Descriptor_2D> program;
-    int weight_access_counter;
-    int active_counter;
-    int inactive_counter;
+    uint64_t weight_access_counter;
+    uint64_t active_counter;
+    uint64_t inactive_counter;
 
     void reset();
 

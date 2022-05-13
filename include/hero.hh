@@ -94,7 +94,7 @@ template <typename DataType> struct Arch : public sc_module
     sc_vector<sc_vector<sc_signal<DataType>>> ifmap_mem_write;
     sc_vector<SSM<DataType>> ssms;
 
-    unsigned int dram_access_counter{0};
+    uint64_t dram_access_counter{0};
     int filter_count;
     int channel_count;
     int psum_mem_size;
