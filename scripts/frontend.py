@@ -616,10 +616,10 @@ def create_sub_layers_from_layer_with_large_ofmap(
     ofmap_ub_per_bank,
     ofmap_bank_count,
     distribute_ofmaps_across_banks=False,
-    arch_allows_invalid_windows = True,
+    arch_allows_invalid_windows=True,
 ):
     ifmap_dims: IfmapLayerDimensions = layer_data["dims"]
-    
+
     conv_layer: Conv2d = layer_data["conv_layer"]
     layer_filters = conv_layer.out_channels
     kernel_size = conv_layer.kernel_size
@@ -631,7 +631,6 @@ def create_sub_layers_from_layer_with_large_ofmap(
         ofmap_single_size = ifmap_dims.width * ofmap_height
     else:
         ofmap_single_size = ofmap_height * ofmap_width
-        
 
     if ofmap_single_size <= ofmap_ub_per_bank:
         filters_per_bank = ofmap_ub_per_bank // ofmap_single_size
@@ -677,7 +676,7 @@ def create_sub_layers_from_layer_with_large_ofmap(
             in_channels=conv_op.in_channels,
             out_channels=remaining_filters,
             kernel_size=conv_op.kernel_size,
-            bias=conv_op.bias is not None, 
+            bias=conv_op.bias is not None,
         )
         new_layer_dim["lowering_ops"] = 0
         new_layer_dim["lifting_ops"] = 0
@@ -685,7 +684,9 @@ def create_sub_layers_from_layer_with_large_ofmap(
     return new_layer_dim_list
 
 
-def decompose_layers_with_large_ofmaps(layer_dims, arch_config: Dict[str, int], arch_allows_invalid_windows = True):
+def decompose_layers_with_large_ofmaps(
+    layer_dims, arch_config: Dict[str, int], arch_allows_invalid_windows=True
+):
 
     ofmap_bank_count = arch_config["filter_count"]
     distribute_ofmaps_across_banks: bool = arch_config["allow_ofmap_distribution"]
@@ -714,7 +715,7 @@ def decompose_layers_with_large_ofmaps(layer_dims, arch_config: Dict[str, int], 
             raise Exception(
                 "Asymmetric kernels unsupported when decomposing layers with large ofmaps"
             )
-        
+
         ofmap_height = ifmap_dims.height - kernel_size[0] + 1
         ofmap_width = ifmap_dims.width - kernel_size[1] + 1
 
@@ -722,8 +723,7 @@ def decompose_layers_with_large_ofmaps(layer_dims, arch_config: Dict[str, int], 
             ofmap_single_size = ifmap_dims.width * ofmap_height
         else:
             ofmap_single_size = ofmap_height * ofmap_width
-            
-            
+
         if ofmap_single_size > bank_adjusted_ofmap_ub:
             raise Exception(
                 "Output feature map for layer requested is too large to decompose"
@@ -742,7 +742,7 @@ def decompose_layers_with_large_ofmaps(layer_dims, arch_config: Dict[str, int], 
             ofmap_ub_per_bank,
             ofmap_bank_count,
             distribute_ofmaps_across_banks,
-            arch_allows_invalid_windows
+            arch_allows_invalid_windows,
         )
         for layer_idx, layer in enumerate(sub_layers):
             sub_layer_name = f"{layer_name}.f{layer_idx}"
@@ -835,9 +835,9 @@ if __name__ == "__main__":
         "ofmap_mem_ub": 2**20,
         "allow_ofmap_distribution": True,
     }
-    # for model_name, model in models:
-    #     RESULTS_CSV_PATH = f"../data/{model_name}.csv"
-    #     eval_network(model, arch_config, model_name=model_name, processed_network=True)
+    for model_name, model in models:
+        RESULTS_CSV_PATH = f"../data/{model_name}.csv"
+        eval_network(model, arch_config, model_name=model_name, processed_network=True)
 
     # arch_config = {
     #     "filter_count": 32,
@@ -856,13 +856,16 @@ if __name__ == "__main__":
     #     test_case_list[2000:], layer_name_tracker
     # )
 
-    layer_name_tracker = {}
-    for model_name, layer_dims in tqdm(layer_dims_generator()):
-        test_case_list, layer_name_tracker = convert_collected_model_layers_to_testcases(
-            layer_dims, arch_config, model_name, layer_name_tracker
-        )
-    with open("../data/timm_lib_testcases.pickle", "wb") as file:
-        pickle.dump(layer_name_tracker, file) 
+    # layer_name_tracker = {}
+    # for model_name, layer_dims in tqdm(layer_dims_generator()):
+    #     (
+    #         test_case_list,
+    #         layer_name_tracker,
+    #     ) = convert_collected_model_layers_to_testcases(
+    #         layer_dims, arch_config, model_name, layer_name_tracker
+    #     )
+    # with open("../data/timm_lib_testcases.pickle", "wb") as file:
+    #     pickle.dump(layer_name_tracker, file)
 
     # #     total_test_cases_count += len(cases)
     # print(len(test_case_list))
