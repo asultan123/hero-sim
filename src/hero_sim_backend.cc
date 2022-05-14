@@ -55,7 +55,7 @@ void dram_load_ifmap(Hero::Arch<DataType> &arch, xt::xarray<int> ifmap, int chan
             for (int j = 0; j < ifmap_w; j++)
             {
                 auto &mem_ptr = arch.ifmap_mem.mem.ram.at(c * (ifmap_h * ifmap_w) + i * ifmap_w + j).at(0);
-                mem_ptr.write(ifmap(c, i, j));
+                mem_ptr = (ifmap(c, i, j));
                 arch.dram_access_counter++;
                 arch.ifmap_mem.mem.access_counter++;
             }
@@ -65,10 +65,9 @@ void dram_load_ifmap(Hero::Arch<DataType> &arch, xt::xarray<int> ifmap, int chan
     cout << "Loaded dram contents into ifmap mem" << endl;
 }
 
-template <typename DataType>
-void dram_sim_load_bias(Hero::Arch<DataType> &arch)
+template <typename DataType> void dram_sim_load_bias(Hero::Arch<DataType> &arch)
 {
-    for(auto& _ : arch.psum_mem.mem.ram)
+    for (auto &_ : arch.psum_mem.mem.ram)
     {
         arch.dram_access_counter++;
         arch.psum_mem.mem.access_counter++;
@@ -91,7 +90,7 @@ xt::xarray<DataType> dram_store(Hero::Arch<DataType> &arch, int filter_out, int 
             for (int j = 0; j < ofmap_w; j++)
             {
                 auto &mem_ptr = arch.psum_mem.mem.ram.at(f * (ofmap_h * ofmap_w) + i * ofmap_w + j).at(0);
-                result(f, i, j) = mem_ptr.read();
+                result(f, i, j) = mem_ptr;
                 arch.dram_access_counter++;
                 arch.psum_mem.mem.access_counter++;
             }
@@ -115,7 +114,7 @@ xt::xarray<DataType> dram_store_with_filtering(Hero::Arch<DataType> &arch, int f
             for (int j = 2; j < ifmap_w; j++)
             {
                 auto &mem_ptr = arch.psum_mem.mem.ram.at(f * (ofmap_h * ifmap_w) + i * ifmap_w + j).at(0);
-                result(f, i, j - 2) = mem_ptr.read();
+                result(f, i, j - 2) = mem_ptr;
                 arch.dram_access_counter++;
                 arch.psum_mem.mem.access_counter++;
             }
@@ -213,7 +212,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
 
     dram_load_ifmap(arch, ifmap, c_in, ifmap_h, ifmap_w);
 
-    if(sim_bias)
+    if (sim_bias)
     {
         dram_sim_load_bias(arch);
     }
@@ -224,8 +223,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
 
     load_padded_weights_into_pes(arch, padded_weights);
 
-    GenerateDescriptors::generate_and_load_arch_descriptors(arch, ifmap_h, ifmap_w, padded_weights, ofmap_h,
-                                                            ofmap_w);
+    GenerateDescriptors::generate_and_load_arch_descriptors(arch, ifmap_h, ifmap_w, padded_weights, ofmap_h, ofmap_w);
 
     control.set_program(true);
     arch.set_channel_modes();
@@ -312,7 +310,6 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
         std::string output_string = res.SerializeAsString();
         cerr << output_string;
     }
-    
 
     exit(EXIT_SUCCESS); // avoids expensive de-alloc
 }
@@ -332,7 +329,7 @@ int sc_main(int argc, char *argv[])
         const int filter_count_default = 32;
         const int channel_count_default = 18;
         const bool result_as_protobuf_default = false;
-        const bool sim_bias = false;
+        const bool sim_bias_default = false;
 
         config.add_options()("help", "produce help message");
         config.add_options()("ifmap_h", po::value<int>()->default_value(ifmap_h_default),
@@ -346,8 +343,8 @@ int sc_main(int argc, char *argv[])
         config.add_options()("channel_count", po::value<int>()->default_value(channel_count_default), "set arch width");
         config.add_options()("result_as_protobuf", po::bool_switch()->default_value(result_as_protobuf_default),
                              "output result as serialized protobuf to stderr");
-        config.add_options()("sim_bias", po::bool_switch()->default_value(sim_bias),
-                             "output result as serialized protobuf to stderr");                             
+        config.add_options()("sim_bias", po::bool_switch()->default_value(sim_bias_default),
+                             "output result as serialized protobuf to stderr");
 
 #else
         config.add_options()("help", "produce help message");
@@ -360,8 +357,7 @@ int sc_main(int argc, char *argv[])
         config.add_options()("channel_count", po::value<int>()->required(), "set arch height");
         config.add_options()("result_as_protobuf", po::bool_switch()->default_value(false),
                              "output result as serialized protobuf to stderr");
-        config.add_options()("sim_bias", po::bool_switch()->default_value(false),
-                             "Simulate a bias load into psum");                             
+        config.add_options()("sim_bias", po::bool_switch()->default_value(false), "Simulate a bias load into psum");
 
 #endif
 
@@ -420,7 +416,7 @@ int sc_main(int argc, char *argv[])
 
         auto operation_mode = (k == 1) ? Hero::OperationMode::RUN_1x1 : Hero::OperationMode::RUN_3x3;
         sim_and_get_results<char>(ifmap_h, ifmap_w, k, c_in, f_out, filter_count, channel_count, operation_mode,
-                                        result_as_protobuf, sim_bias);
+                                  result_as_protobuf, sim_bias);
     }
     catch (std::exception &e)
     {

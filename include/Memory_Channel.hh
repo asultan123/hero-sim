@@ -12,6 +12,7 @@ using namespace sc_dt;
 using std::cout;
 using std::endl;
 using std::string;
+using std::vector;
 
 enum MemoryChannelMode
 {
@@ -31,7 +32,11 @@ template <typename DataType> struct MemoryChannel_IF : virtual public sc_interfa
     // Data
     virtual MemoryChannelMode mode() = 0;
     virtual const sc_vector<sc_signal<DataType, SC_MANY_WRITERS>> &mem_read_data() = 0;
+#ifdef DEBUG
     virtual void mem_write_data(const sc_vector<sc_signal<DataType>> &_data) = 0;
+#else
+    virtual void mem_write_data(const vector<DataType> &_data) = 0;
+#endif
     virtual void mem_write_data(int _data) = 0;
     virtual const sc_vector<sc_signal<DataType, SC_MANY_WRITERS>> &channel_read_data() = 0;
     virtual const DataType &channel_read_data_element(unsigned int col) = 0;
@@ -58,7 +63,12 @@ template <typename DataType> struct MemoryChannel : public sc_channel, public Me
     const sc_vector<sc_signal<DataType, SC_MANY_WRITERS>>
         &mem_read_data(); // TODO: #30 Rename confusing access function for Memory objects
 
+#ifdef DEBUG
     void mem_write_data(const sc_vector<sc_signal<DataType>> &_data);
+#else
+    void mem_write_data(const vector<DataType> &_data);
+#endif
+
     void mem_write_data(int _data); // TODO: #29 Remove ability to write int data to a memory channel
 
     const sc_vector<sc_signal<DataType, SC_MANY_WRITERS>> &channel_read_data();
@@ -130,6 +140,7 @@ const sc_vector<sc_signal<DataType, SC_MANY_WRITERS>> &MemoryChannel<DataType>::
     return write_channel_data;
 }
 
+#ifdef DEBUG
 template <typename DataType> void MemoryChannel<DataType>::mem_write_data(const sc_vector<sc_signal<DataType>> &_data)
 {
     assert(_data.size() == channel_width);
@@ -138,6 +149,16 @@ template <typename DataType> void MemoryChannel<DataType>::mem_write_data(const 
         read_channel_data.at(i) = _data.at(i);
     }
 }
+#else
+template <typename DataType> void MemoryChannel<DataType>::mem_write_data(const vector<DataType> &_data)
+{
+    assert(_data.size() == channel_width);
+    for (unsigned int i = 0; i < channel_width; i++)
+    {
+        read_channel_data.at(i) = _data.at(i);
+    }
+}
+#endif
 
 template <typename DataType> void MemoryChannel<DataType>::mem_write_data(int _data)
 {

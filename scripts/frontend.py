@@ -835,9 +835,9 @@ if __name__ == "__main__":
         "ofmap_mem_ub": 2**20,
         "allow_ofmap_distribution": True,
     }
-    for model_name, model in models:
-        RESULTS_CSV_PATH = f"../data/{model_name}.csv"
-        eval_network(model, arch_config, model_name=model_name, processed_network=True)
+    # for model_name, model in models:
+    #     RESULTS_CSV_PATH = f"../data/{model_name}.csv"
+    #     eval_network(model, arch_config, model_name=model_name, processed_network=True)
 
     # arch_config = {
     #     "filter_count": 32,
@@ -846,15 +846,14 @@ if __name__ == "__main__":
     #     "ifmap_mem_ub": 2**20,
     # }
 
-    # RESULTS_CSV_PATH = "../data/timm_0_5314.csv"
+    RESULTS_CSV_PATH = "../data/timm_0_5314.csv"
 
-    # with open("../data/timm_lib_testcases.pickle", "rb") as file:
-    #     test_case_list, layer_name_tracker = pickle.load(file)
+    with open("../data/timm_lib_testcases.pickle", "rb") as file:
+        layer_name_tracker = pickle.load(file)
 
-    # test_case_list = sorted(test_case_list, reverse=True)
-    # result_df = launch_workers_with_test_cases(
-    #     test_case_list[2000:], layer_name_tracker
-    # )
+    test_case_list = list(layer_name_tracker.keys())
+    test_case_list = sorted(test_case_list)
+    result_df = launch_workers_with_test_cases(test_case_list, layer_name_tracker)
 
     # layer_name_tracker = {}
     # for model_name, layer_dims in tqdm(layer_dims_generator()):

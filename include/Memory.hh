@@ -11,6 +11,7 @@
 using std::cout;
 using std::endl;
 using std::string;
+using std::vector;
 using namespace sc_core;
 using namespace sc_dt;
 
@@ -28,7 +29,12 @@ template <typename DataType> struct Memory : public sc_module
     sc_in_clk _clk;
     // Control Signals
   public:
+#ifdef DEBUG
     sc_vector<sc_vector<sc_signal<DataType>>> ram;
+#else
+    vector<vector<DataType>> ram;
+#endif
+
     sc_port<GlobalControlChannel_IF> control;
     sc_vector<sc_port<MemoryChannel_IF<DataType>>> channels;
     const unsigned int width, length, channel_count;
@@ -121,7 +127,13 @@ template <typename DataType> void Memory<DataType>::update()
 template <typename DataType>
 Memory<DataType>::Memory(sc_module_name name, GlobalControlChannel &_control, unsigned int _channel_count,
                          unsigned int _length, unsigned int _width, sc_trace_file *tf, bool trace_mem)
-    : sc_module(name), ram("ram", _length, MemoryRowCreator<DataType>(_width, tf)), control("control"),
+    : sc_module(name),
+#ifdef DEBUG
+      ram("ram", _length, MemoryRowCreator<DataType>(_width, tf)), control("control"),
+#else
+      ram(_length, vector<DataType>(_width)),
+#endif
+
       channels("channel", _channel_count), width(_width), length(_length), channel_count(_channel_count),
       access_counter(0)
 
