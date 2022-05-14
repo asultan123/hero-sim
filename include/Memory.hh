@@ -15,6 +15,7 @@ using std::vector;
 using namespace sc_core;
 using namespace sc_dt;
 
+
 template <typename DataType> struct MemoryRowCreator
 {
     MemoryRowCreator(unsigned int _width, sc_trace_file *_tf);

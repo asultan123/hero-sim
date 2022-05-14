@@ -186,6 +186,7 @@ sc_vector<sc_signal<DataType, SC_MANY_WRITERS>> &MemoryChannel<DataType>::get_ch
     return read_channel_data;
 }
 
+
 template <typename DataType>
 sc_vector<sc_signal<DataType, SC_MANY_WRITERS>> &MemoryChannel<DataType>::get_channel_write_data_bus()
 {
