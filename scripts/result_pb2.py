@@ -13,7 +13,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0cresult.proto\x12\x07message\"\xd1\x01\n\x06Result\x12\r\n\x05valid\x18\x01 \x01(\t\x12\x18\n\x10\x64ram_load_access\x18\x02 \x01(\x04\x12\x15\n\rweight_access\x18\x03 \x01(\x04\x12\x14\n\x0cifmap_access\x18\x04 \x01(\x04\x12\x13\n\x0bpsum_access\x18\x05 \x01(\x04\x12\x10\n\x08\x61vg_util\x18\x06 \x01(\x02\x12\x0f\n\x07latency\x18\x07 \x01(\x04\x12\x0c\n\x04macs\x18\x08 \x01(\x04\x12\x10\n\x08sim_time\x18\t \x01(\x04\x12\x19\n\x11\x64ram_store_access\x18\n \x01(\x04')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0cresult.proto\x12\x07message\"\xef\x01\n\x06Result\x12\r\n\x05valid\x18\x01 \x01(\t\x12\x18\n\x10\x64ram_load_access\x18\x02 \x01(\x04\x12\x15\n\rweight_access\x18\x03 \x01(\x04\x12\x14\n\x0cifmap_access\x18\x04 \x01(\x04\x12\x13\n\x0bpsum_access\x18\x05 \x01(\x04\x12\x10\n\x08\x61vg_util\x18\x06 \x01(\x02\x12\x0f\n\x07latency\x18\x07 \x01(\x04\x12\x0c\n\x04macs\x18\x08 \x01(\x04\x12\x10\n\x08sim_time\x18\t \x01(\x04\x12\x19\n\x11\x64ram_store_access\x18\n \x01(\x04\x12\x1c\n\x14reuse_chain_accesses\x18\x0b \x01(\x04')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'result_pb2', globals())
@@ -21,5 +21,5 @@ if _descriptor._USE_C_DESCRIPTORS == False:
 
   DESCRIPTOR._options = None
   _RESULT._serialized_start=26
-  _RESULT._serialized_end=235
+  _RESULT._serialized_end=265
 # @@protoc_insertion_point(module_scope)

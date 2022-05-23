@@ -279,6 +279,13 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
         }
         float avg_util = xt::average(pe_utilization)(0);
         auto latency_in_cycles = end_cycle_time - start_cycle_time;
+
+        uint64_t reuse_chain_accesses = 0;
+        for (auto &reuse_chain_sam : arch.ifmap_reuse_chain)
+        {
+            reuse_chain_accesses += reuse_chain_sam.mem.access_counter;
+        }
+
         cout << std::left << std::setw(20) << "DRAM Load Access" << arch.dram_load_access_counter << endl;
         cout << std::left << std::setw(20) << "DRAM Store Access" << arch.dram_store_access_counter << endl;
         cout << std::left << std::setw(20) << "Weight Access" << weight_access << endl;
@@ -299,7 +306,7 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
         res.set_avg_util(avg_util);
         res.set_latency(latency_in_cycles.value() / 1000);
         res.set_macs(total_macs);
-        res.set_sim_time(sim_time.count());
+        res.set_reuse_chain_accesses(reuse_chain_accesses) res.set_sim_time(sim_time.count());
     }
     else
     {
