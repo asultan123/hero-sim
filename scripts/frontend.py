@@ -169,7 +169,9 @@ def spawn_simulation_process(worker_id: int, test_case: TestCase):
         latency=res.latency
         * test_case.groups,  # unaffected by ifmap reduction (delays would still be required)
         macs=res.macs * ofmap_reduction_factor * test_case.groups,
-        reuse_chain=res.reuse_chain_accesses,
+        reuse_chain=res.reuse_chain_accesses
+        * test_case.groups
+        * ifmap_reduction_factor,
     )
 
 
