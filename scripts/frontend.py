@@ -855,16 +855,7 @@ if __name__ == "__main__":
     test_case_list = sorted(test_case_list)
     result_df = launch_workers_with_test_cases(test_case_list, layer_name_tracker)
 
-    # layer_name_tracker = {}
-    # for model_name, layer_dims in tqdm(layer_dims_generator()):
-    #     (
-    #         test_case_list,
-    #         layer_name_tracker,
-    #     ) = convert_collected_model_layers_to_testcases(
-    #         layer_dims, arch_config, model_name, layer_name_tracker
-    #     )
-    # with open("../data/timm_lib_testcases.pickle", "wb") as file:
-    #     pickle.dump(layer_name_tracker, file)
+
 
     # #     total_test_cases_count += len(cases)
     # print(len(test_case_list))
