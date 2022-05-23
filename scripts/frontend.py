@@ -162,6 +162,7 @@ def create_new_sim_result_rows(test_case, result, layer_name_tracker):
             c_in=test_case.c_in,
             f_out=test_case.f_out,
             groups=test_case.groups,
+            arch_padding=test_case.arch_padding,
             arch_filter_count=test_case.arch_filter_count,
             arch_channel_count=test_case.arch_channel_count,
             layer_name=layer_name,
@@ -374,6 +375,7 @@ def convert_layer_dims_to_test_cases(
         layer = layer_data["conv_layer"]
         lowering_ops = layer_data["lowering_ops"]
         lifting_ops = layer_data["lifting_ops"]
+        arch_padding = layer_data["arch_padding"]
         test_cases_list.append(
             TestCase(
                 ifmap_h=ifmap_dims.height,
@@ -382,6 +384,7 @@ def convert_layer_dims_to_test_cases(
                 f_out=layer.out_channels,
                 kernel=layer.kernel_size[0],
                 groups=groups,
+                arch_padding=arch_padding,
                 arch_channel_count=arch_config["channel_count"],
                 arch_filter_count=arch_config["filter_count"],
                 layer_name=layer_name,
@@ -439,6 +442,7 @@ def remove_duplicate_test_cases(
             c_in=case.c_in,
             f_out=case.f_out,
             groups=case.groups,
+            arch_padding=case.arch_padding,
             arch_filter_count=case.arch_filter_count,
             arch_channel_count=case.arch_channel_count,
             lowering_ops=case.lowering_ops,
@@ -463,11 +467,15 @@ def pad_layer_dims_based_on_arch_config(layer_dims, arch_config=None):
             ifmap_dims = layer_data["dims"]
 
             if ifmap_dims.height * ifmap_dims.width < arch_config["channel_count"]:
-                ifmap_dims = pad_ifmap_dims(
-                    ifmap_dims, find_minimal_fmap_padding(ifmap_dims, arch_config)
-                )
+                padding = find_minimal_fmap_padding(ifmap_dims, arch_config)
+
+                ifmap_dims = pad_ifmap_dims(ifmap_dims, padding)
 
                 layer_dims[layer_name]["dims"] = ifmap_dims
+                layer_dims[layer_name]["arch_padding"] = padding
+            else:
+                layer_dims[layer_name]["arch_padding"] = (0, 0)
+
     return layer_dims
 
 

@@ -40,6 +40,7 @@ class TestCase:
     kernel: int
     c_in: int
     f_out: int
+    arch_padding: int
     arch_filter_count: int
     arch_channel_count: int
     groups: int
