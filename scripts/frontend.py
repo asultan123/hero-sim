@@ -825,7 +825,7 @@ if __name__ == "__main__":
             ),
         )
     )
-
+    
     arch_config = {
         "filter_count": 32,
         "channel_count": 18,
@@ -835,27 +835,8 @@ if __name__ == "__main__":
         "ofmap_mem_ub": 2**20,
         "allow_ofmap_distribution": True,
     }
-    # for model_name, model in models:
-    #     RESULTS_CSV_PATH = f"../data/{model_name}.csv"
-    #     eval_network(model, arch_config, model_name=model_name, processed_network=True)
 
-    # arch_config = {
-    #     "filter_count": 32,
-    #     "channel_count": 18,
-    #     "directly_supported_kernels": [(1, 1), (3, 3)],
-    #     "ifmap_mem_ub": 2**20,
-    # }
+    for model_name, model in models:
+        RESULTS_CSV_PATH = f"../data/{model_name}.csv"
+        eval_network(model, arch_config, model_name=model_name, processed_network=True)
 
-    RESULTS_CSV_PATH = "../data/timm_0_5314.csv"
-
-    with open("../data/timm_lib_testcases.pickle", "rb") as file:
-        layer_name_tracker = pickle.load(file)
-
-    test_case_list = list(layer_name_tracker.keys())
-    test_case_list = sorted(test_case_list)
-    result_df = launch_workers_with_test_cases(test_case_list, layer_name_tracker)
-
-
-
-    # #     total_test_cases_count += len(cases)
-    # print(len(test_case_list))
