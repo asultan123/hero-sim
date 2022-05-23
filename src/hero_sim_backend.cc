@@ -56,7 +56,7 @@ void dram_load_ifmap(Hero::Arch<DataType> &arch, xt::xarray<int> ifmap, int chan
             {
                 auto &mem_ptr = arch.ifmap_mem.mem.ram.at(c * (ifmap_h * ifmap_w) + i * ifmap_w + j).at(0);
                 mem_ptr = (ifmap(c, i, j));
-                arch.dram_access_counter++;
+                arch.dram_load_access_counter++;
                 arch.ifmap_mem.mem.access_counter++;
             }
         }
@@ -69,7 +69,7 @@ template <typename DataType> void dram_sim_load_bias(Hero::Arch<DataType> &arch)
 {
     for (auto &_ : arch.psum_mem.mem.ram)
     {
-        arch.dram_access_counter++;
+        arch.dram_load_access_counter++;
         arch.psum_mem.mem.access_counter++;
     }
 
@@ -91,7 +91,7 @@ xt::xarray<DataType> dram_store(Hero::Arch<DataType> &arch, int filter_out, int 
             {
                 auto &mem_ptr = arch.psum_mem.mem.ram.at(f * (ofmap_h * ofmap_w) + i * ofmap_w + j).at(0);
                 result(f, i, j) = mem_ptr;
-                arch.dram_access_counter++;
+                arch.dram_store_access_counter++;
                 arch.psum_mem.mem.access_counter++;
             }
         }
@@ -115,7 +115,7 @@ xt::xarray<DataType> dram_store_with_filtering(Hero::Arch<DataType> &arch, int f
             {
                 auto &mem_ptr = arch.psum_mem.mem.ram.at(f * (ofmap_h * ifmap_w) + i * ifmap_w + j).at(0);
                 result(f, i, j - 2) = mem_ptr;
-                arch.dram_access_counter++;
+                arch.dram_store_access_counter++;
                 arch.psum_mem.mem.access_counter++;
             }
         }
@@ -142,7 +142,7 @@ void load_padded_weights_into_pes(Hero::Arch<DataType> &arch, xt::xarray<int> pa
                 for (auto j = 0; j < arch.channel_count; j++)
                 {
                     pe_weights[i][j].push_back(tiled_view(i, j));
-                    arch.dram_access_counter++;
+                    arch.dram_load_access_counter++;
                 }
             }
         }
@@ -279,7 +279,8 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
         }
         float avg_util = xt::average(pe_utilization)(0);
         auto latency_in_cycles = end_cycle_time - start_cycle_time;
-        cout << std::left << std::setw(20) << "DRAM Access" << arch.dram_access_counter << endl;
+        cout << std::left << std::setw(20) << "DRAM Load Access" << arch.dram_load_access_counter << endl;
+        cout << std::left << std::setw(20) << "DRAM Store Access" << arch.dram_store_access_counter << endl;
         cout << std::left << std::setw(20) << "Weight Access" << weight_access << endl;
         cout << std::left << std::setw(20) << "Psum Access" << arch.psum_mem.mem.access_counter << endl;
         cout << std::left << std::setw(20) << "Ifmap Access" << arch.ifmap_mem.mem.access_counter << endl;
@@ -290,7 +291,8 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
         cout << std::left << std::setw(20) << "ALL TESTS PASS\n";
 
         res.set_valid("PASS");
-        res.set_dram_access(arch.dram_access_counter);
+        res.set_dram_load_access(arch.dram_load_access_counter);
+        res.set_dram_store_access(arch.dram_store_access_counter);
         res.set_weight_access(weight_access);
         res.set_ifmap_access(arch.psum_mem.mem.access_counter);
         res.set_psum_access(arch.ifmap_mem.mem.access_counter);

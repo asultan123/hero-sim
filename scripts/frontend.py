@@ -140,7 +140,8 @@ def spawn_simulation_process(worker_id: int, test_case: TestCase):
 
     return SimResult(
         valid=res.valid,
-        dram=res.dram_access,
+        dram_load=res.dram_load_access,
+        dram_store=res.dram_store_access,
         weight=res.weight_access,
         psum=res.ifmap_access,
         ifmap=res.psum_access,
@@ -825,7 +826,7 @@ if __name__ == "__main__":
             ),
         )
     )
-    
+
     arch_config = {
         "filter_count": 32,
         "channel_count": 18,
@@ -839,4 +840,3 @@ if __name__ == "__main__":
     for model_name, model in models:
         RESULTS_CSV_PATH = f"../data/{model_name}.csv"
         eval_network(model, arch_config, model_name=model_name, processed_network=True)
-
