@@ -138,17 +138,37 @@ def spawn_simulation_process(worker_id: int, test_case: TestCase):
         res = result_pb2.Result()
         res.ParseFromString(stderr_file.read())
 
+    ifmap_size = test_case.ifmap_h * test_case.ifmap_w
+    true_ifmap_size = (test_case.ifmap_h - test_case.arch_padding[0]) * (
+        test_case.ifmap_w - test_case.arch_padding[1]
+    )
+    ifmap_reduction_factor = true_ifmap_size / ifmap_size
+
+    ofmap_h = test_case.ifmap_h - test_case.kernel + 1  # assuming stride 1
+    ofmap_w = test_case.ifmap_w - test_case.kernel + 1  # assuming stride 1
+    ofmap_size = ofmap_h * ofmap_w
+
+    true_ofmap_h = (
+        test_case.ifmap_h - test_case.arch_padding[0] - test_case.kernel + 1
+    )  # assuming stride 1
+    true_ofmap_w = (
+        test_case.ifmap_w - test_case.arch_padding[1] - test_case.kernel + 1
+    )  # assuming stride 1
+    true_ofmap_size = true_ofmap_h * true_ofmap_w
+    ofmap_reduction_factor = true_ofmap_size / ofmap_size
+
     return SimResult(
         valid=res.valid,
-        dram_load=res.dram_load_access,
-        dram_store=res.dram_store_access,
-        weight=res.weight_access,
-        psum=res.ifmap_access,
-        ifmap=res.psum_access,
-        pe_util=res.avg_util,
-        latency=res.latency,
         sim_time=res.sim_time,
-        macs=res.macs,
+        dram_load=res.dram_load_access * ifmap_reduction_factor * test_case.groups,
+        dram_store=res.dram_store_access * ifmap_reduction_factor * test_case.groups,
+        weight=res.weight_access * test_case.groups,
+        ifmap=res.ifmap_access * ifmap_reduction_factor * test_case.groups,
+        psum=res.psum_access * ofmap_reduction_factor * test_case.groups,
+        pe_util=res.avg_util * ifmap_reduction_factor,  # prolly bs
+        latency=res.latency
+        * test_case.groups,  # unaffected by ifmap reduction (delays would still be required)
+        macs=res.macs * ofmap_reduction_factor * test_case.groups,
     )
 
 
