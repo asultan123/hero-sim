@@ -27,6 +27,7 @@ class SimResult:
     weight: int
     psum: int
     ifmap: int
+    reuse_chain: int
     pe_util: float
     latency: int
     sim_time: int
