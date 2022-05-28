@@ -24,7 +24,7 @@ from torch.nn.modules.linear import Linear
 from torch.nn.modules.conv import Conv2d
 from TEMPO import find_optimal_pe_allocation
 from schema import IfmapLayerDimensions, SimResult, TestCase
-from config import *
+import config
 from typing import Union
 from copy import deepcopy
 import pickle
@@ -36,9 +36,9 @@ RESULTS_CSV_PATH = ""
 os.environ[
     "SC_COPYRIGHT_MESSAGE"
 ] = "DISABLE"  # Disable system-c copyright message over stdout
-Path(SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+Path(config.SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
 
-seed(SEED)
+seed(config.SEED)
 
 
 class OperationMode(Enum):
@@ -61,27 +61,27 @@ VERIFY_MODE = VerifyMode.network
 
 def generate_test_cases_queue(count: int):
     test_cases_queue = queue.Queue(0)
-    expected_f_in = [2**i for i in range(LOG2_FILTER_LOWER, LOG2_FILTER_UPPER)]
+    expected_f_in = [2**i for i in range(config.LOG2_FILTER_LOWER, config.LOG2_FILTER_UPPER)]
     expected_c_out = [3] + [
-        2**i for i in range(LOG2_CHANNEL_LOWER, LOG2_CHANNEL_UPPER)
+        2**i for i in range(config.LOG2_CHANNEL_LOWER, config.LOG2_CHANNEL_UPPER)
     ]
 
     for r in range(count):
         op_mode = OperationMode(choices([0, 1], weights=[1, 3], k=1)[0])
         ifmap_size = ofmap_size = math.inf
-        while ifmap_size > LAYER_SIZE_UB or ofmap_size > LAYER_SIZE_UB:
+        while ifmap_size > config.LAYER_SIZE_UB or ofmap_size > config.LAYER_SIZE_UB:
             if op_mode == OperationMode.linear:
                 ifmap_w = 1
-                ifmap_h = randint(IFMAP_LOWER, IFMAP_UPPER) ** 2
+                ifmap_h = randint(config.IFMAP_LOWER, config.IFMAP_UPPER) ** 2
                 kernel = 1
             elif op_mode == OperationMode.conv:
-                ifmap_h = ifmap_w = randint(IFMAP_LOWER, IFMAP_UPPER)
+                ifmap_h = ifmap_w = randint(config.IFMAP_LOWER, config.IFMAP_UPPER)
                 kernel = choices([1, 3], weights=[1, 3], k=1)[0]
             f_out, c_in = choice(expected_f_in), choice(expected_c_out)
             ifmap_size = ifmap_h * ifmap_w * c_in
             ofmap_size = (ifmap_w - kernel + 1) * (ifmap_h - kernel + 1) * f_out
         arch_filter_counts, arch_channel_counts = choice(
-            list(ARCH_CONFIG_DICT.values())
+            list(config.ARCH_CONFIG_DICT.values())
         ).values()
         test_cases_queue.put(
             TestCase(
@@ -121,10 +121,10 @@ def spawn_simulation_process(worker_id: int, test_case: TestCase):
     )
     layer_name = test_case.layer_name if test_case.layer_name is not None else ""
     stderr_file_path = os.path.join(
-        SUBPROCESS_OUTPUT_DIR, f"output_{worker_id}_{layer_name}_stderr.temp"
+        config.SUBPROCESS_OUTPUT_DIR, f"output_{worker_id}_{layer_name}_stderr.temp"
     )
     stdout_file_path = os.path.join(
-        SUBPROCESS_OUTPUT_DIR, f"output_{worker_id}_{layer_name}_stdout.temp"
+        config.SUBPROCESS_OUTPUT_DIR, f"output_{worker_id}_{layer_name}_stdout.temp"
     )
 
     with open(stderr_file_path, "wb") as stderr_file, open(
@@ -161,14 +161,14 @@ def spawn_simulation_process(worker_id: int, test_case: TestCase):
         valid=res.valid,
         sim_time=res.sim_time,
         dram_load=res.dram_load_access * ifmap_reduction_factor * test_case.groups,
-        dram_store=res.dram_store_access * ifmap_reduction_factor * test_case.groups,
+        dram_store=res.dram_store_access * ofmap_reduction_factor * test_case.groups,
         weight=res.weight_access * test_case.groups,
         ifmap=res.ifmap_access * ifmap_reduction_factor * test_case.groups,
         psum=res.psum_access * ofmap_reduction_factor * test_case.groups,
         pe_util=res.avg_util * ifmap_reduction_factor,  # prolly bs
         latency=res.latency
         * test_case.groups,  # unaffected by ifmap reduction (delays would still be required)
-        macs=res.macs * ofmap_reduction_factor * test_case.groups,
+        macs=res.macs * test_case.groups,
         reuse_chain=res.reuse_chain_accesses
         * test_case.groups
         * ifmap_reduction_factor,
@@ -208,7 +208,7 @@ def test_case_worker(
 ):
     while True:
         test_case: TestCase = test_cases_queue.get()
-        logger.debug(f"worker {worker_id} spawning process with test case\n{test_case}")
+        config.logger.debug(f"worker {worker_id} spawning process with test case\n{test_case}")
         sim_result = spawn_simulation_process(worker_id, test_case)
         results_queue.put((test_case, sim_result))
         test_cases_queue.task_done()
@@ -242,12 +242,12 @@ def results_collection_worker(
 
         aggregate_dataframe = concat([aggregate_dataframe, *new_rows])
 
-        if (collection_counter + 1) % SAVE_EVERY == 0:
+        if (collection_counter + 1) % config.SAVE_EVERY == 0:
             results_dataframe = concat([results_dataframe, aggregate_dataframe])
             aggregate_dataframe = DataFrame()
-            results_dataframe.to_csv(RESULTS_CSV_PATH, index=False)
+            results_dataframe.to_csv(config.RESULTS_CSV_PATH, index=False)
             percent_complete = int(collection_counter / test_case_count * 100)
-            logger.info(
+            config.logger.info(
                 f"Worker {worker_id} processed %{percent_complete} of test cases",
             )
 
@@ -423,7 +423,7 @@ def convert_layer_dims_to_test_cases(
 def launch_workers_with_test_cases(
     test_cases_list: List[TestCase],
     layer_name_tracker: Dict[TestCase, str] = None,
-    core_count=CORE_COUNT,
+    core_count=config.CORE_COUNT,
 ):
     test_cases_queue = queue.Queue(0)
     for case in test_cases_list:
@@ -432,7 +432,7 @@ def launch_workers_with_test_cases(
     queue_size = test_cases_queue.qsize()
     results_queue = queue.Queue(0)
     done_queue = queue.Queue(0)
-    for worker_id in range(CORE_COUNT):
+    for worker_id in range(config.CORE_COUNT):
         threading.Thread(
             target=test_case_worker,
             daemon=True,
@@ -441,7 +441,7 @@ def launch_workers_with_test_cases(
     threading.Thread(
         target=results_collection_worker,
         daemon=True,
-        args=[CORE_COUNT, queue_size, results_queue, done_queue, layer_name_tracker],
+        args=[config.CORE_COUNT, queue_size, results_queue, done_queue, layer_name_tracker],
     ).start()
 
     for _ in range(queue_size):
@@ -503,7 +503,7 @@ def pad_layer_dims_based_on_arch_config(layer_dims, arch_config=None):
 
 
 def find_opt_arch(
-    models, pe_budget: int, directly_supported_kernels=DIRECTLY_SUPPORTED_KERNELS
+    models, pe_budget: int, directly_supported_kernels=config.DIRECTLY_SUPPORTED_KERNELS
 ):
     aggregate_test_case_list = []
     for model in models:
@@ -609,7 +609,7 @@ def decompose_layers_with_large_ifmaps(layer_dims, arch_config: Dict[str, int]):
     if bank_adjusted_ifmap_ub != ifmap_ub:
         bank_adjusted_ifmap_ub_in_kb = bank_adjusted_ifmap_ub / 2**10
         ifmap_ub_in_kb = ifmap_ub / 2**10
-        logger.warning(
+        config.logger.warning(
             f"Upper bound for IFmap memory supplied is not a multiple of arch ifmap channel count (Available banks for IFmap), \
                 will adjust ub to {bank_adjusted_ifmap_ub_in_kb :.5f} KB Instead of {ifmap_ub_in_kb :.5f} KB"
         )
@@ -734,7 +734,7 @@ def decompose_layers_with_large_ofmaps(
     if bank_adjusted_ofmap_ub != ofmap_ub:
         bank_adjusted_ofmap_ub_in_kb = bank_adjusted_ofmap_ub / 2**10
         ofmap_ub_in_kb = ofmap_ub / 2**10
-        logger.warning(
+        config.logger.warning(
             f"Upper bound for IFmap memory supplied is not a multiple of arch ifmap channel count (Available banks for IFmap), \
                 will adjust ub to {bank_adjusted_ofmap_ub_in_kb :.5f} KB Instead of {ofmap_ub_in_kb :.5f} KB"
         )
@@ -811,11 +811,11 @@ def eval_collected_model_layers(layer_dims, arch_config, model_name):
     return result_df
 
 
-def eval_network(model, arch_config, model_name=None, processed_network=False):
-    Path(SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+def eval_network(model, arch_config, model_name=None, pre_processed_network=False):
+    Path(config.SUBPROCESS_OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
     os.environ["SC_COPYRIGHT_MESSAGE"] = "DISABLE"
 
-    if not processed_network:
+    if not pre_processed_network:
         input = load_default_input_tensor_for_model(model)
         layer_dims = ModelDimCollector.collect_layer_dims_from_model(model, input)
     else:
@@ -824,37 +824,14 @@ def eval_network(model, arch_config, model_name=None, processed_network=False):
     return result_df
 
 
-def layer_dims_generator():
-    processed_models_files = os.listdir("../data/processed_models")
-    processed_models_names = [
-        "".join(filename.split(".")[:-2]) for filename in processed_models_files
-    ]
-    processed_models_filepaths = [
-        os.path.join("../data/processed_models", filename)
-        for filename in os.listdir("../data/processed_models")
-    ]
-
-    ignore_list = pickle.load(open("../data/frontend_ignore_list.pickle", "rb"))
-
-    for model_name, path in tqdm(
-        list(zip(processed_models_names, processed_models_filepaths))
-    ):
-        if model_name in ignore_list:
-            continue
-
-        with open(path, "rb") as file:
-            layer_dims = pickle.load(file)
-        yield model_name, layer_dims
 
 
 if __name__ == "__main__":
     models = []
     models.append(
         (
-            "mobilenetv3_rw",
-            pickle.load(
-                open("../data/processed_models/mobilenetv3_rw.model.pickle", "rb")
-            ),
+            "mobilentv3_rw",
+            pickle.load(open("../data/processed_models/mobilenetv3_rw.model.pickle", "rb")),
         )
     )
 
@@ -870,4 +847,4 @@ if __name__ == "__main__":
 
     for model_name, model in models:
         RESULTS_CSV_PATH = f"../data/{model_name}.csv"
-        eval_network(model, arch_config, model_name=model_name, processed_network=True)
+        eval_network(model, arch_config, model_name=model_name, pre_processed_network=True)
