@@ -109,10 +109,10 @@ class ModelDimCollector:
             hook.remove()
 
     @classmethod
-    def collect_layer_dims_from_model(cls, model, input_batch):
+    def collect_layer_dims_from_model(cls, model, input_batch, use_cuda = False):
         collector = cls()
         collector.attach_collection_hooks_to_model(model)
-        if torch.cuda.is_available():
+        if use_cuda and torch.cuda.is_available():
             model = model.cuda()
             input_batch = input_batch.cuda()
         model.eval()
