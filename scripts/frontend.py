@@ -846,5 +846,5 @@ if __name__ == "__main__":
     }
 
     for model_name, model in models:
-        RESULTS_CSV_PATH = f"../data/{model_name}.csv"
+        config.RESULTS_CSV_PATH = f"../data/{model_name}.csv"
         eval_network(model, arch_config, model_name=model_name, pre_processed_network=True)
