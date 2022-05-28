@@ -25,7 +25,7 @@ import pickle
 from typing import Optional
 from torch.nn.modules.linear import Linear
 from torch.nn.modules.conv import Conv2d
-from schema import IfmapLayerDimensions, LayerDimensions
+from schema import IfmapLayerDimensions, LayerDimensions, OfmapLayerDimensions
 from joblib import Memory
 import os
 class StatsCounter:
@@ -60,7 +60,7 @@ class StatsCounter:
 
 
 class ModelDimCollector:
-    default_targets = [Conv2d, Linear]
+    default_targets = (Conv2d, Linear)
 
     def __init__(self):
         self.model_stats = OrderedDict()
@@ -72,22 +72,22 @@ class ModelDimCollector:
         target_layers=default_targets,
     ):
         for name, module in model.named_modules():
-            if type(module) in target_layers:
+            if isinstance(module, target_layers):
                 yield (name, module)
 
-    def extract_dims(self, name, module, input, output):
+    def extract_dims(self, name, collect_outputs, use_fmap_dataclasses, module, input, output):
         if isinstance(module, Linear):
             if input[0].size()[0] != 1:
                 raise Exception("Only a batch size of 1 is allowed when extracting model dims")
             
-            dims = IfmapLayerDimensions(
+            ifmap_dims = IfmapLayerDimensions(
                 height=prod(list(input[0].size())[:-1]),
                 width=1,
                 channels=input[0].size()[-1],
             )
 
         elif isinstance(module, Conv2d):
-            dims = IfmapLayerDimensions(
+            ifmap_dims = IfmapLayerDimensions(
                 channels=input[0].size()[-3],
                 height=input[0].size()[-2],
                 width=input[0].size()[-1],
@@ -97,11 +97,22 @@ class ModelDimCollector:
             raise TypeError(
                 f"Unsupported module type {type(module)} found during dimensions extraction"
             )
-        self.model_stats[name] = (dims, module)
+        
+        if use_fmap_dataclasses:
+            if collect_outputs:
+                raise Exception("Not Implemented")
+            else:
+                self.model_stats[name] = (ifmap_dims, module)
+        else:  
+            input_size = tuple([list(tensor.size()) for tensor in input])
+            output_size = tuple([list(tensor.size()) for tensor in input])
+            self.model_stats[name] = ([input_size[0], output_size[0]], module)  
+        
+            
 
-    def attach_collection_hooks_to_model(self, model):
+    def attach_collection_hooks_to_model(self, model, collect_outputs, use_fmap_dataclasses):
         for name, layer in self.get_next_target_layer(model):
-            layer_collector = partial(self.extract_dims, name)
+            layer_collector = partial(self.extract_dims, name, collect_outputs, use_fmap_dataclasses)
             self.hooks.append(layer.register_forward_hook(layer_collector))
 
     def detach_stats_collection_hooks(self):
@@ -109,9 +120,9 @@ class ModelDimCollector:
             hook.remove()
 
     @classmethod
-    def collect_layer_dims_from_model(cls, model, input_batch, use_cuda = False):
+    def collect_layer_dims_from_model(cls, model, input_batch, collect_outputs = False, use_fmap_dataclasses = True, use_cuda = False):
         collector = cls()
-        collector.attach_collection_hooks_to_model(model)
+        collector.attach_collection_hooks_to_model(model, collect_outputs, use_fmap_dataclasses)
         if use_cuda and torch.cuda.is_available():
             model = model.cuda()
             input_batch = input_batch.cuda()
