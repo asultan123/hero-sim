@@ -7,3 +7,7 @@ tests/*.vcd
 *.temp
 data/
 scripts/__pycache__/
+libtorch/
+result/
+*.zip
+*.pt
