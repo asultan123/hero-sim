@@ -42,5 +42,5 @@ for model_name, layer_dims in tqdm(layer_dims_generator()):
     )
     
     
-with open("../data/timm_lib_testcases_1.pickle", "wb") as file:
+with open("../data/timm_lib_testcases_with_derived.pickle", "wb") as file:
     pickle.dump(layer_name_tracker, file)

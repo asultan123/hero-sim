@@ -1,5 +1,6 @@
 # import pandas as pd
 # import seaborn as se
+from audioop import avg
 from lib2to3.pytree import convert
 import pickle
 from unittest import skip
@@ -7,6 +8,7 @@ from unittest import skip
 # from collections import Counter
 import numpy as np
 import os
+from pandas import DataFrame
 import torch
 import pickle
 import timm
@@ -18,7 +20,7 @@ from torch.autograd.profiler_util import FunctionEventAvg
 from tqdm.autonotebook import tqdm as notebook_tqdm
 from timeit import timeit
 from tqdm import tqdm
-from ModelAnalysis import ModelDimCollector
+from ModelAnalysis import ModelProfiler
 from torch.nn.modules.linear import Linear
 from torch.nn.modules.conv import Conv2d
 
@@ -173,18 +175,31 @@ def append_layer_duration_to_processed_model(
 
 
 if __name__ == "__main__":
+    
+    torch.set_num_threads(16)
+    
     processed_model_basepath = "../data/processed_models"
     processed_model_list = os.listdir(processed_model_basepath)
     ignore_list = pickle.load(open("../data/frontend_ignore_list.pickle", "rb"))
+    
+    
+    profiling_results_basepath = Path('../data/profiling')
 
-    repeat = 2
+    if profiling_results_basepath.exists() and profiling_results_basepath.is_dir():
+        shutil.rmtree(profiling_results_basepath, ignore_errors=True)
+    
+    os.makedirs(profiling_results_basepath)
+    
+    repeat = 20
 
     for model_name in tqdm(processed_model_list):
 
         if model_name in ignore_list:
             continue
 
-        model = load_model_from_timm(get_model_name_from_filename(model_name))
+        model_name = get_model_name_from_filename(model_name)
+        
+        model = load_model_from_timm(model_name)
 
         default_input = load_default_input_tensor_for_model(model)
 
@@ -196,26 +211,10 @@ if __name__ == "__main__":
 
         print(f"Profiling {model_name} operation metrics")
 
-        ops_metrics = profile_model_operations(
-            model, default_input, repeat=repeat, collect_output_dims=False
-        )
+        res = ModelProfiler.profile_supported_layers(model, default_input, wait = 0, warmup = 0, repeat=repeat)
+        
+        res['forward'] = avg_forward_pass_durations
 
-        processed_model = ModelDimCollector.collect_layer_dims_from_model(
-            model, default_input, use_fmap_dataclasses=False, collect_outputs=False
-        )
+        res = {'Layer Name' : list(res.keys()), "Duration": list(res.values())}
 
-        processed_model = append_layer_duration_to_processed_model(
-            avg_forward_pass_durations, ops_metrics, processed_model
-        )
-
-        # for op in ops_metrics:
-        #     print(op['input_dims'])
-
-        # print('\n')
-
-        # for dims, _ in processed_model.values():
-        #     print(dims)
-
-        # aggregate_op_metrics_into_dict(
-        #     forward_pass_durations, supported_ops_metrics, processed_model
-        # )
+        DataFrame.from_dict(res).to_csv(os.path.join(profiling_results_basepath, f'{model_name}.csv'))
