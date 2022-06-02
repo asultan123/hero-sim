@@ -63,50 +63,76 @@ class StatsCounter:
 
 
 class ModelProfiler:
-    default_targets = (Conv2d, Linear)
+    default_supported_layers = (Conv2d, Linear)
 
     def __init__(self):
-        self.start_times = OrderedDict()
-        self.end_times = OrderedDict()
+        self.supported_start_times = OrderedDict()
+        self.supported_end_times = OrderedDict()
+        self.unsupported_start_times = OrderedDict()
+        self.unsupported_end_times = OrderedDict()
         self.hooks = []
         self._step = 0
 
     def step(self):
         self._step += 1
 
-    def get_next_target_layer(
+    def get_next_supported_layer(
         self,
         model,
-        target_layers=default_targets,
+        supported_layers,
     ):
         for name, module in model.named_modules():
-            if isinstance(module, target_layers):
+            if isinstance(module, supported_layers):
                 yield (name, module)
+                
+    def get_next_unsupported_layer(
+        self,
+        model,
+        supported_layers,
+    ):
+        for name, module in model.named_modules():
+            if not isinstance(module, supported_layers):
+                yield (name, module)                
 
-    def initialize_log_dicts(self, model, repeat):
-        for name, _ in self.get_next_target_layer(model):
-            self.start_times[name] = [0] * repeat
-            self.end_times[name] = [0] * repeat
+    def initialize_log_dicts(self, model, repeat, supported_layers):
+        for name, _ in self.get_next_supported_layer(model, supported_layers):
+            self.supported_start_times[name] = [0] * repeat
+            self.supported_end_times[name] = [0] * repeat
+        for name, _ in self.get_next_unsupported_layer(model, supported_layers):
+            self.unsupported_start_times[name] = [0] * repeat
+            self.unsupported_end_times[name] = [0] * repeat            
 
-    def log_start_time(self, layer_name, module, input):
-        self.start_times[layer_name][self._step] = timer()
+    def log_supported_start_time(self, layer_name, module, input):
+        self.supported_start_times[layer_name][self._step] = timer()
 
-    def log_end_time(self, layer_name, module, input, output):
-        self.end_times[layer_name][self._step] = timer()
+    def log_supported_end_time(self, layer_name, module, input, output):
+        self.supported_end_times[layer_name][self._step] = timer()
 
-    def attach_collection_hooks_to_model(self, model):
-        for name, layer in self.get_next_target_layer(model):
-            start_log_callback = partial(self.log_start_time, name)
+    def log_unsupported_start_time(self, layer_name, module, input):
+        self.unsupported_start_times[layer_name][self._step] = timer()
+
+    def log_unsupported_end_time(self, layer_name, module, input, output):
+        self.unsupported_end_times[layer_name][self._step] = timer()        
+
+    def attach_collection_hooks_to_model(self, model, supported_layers):
+        for name, layer in self.get_next_supported_layer(model, supported_layers):
+            start_log_callback = partial(self.log_supported_start_time, name)
             self.hooks.append(layer.register_forward_pre_hook(start_log_callback))
-            end_log_callback = partial(self.log_end_time, name)
+            end_log_callback = partial(self.log_supported_end_time, name)
             self.hooks.append(layer.register_forward_hook(end_log_callback))
+            
+        for name, layer in self.get_next_unsupported_layer(model, supported_layers):
+            start_log_callback = partial(self.log_unsupported_start_time, name)
+            self.hooks.append(layer.register_forward_pre_hook(start_log_callback))
+            end_log_callback = partial(self.log_unsupported_end_time, name)
+            self.hooks.append(layer.register_forward_hook(end_log_callback))            
 
     def detach_stats_collection_hooks(self):
         for hook in self.hooks:
             hook.remove()
 
     @classmethod
-    def profile_supported_layers(
+    def profile_layers(
         cls,
         model,
         input_batch,
@@ -115,6 +141,7 @@ class ModelProfiler:
         warmup=2,
         active=1,
         repeat=20,
+        supported_layers = default_supported_layers
     ):
         def sample_times(times: List[int]):
             sampled_times = []
@@ -129,8 +156,8 @@ class ModelProfiler:
             return sampled_times
 
         collector = cls()
-        collector.initialize_log_dicts(model, skip_first + repeat * (wait + warmup + active))
-        collector.attach_collection_hooks_to_model(model)
+        collector.initialize_log_dicts(model, skip_first + repeat * (wait + warmup + active), supported_layers)
+        collector.attach_collection_hooks_to_model(model, supported_layers)
         model.eval()
         with torch.no_grad():
             for _ in range(skip_first + repeat * (wait + warmup + active)):
@@ -138,14 +165,21 @@ class ModelProfiler:
                 collector.step()
         collector.detach_stats_collection_hooks()
         results = {}
-        for layer_name in collector.start_times.keys():
+        results['supported'] = {}
+        results['unsupported'] = {}
+        for layer_name in collector.supported_start_times.keys():
 
-            end_times = np.array(sample_times(collector.end_times[layer_name]))
-            start_times = np.array(sample_times(collector.start_times[layer_name]))
+            end_times = np.array(sample_times(collector.supported_end_times[layer_name]))
+            start_times = np.array(sample_times(collector.supported_start_times[layer_name]))
 
-            results[layer_name] = np.average((end_times - start_times) * 10**6)
+            results['supported'][layer_name] = np.average((end_times - start_times) * 10**6)
+        for layer_name in collector.unsupported_start_times.keys():
+
+            end_times = np.array(sample_times(collector.unsupported_end_times[layer_name]))
+            start_times = np.array(sample_times(collector.unsupported_start_times[layer_name]))
+
+            results['unsupported'][layer_name] = np.average((end_times - start_times) * 10**6)            
         return results
-
 
 class ModelDimCollector:
     default_targets = (Conv2d, Linear)
