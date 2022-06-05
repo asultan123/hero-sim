@@ -21,6 +21,20 @@ ARCH_CONFIG_DICT = {
     "large": {"filter_count": 32, "channel_count": 18},
 }
 
+ENERGY_MODEL = {
+    
+    
+}
+
+ARCH_CONFIG = {
+    "filter_count": 32,
+    "channel_count": 18,
+    "directly_supported_kernels": [(1, 1), (3, 3)],
+    "ifmap_mem_ub": 2**20 // 18 * 18,
+    "allow_ifmap_distribution": True,
+    "ofmap_mem_ub": 2**20,
+    "allow_ofmap_distribution": True,
+}
 
 formatter = ColoredFormatter(
     "%(log_color)s%(asctime)s %(log_color)s%(levelname)-8s%(reset)s %(log_color)s%(message)s",
