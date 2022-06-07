@@ -245,7 +245,7 @@ def results_collection_worker(
         if (collection_counter + 1) % config.SAVE_EVERY == 0:
             results_dataframe = concat([results_dataframe, aggregate_dataframe])
             aggregate_dataframe = DataFrame()
-            results_dataframe.to_csv(config.RESULTS_CSV_PATH, index=False)
+            # results_dataframe.to_csv(config.RESULTS_CSV_PATH, index=False)
             percent_complete = int(collection_counter / test_case_count * 100)
             config.logger.info(
                 f"Worker {worker_id} processed %{percent_complete} of test cases",
@@ -832,8 +832,6 @@ def eval_network(model, arch_config, model_name=None, pre_processed_network=Fals
     return result_df
 
 
-
-
 if __name__ == "__main__":
     models = []
     models.append(
@@ -843,16 +841,6 @@ if __name__ == "__main__":
         )
     )
 
-    arch_config = {
-        "filter_count": 32,
-        "channel_count": 18,
-        "directly_supported_kernels": [(1, 1), (3, 3)],
-        "ifmap_mem_ub": 2**20 // 18 * 18,
-        "allow_ifmap_distribution": True,
-        "ofmap_mem_ub": 2**20,
-        "allow_ofmap_distribution": True,
-    }
-
     for model_name, model in models:
         config.RESULTS_CSV_PATH = f"../data/{model_name}.csv"
-        eval_network(model, arch_config, model_name=model_name, pre_processed_network=True)
+        eval_network(model, config.arch_config, model_name=model_name, pre_processed_network=True)
