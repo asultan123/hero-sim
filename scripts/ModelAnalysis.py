@@ -91,7 +91,7 @@ class ModelProfiler:
         supported_layers,
     ):
         for name, module in model.named_modules():
-            if not isinstance(module, supported_layers):
+            if len(list(module.children()))== 0 and not isinstance(module, supported_layers):
                 yield (name, module)                
 
     def initialize_log_dicts(self, model, repeat, supported_layers):
