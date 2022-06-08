@@ -160,6 +160,47 @@ void load_padded_weights_into_pes(Hero::Arch<DataType> &arch, xt::xarray<int> pa
     }
 }
 
+template <typename DataType> int64_t get_max_program_size(const sc_vector<AddressGenerator<DataType>> &module_vector)
+{
+    int64_t max = -1;
+    for (const auto &it : module_vector)
+    {
+        if ((int64_t)it.descriptors.size() > max)
+        {
+            max = it.descriptors.size();
+        }
+    }
+    return max;
+}
+
+template <typename DataType> int64_t get_max_program_size(const sc_vector<SAM<DataType>> &module_vector)
+{
+    int64_t max = -1;
+    for (const auto &sam_it : module_vector)
+    {
+        auto max_sam_program_size = get_max_program_size(sam_it.generators);
+        if (max_sam_program_size > max)
+        {
+            max = max_sam_program_size;
+        }
+    }
+    return max;
+}
+
+template <typename DataType> int64_t get_max_program_size(const sc_vector<PE<DataType>> &module_vector)
+{
+    int64_t max = -1;
+    for (const auto &it : module_vector)
+    {
+        int64_t pe_program_size = it.program.size();
+        if (pe_program_size > max)
+        {
+            max = it.program.size();
+        }
+    }
+    return max;
+}
+
 template <typename DataType>
 void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, int filter_count, int channel_count,
                          Hero::OperationMode op_mode, bool result_as_protobuf, bool sim_bias)
@@ -286,6 +327,11 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
             reuse_chain_accesses += reuse_chain_sam.mem.access_counter;
         }
 
+        int64_t max_psum_program = get_max_program_size(arch.psum_mem.generators);
+        int64_t max_ifmap_program = get_max_program_size(arch.ifmap_mem.generators);
+        int64_t max_ifmap_reuse_chain_program = get_max_program_size(arch.ifmap_reuse_chain);
+        int64_t max_pe_program = get_max_program_size(arch.pe_array);
+
         cout << std::left << std::setw(20) << "DRAM Load Access" << arch.dram_load_access_counter << endl;
         cout << std::left << std::setw(20) << "DRAM Store Access" << arch.dram_store_access_counter << endl;
         cout << std::left << std::setw(20) << "Weight Access" << weight_access << endl;
@@ -295,6 +341,11 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
         cout << std::left << std::setw(20) << "Latency in cycles" << latency_in_cycles.value() / 1000 << endl;
         cout << std::left << std::setw(20) << "MACs Performed" << total_macs << endl;
         cout << std::left << std::setw(20) << "Simulated in " << sim_time.count() << "ms\n";
+        cout << std::left << std::setw(20) << "Max psum_program " << max_psum_program << "ms\n";
+        cout << std::left << std::setw(20) << "Max ifmap_program " << max_ifmap_program << "ms\n";
+        cout << std::left << std::setw(20) << "Max ifmap_reuse_chain_program " << max_ifmap_reuse_chain_program
+             << "ms\n";
+        cout << std::left << std::setw(20) << "Max pe_program " << max_pe_program << "ms\n";
         cout << std::left << std::setw(20) << "ALL TESTS PASS\n";
 
         res.set_valid("PASS");
@@ -306,7 +357,12 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
         res.set_avg_util(avg_util);
         res.set_latency(latency_in_cycles.value() / 1000);
         res.set_macs(total_macs);
-        res.set_reuse_chain_accesses(reuse_chain_accesses) res.set_sim_time(sim_time.count());
+        res.set_reuse_chain_accesses(reuse_chain_accesses);
+        res.set_sim_time(sim_time.count());
+        res.set_max_psum_program(max_psum_program);
+        res.set_max_ifmap_program(max_ifmap_program);
+        res.set_max_ifmap_reuse_chain_program(max_ifmap_reuse_chain_program);
+        res.set_max_pe_program(max_pe_program);
     }
     else
     {

@@ -40,7 +40,10 @@ class SimResult:
     latency: int
     sim_time: int
     macs: int
-
+    max_psum_program: int
+    max_ifmap_program: int
+    max_ifmap_reuse_chain_program: int
+    max_pe_program: int
 
 @dataclass(frozen=True)
 class TestCase:

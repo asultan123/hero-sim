@@ -31,7 +31,6 @@ import pickle
 from multiprocessing import Pool
 import psutil
 
-RESULTS_CSV_PATH = ""
 
 os.environ[
     "SC_COPYRIGHT_MESSAGE"
@@ -172,6 +171,10 @@ def spawn_simulation_process(worker_id: int, test_case: TestCase):
         reuse_chain=res.reuse_chain_accesses
         * test_case.groups
         * ifmap_reduction_factor,
+        max_psum_program = res.max_psum_program,
+        max_ifmap_program = res.max_ifmap_program,
+        max_ifmap_reuse_chain_program = res.max_ifmap_reuse_chain_program,
+        max_pe_program = res.max_pe_program,
     )
 
 
@@ -843,4 +846,4 @@ if __name__ == "__main__":
 
     for model_name, model in models:
         config.RESULTS_CSV_PATH = f"../data/{model_name}.csv"
-        eval_network(model, config.arch_config, model_name=model_name, pre_processed_network=True)
+        res_df = eval_network(model, config.arch_config, model_name=model_name, pre_processed_network=True)
