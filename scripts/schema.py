@@ -20,6 +20,14 @@ class IfmapLayerDimensions:
 
 
 @dataclass
+class OfmapLayerDimensions:
+    width: int
+    height: int
+    channels: int
+
+
+
+@dataclass
 class SimResult:
     valid: str
     dram_load: int
