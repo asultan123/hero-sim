@@ -1,5 +1,6 @@
 import colorlog
 from colorlog import ColoredFormatter
+from math import sqrt
 
 CORE_COUNT = 32
 TEST_CASE_COUNT = 5000
@@ -15,18 +16,14 @@ LOG2_CHANNEL_UPPER = 10
 DIRECTLY_SUPPORTED_KERNELS = [(1, 1), (3, 3)]
 SUBPROCESS_OUTPUT_DIR = "../data/subprocess_output"
 
-ARCH_CONFIG_DICT = {
-    "small": {"filter_count": 9, "channel_count": 9},
-    "medium": {"filter_count": 18, "channel_count": 18},
-    "large": {"filter_count": 32, "channel_count": 18},
+energy_model = {
+    # hack to overestimate MACS
+    'mac': lambda mac_count: mac_count * (5 * 10**-12) ** 2,
+    'sram': lambda access_count, sram_size, precision_bits: ((50+0.022*sqrt(precision_bits * sram_size)) * 10**-15) * access_count,
+    'dram': lambda access_count, precision_bits: (20*10**-12)*(precision_bits)*access_count
 }
 
-ENERGY_MODEL = {
-    
-    
-}
-
-ARCH_CONFIG = {
+arch_config = {
     "filter_count": 32,
     "channel_count": 18,
     "directly_supported_kernels": [(1, 1), (3, 3)],
@@ -34,7 +31,10 @@ ARCH_CONFIG = {
     "allow_ifmap_distribution": True,
     "ofmap_mem_ub": 2**20,
     "allow_ofmap_distribution": True,
+    "reuse_chain_bank_size": 512,
+    "weight_bank_size": 16
 }
+
 
 formatter = ColoredFormatter(
     "%(log_color)s%(asctime)s %(log_color)s%(levelname)-8s%(reset)s %(log_color)s%(message)s",
