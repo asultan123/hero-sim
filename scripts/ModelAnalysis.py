@@ -103,10 +103,13 @@ class ModelDimCollector:
                 raise Exception("Not Implemented")
             else:
                 self.model_stats[name] = (ifmap_dims, module)
-        else:  
+        else:
             input_size = tuple([list(tensor.size()) for tensor in input])
             output_size = tuple([list(tensor.size()) for tensor in input])
-            self.model_stats[name] = ([input_size[0], output_size[0]], module)  
+            dims = [input_size[0]]
+            if collect_outputs:
+                dims.append(output_size[0])
+            self.model_stats[name] = (dims, module)  
         
             
 

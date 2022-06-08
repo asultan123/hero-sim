@@ -19,6 +19,8 @@ from tqdm.autonotebook import tqdm as notebook_tqdm
 from timeit import timeit
 from tqdm import tqdm
 from ModelAnalysis import ModelDimCollector
+from torch.nn.modules.linear import Linear
+from torch.nn.modules.conv import Conv2d
 
 # import torchvision
 import json
@@ -27,18 +29,17 @@ from pathlib import Path
 import shutil
 
 
-def profile_model_forward(model, default_input, skip_first=5, run_count=20):
+def profile_model_forward(model, default_input, skip_first=5, repeat=20):
     runtimes_in_usec = []
     model.eval()
-    
-    print('\n')
+
     with torch.no_grad():
-        for _ in tqdm(range(skip_first + run_count)):
+        for _ in range(skip_first + repeat):
             start = timer()
             model(default_input)
             end = timer()
             runtimes_in_usec.append((end - start) * 10**6)
-    return runtimes_in_usec[skip_first:]
+    return np.average(runtimes_in_usec[skip_first:])
 
 
 def profile_model_operations(
@@ -49,9 +50,12 @@ def profile_model_operations(
     warmup=2,
     active=1,
     repeat=20,
-    trace_ops=["aten::conv2d", "aten::linear"],
+    ops_instance_map={"aten::conv2d": Conv2d, "aten::linear": Linear},
     event_trace_basepath="./result",
+    collect_output_dims=True,
 ):
+    ops_names_to_log = list(ops_instance_map.keys())
+
     event_trace_path = Path(event_trace_basepath)
 
     if event_trace_path.exists() and event_trace_path.is_dir():
@@ -65,26 +69,38 @@ def profile_model_operations(
         )
         p.export_chrome_trace(event_trace_file_path)
 
-    print('\n')
+    model = model.eval()
 
-    with profile(
-        activities=[ProfilerActivity.CPU],
-        on_trace_ready=trace_handler,
-        record_shapes=True,
-        with_modules=True,
-        with_stack=True,
-        schedule=torch.profiler.schedule(
-            skip_first=skip_first,
-            wait=wait,
-            warmup=warmup,
-            active=active,
-            repeat=repeat,
-        ),
-    ) as p:
-        for _ in tqdm(range(skip_first + (wait + warmup + active) * repeat)):
-            model(default_input)
-            p.step()
+    with torch.no_grad():
+        with profile(
+            activities=[ProfilerActivity.CPU],
+            on_trace_ready=trace_handler,
+            # on_trace_ready=torch.profiler.tensorboard_trace_handler('./result/tensorboard_trace.json'),
+            record_shapes=True,
+            with_modules=True,
+            with_stack=True,
+            schedule=torch.profiler.schedule(
+                skip_first=skip_first,
+                wait=wait,
+                warmup=warmup,
+                active=active,
+                repeat=repeat,
+            ),
+        ) as p:
+            for _ in range(skip_first + (wait + warmup + active) * repeat):
+                model(default_input)
+                p.step()
 
+    supported_ops_metrics = parse_trace_files(
+        event_trace_path, repeat, ops_names_to_log
+    )
+    ops_metrics = aggregate_ops_metrics(
+        supported_ops_metrics, ops_instance_map, collect_output_dims
+    )
+    return ops_metrics
+
+
+def parse_trace_files(event_trace_path, repeat, ops_names_to_log):
     event_trace_file_names = os.listdir(event_trace_path)
     assert len(event_trace_file_names) == repeat
     event_trace_filepaths = [
@@ -94,16 +110,38 @@ def profile_model_operations(
     for file_idx, filepath in enumerate(event_trace_filepaths):
         event_trace_dict = json.load(open(filepath))
         for event in event_trace_dict["traceEvents"]:
-            if event["name"] in trace_ops:
+            if event["name"] in ops_names_to_log:
                 supported_ops_metrics[file_idx].append(
-                    {"dur": event["dur"], "input_dims": event["args"]["Input Dims"]}
+                    {
+                        "dur": event["dur"],
+                        "input_dims": event["args"]["Input Dims"],
+                        "instance": event["name"],
+                    }
                 )
 
     event_list_lengths = [len(event_list) for event_list in supported_ops_metrics]
     assert len(set(event_list_lengths)) == 1
 
     transposed_supported_ops_metrics = [list(i) for i in zip(*supported_ops_metrics)]
+
     return transposed_supported_ops_metrics
+
+
+def aggregate_ops_metrics(supported_ops_metrics, ops_instance_map, collect_output_dims):
+    ops_metrics = []
+    for op_events in supported_ops_metrics:
+
+        for first, second in zip(op_events[:-1], op_events[1:]):
+            assert first["input_dims"] == second["input_dims"]
+
+        ops_metrics.append(
+            {
+                "input_dims": first["input_dims"][: (2 if collect_output_dims else 1)],
+                "instance": ops_instance_map[first["instance"]],
+                "dur": np.average([op["dur"] for op in op_events]),
+            }
+        )
+    return ops_metrics
 
 
 def get_model_name_from_filename(filename: str):
@@ -114,49 +152,70 @@ def convert_fmap_dim_to_list(fmap_dim):
     return [fmap_dim.channels, fmap_dim.height, fmap_dim.width]
 
 
-def aggregate_op_metrics_into_dict(
-    forward_pass_durations, supported_ops_metrics, processed_model
+def append_layer_duration_to_processed_model(
+    avg_forward_pass_duration,
+    ops_metrics,
+    processed_model,
 ):
-    avg_forward_pass_duration = np.average(forward_pass_durations)
-    assert len(processed_model) == len(supported_ops_metrics)
+    assert len(processed_model) == len(ops_metrics)
     model_layer_durations = {}
     model_layer_durations["forward"] = avg_forward_pass_duration
-    for (layer_name, (ifmap_dim, _)), op_metrics in zip(
-        processed_model.items(), supported_ops_metrics
+    modified_processed_model = {}
+    for (layer_name, (input_dims, layer)), op in zip(
+        processed_model.items(), ops_metrics
     ):
-        layer_ifmap_dim = convert_ifmap_dim_to_list(ifmap_dim)
-        for metric in op_metrics:
-            input_dims = metric["input_dims"][0][1:]  # remove batch dim
-            assert input_dims == layer_ifmap_dim
-        model_layer_durations[layer_name] = np.average(
-            [metric["dur"] for metric in op_metrics]
-        )
-    return model_layer_durations
-    print(".")
+        if isinstance(layer, op["instance"]):
+            modified_processed_model[layer_name] = (input_dims, layer, op["dur"])
+        else:
+            raise Exception("Mismatch between ops and processed model layers")
+
+    return modified_processed_model
 
 
 if __name__ == "__main__":
     processed_model_basepath = "../data/processed_models"
     processed_model_list = os.listdir(processed_model_basepath)
     ignore_list = pickle.load(open("../data/frontend_ignore_list.pickle", "rb"))
-    
-    for model_name in tqdm(processed_model_list[1:2]):
-        
+
+    repeat = 2
+
+    for model_name in tqdm(processed_model_list):
+
         if model_name in ignore_list:
-            continue 
-        
+            continue
+
         model = load_model_from_timm(get_model_name_from_filename(model_name))
-        
+
         default_input = load_default_input_tensor_for_model(model)
-        processed_model = ModelDimCollector.collect_layer_dims_from_model(model, default_input)
-        
-        print(f'Profiling {model_name} forward pass duration')
-        
-        forward_pass_durations = profile_model_forward(model, default_input)
-        
-        print(f'Profiling {model_name} operation metrics')
-        
-        supported_ops_metrics = profile_model_operations(model, default_input)
+
+        print(f"Profiling {model_name} forward pass duration")
+
+        avg_forward_pass_durations = profile_model_forward(
+            model, default_input, repeat=repeat
+        )
+
+        print(f"Profiling {model_name} operation metrics")
+
+        ops_metrics = profile_model_operations(
+            model, default_input, repeat=repeat, collect_output_dims=False
+        )
+
+        processed_model = ModelDimCollector.collect_layer_dims_from_model(
+            model, default_input, use_fmap_dataclasses=False, collect_outputs=False
+        )
+
+        processed_model = append_layer_duration_to_processed_model(
+            avg_forward_pass_durations, ops_metrics, processed_model
+        )
+
+        # for op in ops_metrics:
+        #     print(op['input_dims'])
+
+        # print('\n')
+
+        # for dims, _ in processed_model.values():
+        #     print(dims)
+
         # aggregate_op_metrics_into_dict(
         #     forward_pass_durations, supported_ops_metrics, processed_model
         # )
