@@ -194,27 +194,24 @@ if __name__ == "__main__":
 
     for model_name in tqdm(processed_model_list):
 
+        model_name = get_model_name_from_filename(model_name)
+
         if model_name in ignore_list:
             continue
-
-        model_name = get_model_name_from_filename(model_name)
         
         model = load_model_from_timm(model_name)
 
         default_input = load_default_input_tensor_for_model(model)
 
-        print(f"Profiling {model_name} forward pass duration")
+        print(f"Profiling {model_name} ")
 
-        avg_forward_pass_durations = profile_model_forward(
-            model, default_input, repeat=repeat
-        )
-
-        print(f"Profiling {model_name} operation metrics")
-
-        res = ModelProfiler.profile_supported_layers(model, default_input, wait = 0, warmup = 0, repeat=repeat)
+        res = ModelProfiler.profile_layers(model, default_input, wait = 0, warmup = 0, repeat=repeat)
         
-        res['forward'] = avg_forward_pass_durations
+        all_layers = sum([duration for layer_durations in res.values() for duration in layer_durations.values()])
+        supported = sum([duration for duration in res['supported'].values()])
 
-        res = {'Layer Name' : list(res.keys()), "Duration": list(res.values())}
-
+        res['supported']['forward'] = all_layers
+        res = {'Layer Name' : list(res['supported'].keys()), "Duration": list(res['supported'].values())}
+        
+        print(f"Percent of Compute {supported / all_layers *100 :.2f}")
         DataFrame.from_dict(res).to_csv(os.path.join(profiling_results_basepath, f'{model_name}.csv'))
