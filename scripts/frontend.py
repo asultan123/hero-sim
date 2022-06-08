@@ -342,6 +342,14 @@ def get_layer_equivalents(
                 "lifting_ops": lifting_ops,
             }
         elif isinstance(layer, Conv2d):
+            
+
+            if layer.dilation != (1, 1):
+                layer.kernel_size = tuple((layer.kernel_size[i]-1)*layer.dilation[i] + 1 for i in range(2))
+            
+            if layer.kernel_size[0] != layer.kernel_size[1]:
+                raise Exception("Asymmetric Kernels Unsupported")
+            
             new_dims = pad_ifmap_dims(ifmap_dims, layer.padding)
             in_channels = int(layer.in_channels / layer.groups)
             new_dims.channels = in_channels
