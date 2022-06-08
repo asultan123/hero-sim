@@ -1,6 +1,63 @@
-from get_unique_layers_within_models import ConvLayer, LinearLayer
 import pickle
 import pandas as pd
+
+from typing import Union, Tuple
+import os
+from tqdm import tqdm
+import pickle
+from dataclasses import dataclass, asdict
+from torch.nn.modules.linear import Linear
+from torch.nn.modules.conv import Conv2d
+import pandas as pd
+
+
+@dataclass(frozen=True)
+class LinearLayer:
+    width: int
+    height: int
+    channels: int
+    in_features: int
+    out_features: int
+    bias: bool
+
+
+@dataclass(frozen=True)
+class ConvLayer:
+    width: int
+    height: int
+    channels: int
+    in_channels: int
+    out_channels: int
+    kernel_size: Tuple[int, int]
+    stride: Tuple[int, int]
+    padding: Tuple[int, int]
+    dilation: Tuple[int, int]
+    groups: int
+    bias: bool
+    padding_mode: str
+
+
+def layer_dims_generator():
+    processed_models_files = os.listdir("../data/processed_models")
+    processed_models_names = [
+        "".join(filename.split(".")[:-2]) for filename in processed_models_files
+    ]
+    processed_models_filepaths = [
+        os.path.join("../data/processed_models", filename)
+        for filename in os.listdir("../data/processed_models")
+    ]
+
+    ignore_list = pickle.load(open("../data/frontend_ignore_list.pickle", "rb"))
+
+    for model_name, path in tqdm(
+        list(zip(processed_models_names, processed_models_filepaths))
+    ):
+        if model_name in ignore_list:
+            continue
+
+        with open(path, "rb") as file:
+            layer_dims = pickle.load(file)
+        yield model_name, layer_dims
 
 def calculate_conv_macs(conv_layer: ConvLayer):
     ifmap_w = conv_layer.width
@@ -82,11 +139,63 @@ def calculate_linear_ofmap_mem_size(linear_layer: LinearLayer):
     assert channels == in_features
     return in_features*out_features
 
-with open("../data/model_unique_layers_tracker.pickle", "rb") as file:
-    model_unique_layers_tracker = pickle.load(file)
+try:
+    with open("../data/model_unique_layers_tracker.pickle", "rb") as file:
+        model_unique_layers_tracker = pickle.load(file)
+    generate_model_unique_layers_tracker = False
+except Exception as e:
+    model_unique_layers_tracker = {}
+    for model_name, layer_dims in tqdm(layer_dims_generator()):
+        layer_config_tracker = {}
+        for layer_name, (dim, module) in layer_dims.items():
+            if isinstance(module, Conv2d):
+                hashable_layer = ConvLayer(
+                    in_channels=module.in_channels,
+                    out_channels=module.out_channels,
+                    kernel_size=module.kernel_size,
+                    stride=module.stride,
+                    padding=module.padding,
+                    dilation=module.dilation,
+                    groups=module.groups,
+                    bias=module.bias is not None,
+                    padding_mode=module.padding_mode,
+                    **asdict(dim)
+                )
+            elif isinstance(module, Linear):
+                hashable_layer = LinearLayer(
+                    in_features=module.in_features,
+                    out_features=module.out_features,
+                    bias=module.bias is not None,
+                    **asdict(dim)
+                )
+            try:
+                layer_config_tracker[hashable_layer].append(layer_name)
+            except KeyError as e:
+                layer_config_tracker[hashable_layer] = [layer_name]
+        model_unique_layers_tracker[model_name] = layer_config_tracker
+
+    with open("../data/model_unique_layers_tracker.pickle", "wb") as file:
+        pickle.dump(model_unique_layers_tracker, file)
+
+from dataclasses import asdict
+model_param_dict = {}
+for model, layer_dict in model_unique_layers_tracker.items():
+    layer_property_dict = {} 
+    for layer, layer_names_list in layer_dict.items():
+        properties = asdict(layer)
+        if isinstance(layer, ConvLayer):
+            properties['type'] = 'conv'
+        elif isinstance(layer, LinearLayer):
+            properties['type'] = 'linear'
+        else:
+            raise Exception(f"Invalid layer type {type(layer)}")
+        for layer_name in layer_names_list:
+            layer_property_dict[layer_name] = properties
+    for layer_name, properties in layer_property_dict.items():
+        model_param_dict[(model, layer_name)] = properties
 
 
-model_dict = {}
+model_metric_dict = {}
 for model, layer_dict in model_unique_layers_tracker.items():
     layer_property_dict = {} 
     for layer, layer_names_list in layer_dict.items():
@@ -107,6 +216,8 @@ for model, layer_dict in model_unique_layers_tracker.items():
         for layer_name in layer_names_list:
             layer_property_dict[layer_name] = properties
     for layer_name, properties in layer_property_dict.items():
-        model_dict[(model, layer_name)] = properties
-        
-pd.DataFrame.from_dict(model_dict, orient='index').to_csv('../data/layer_properties.csv')
+        model_metric_dict[(model, layer_name)] = properties
+
+layer_df = pd.DataFrame.from_dict(model_param_dict, orient='index')  
+layer_df.join(pd.DataFrame.from_dict(model_metric_dict, orient='index'))
+layer_df.to_csv('../data/layer_metrics.csv')
