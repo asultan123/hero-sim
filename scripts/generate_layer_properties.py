@@ -219,5 +219,5 @@ for model, layer_dict in model_unique_layers_tracker.items():
         model_metric_dict[(model, layer_name)] = properties
 
 layer_df = pd.DataFrame.from_dict(model_param_dict, orient='index')  
-layer_df.join(pd.DataFrame.from_dict(model_metric_dict, orient='index'))
+layer_df = layer_df.join(pd.DataFrame.from_dict(model_metric_dict, orient='index'))
 layer_df.to_csv('../data/layer_metrics.csv')
