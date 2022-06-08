@@ -22,6 +22,7 @@ from pathlib import Path
 import shutil
 import os
 import multiprocessing
+from config import energy_model, arch_config
 
 
 def get_layer_names(model):
@@ -73,26 +74,6 @@ def collect_model_results(model_name):
     csv_path = os.path.join(arch_results_basepath, f"{model_name}.csv")
     pd.DataFrame.from_dict(aggregated_layers, orient="index").to_csv(csv_path)
 
-
-energy_model = {
-    # hack to overestimate MACS
-    'mac': lambda mac_count: mac_count * (5 * 10**-12) ** 2,
-    'sram': lambda access_count, sram_size, precision_bits: ((50+0.022*sqrt(precision_bits * sram_size)) * 10**-15) * access_count,
-    'dram': lambda access_count, precision_bits: (20*10**-12)*(precision_bits)*access_count
-}
-arch_config = {
-    "filter_count": 32,
-    "channel_count": 18,
-    "directly_supported_kernels": [(1, 1), (3, 3)],
-    "ifmap_mem_ub": 2**20 // 18 * 18,
-    "allow_ifmap_distribution": True,
-    "ofmap_mem_ub": 2**20,
-    "allow_ofmap_distribution": True,
-    "reuse_chain_bank_size": 512,
-    "weight_bank_size": 16
-}
-
-clk_freq = 1
 
 
 def calculate_layer_bw(
@@ -259,7 +240,7 @@ def get_per_network_arch_sim_results():
 
     os.makedirs(arch_results_basepath)
 
-    result_df = pd.read_csv("../data/timm.csv")
+    result_df = pd.read_csv(timm_csv_path)
     model_name_list = result_df["model_name"].unique()
     with multiprocessing.Pool(len(os.sched_getaffinity(0))) as pool:
         for _ in tqdm(
@@ -270,8 +251,11 @@ def get_per_network_arch_sim_results():
     
 
 if __name__ == "__main__":
+    
+    clk_freq = 1
 
-    arch_results_basepath = Path("../data/arch_results")
+    arch_results_basepath = Path("../data/arch_results_iofmap_1mb")
+    timm_csv_path = Path("../data/timm_1mb.csv")
 
     get_per_network_arch_sim_results()
     
@@ -283,4 +267,4 @@ if __name__ == "__main__":
             multiindex_arch_dict[(model_name, layer_name)] = metric_dict
 
     arch_metrics_df = pd.DataFrame.from_dict(multiindex_arch_dict, orient='index')
-    arch_metrics_df.to_csv('../data/arch_metrics.csv')
+    arch_metrics_df.to_csv('../data/arch_metrics_iofmap_1mb.csv')
