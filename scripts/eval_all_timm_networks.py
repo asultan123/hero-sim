@@ -21,7 +21,8 @@ with open("../data/timm_lib_testcases.pickle", "rb") as file:
 test_case_list = list(layer_name_tracker.keys())
 test_case_list = sorted(test_case_list)
 
-start = timer()
-result_df = launch_workers_with_test_cases(test_case_list, layer_name_tracker)
-end = timer()
-print(end - start)
+print(len(test_case_list))
+# start = timer()
+# result_df = launch_workers_with_test_cases(test_case_list, layer_name_tracker)
+# end = timer()
+# print(end - start)
