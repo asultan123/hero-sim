@@ -84,6 +84,7 @@ for model_name, layer_dims in tqdm(layer_dims_generator()):
             layer_config_tracker[hashable_layer].append(layer_name)
         except KeyError as e:
             layer_config_tracker[hashable_layer] = [layer_name]
+    # layer_config_tracker = {idx: layer_name_list for idx, (_, layer_name_list) in enumerate(layer_config_tracker.items())}
     model_unique_layers_tracker[model_name] = layer_config_tracker
 
 with open("../data/model_unique_layers_tracker.pickle", "wb") as file:
