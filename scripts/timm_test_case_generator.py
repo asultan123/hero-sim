@@ -1,4 +1,5 @@
 from frontend import *
+from config import arch_config
 
 def layer_dims_generator():
     processed_models_files = os.listdir("../data/processed_models")
@@ -21,16 +22,6 @@ def layer_dims_generator():
         with open(path, "rb") as file:
             layer_dims = pickle.load(file)
         yield model_name, layer_dims
-        
-arch_config = {
-    "filter_count": 32,
-    "channel_count": 18,
-    "directly_supported_kernels": [(1, 1), (3, 3)],
-    "ifmap_mem_ub": 2**20 // 18 * 18,
-    "allow_ifmap_distribution": True,
-    "ofmap_mem_ub": 2**20,
-    "allow_ofmap_distribution": True,
-}
 
 layer_name_tracker = {}
 for model_name, layer_dims in tqdm(layer_dims_generator()):
@@ -42,5 +33,5 @@ for model_name, layer_dims in tqdm(layer_dims_generator()):
     )
     
     
-with open("../data/timm_lib_testcases_with_derived.pickle", "wb") as file:
+with open(f"../data/timm_oifmap_1mb.pickle", "wb") as file:
     pickle.dump(layer_name_tracker, file)
