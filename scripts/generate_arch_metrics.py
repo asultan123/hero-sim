@@ -1,4 +1,5 @@
 
+from functools import partial
 import matplotlib.ticker as mtick
 import pandas as pd
 import seaborn as se
@@ -57,6 +58,10 @@ def aggregate_layers(model):
                     "psum",
                     "reuse_chain",
                     "latency",
+                    "max_ifmap_program",
+                    "max_ifmap_reuse_chain_program",
+                    "max_pe_program",
+                    "max_psum_program"
                 ],
             ]
             .sum(axis=0)
@@ -67,8 +72,7 @@ def aggregate_layers(model):
     return aggregated_layers
 
 
-def collect_model_results(model_name):
-    result_df = pd.read_csv("../data/timm.csv")
+def collect_model_results(result_df, model_name):
     model = result_df.loc[result_df["model_name"] == model_name]
     aggregated_layers = aggregate_layers(model)
     csv_path = os.path.join(arch_results_basepath, f"{model_name}.csv")
@@ -185,10 +189,7 @@ def calculate_estimated_fps(layer_latency, clk_freq):
     return 1 / latency_in_seconds
 
 
-def generate_metrics():
-    cpu_profiling_basepath = Path('../data/profiling')
-    arch_results_basepath = Path('../data/arch_results')
-
+def generate_metrics(arch_config):
     avg_model_metric = {}
     for model_name in tqdm(os.listdir(arch_results_basepath)):
         sanitized_model_name = '.'.join(model_name.split('.')[:-1])
@@ -222,6 +223,18 @@ def generate_metrics():
             mac_energy = calculate_mac_energy(weight)
             load_bw, store_bw = calculate_layer_bw(
                 dram_load, dram_store, latency, clk_freq)
+            
+            pe_prog = arch_metrics.loc[layer, 'max_pe_program']
+            ifmap_prog = arch_metrics.loc[layer, 'max_ifmap_program']
+            reuse_chain_program = arch_metrics.loc[layer, 'max_ifmap_reuse_chain_program']
+            max_psum_program = arch_metrics.loc[layer, 'max_psum_program']
+            
+            avg_model_metric[sanitized_model_name][layer]['pe_prog'] = pe_prog
+            avg_model_metric[sanitized_model_name][layer]['ifmap_prog'] = ifmap_prog
+            avg_model_metric[sanitized_model_name][layer]['reuse_chain_program'] = reuse_chain_program
+            avg_model_metric[sanitized_model_name][layer]['max_psum_program'] = max_psum_program
+            
+            
             avg_model_metric[sanitized_model_name][layer]['latency'] = latency
             avg_model_metric[sanitized_model_name][layer]['load_bw'] = load_bw
             avg_model_metric[sanitized_model_name][layer]['store_bw'] = store_bw
@@ -234,7 +247,7 @@ def generate_metrics():
             avg_model_metric[sanitized_model_name][layer]['util'] = pe_util
     return avg_model_metric
 
-def get_per_network_arch_sim_results():
+def get_per_network_arch_sim_results(result_df):
     if arch_results_basepath.exists() and arch_results_basepath.is_dir():
         shutil.rmtree(arch_results_basepath, ignore_errors=True)
 
@@ -244,7 +257,7 @@ def get_per_network_arch_sim_results():
     model_name_list = result_df["model_name"].unique()
     with multiprocessing.Pool(len(os.sched_getaffinity(0))) as pool:
         for _ in tqdm(
-            pool.imap_unordered(collect_model_results, model_name_list),
+            pool.imap_unordered(partial(collect_model_results, result_df), model_name_list),
             total=len(model_name_list),
         ):
             pass
@@ -253,13 +266,18 @@ def get_per_network_arch_sim_results():
 if __name__ == "__main__":
     
     clk_freq = 1
-
+    cpu_profiling_basepath = Path('../data/profiling')
     arch_results_basepath = Path("../data/arch_results_iofmap_1mb")
+    metrics_df_savepath = Path('../data/arch_metrics_iofmap_1mb.csv')
     timm_csv_path = Path("../data/timm_1mb.csv")
-
-    get_per_network_arch_sim_results()
+    arch_config["ifmap_mem_ub"] = 2**20
+    arch_config["ofmap_mem_ub"] = 2**20
     
-    arch_metrics = generate_metrics()
+    result_df = pd.read_csv(timm_csv_path)
+
+    get_per_network_arch_sim_results(result_df)
+
+    arch_metrics = generate_metrics(arch_config)
 
     multiindex_arch_dict = {}
     for model_name, layer_dict in arch_metrics.items():
@@ -267,4 +285,4 @@ if __name__ == "__main__":
             multiindex_arch_dict[(model_name, layer_name)] = metric_dict
 
     arch_metrics_df = pd.DataFrame.from_dict(multiindex_arch_dict, orient='index')
-    arch_metrics_df.to_csv('../data/arch_metrics_iofmap_1mb.csv')
+    arch_metrics_df.to_csv(metrics_df_savepath)
