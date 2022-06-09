@@ -162,7 +162,7 @@ void load_padded_weights_into_pes(Hero::Arch<DataType> &arch, xt::xarray<int> pa
 
 template <typename DataType> int64_t get_max_program_size(const sc_vector<AddressGenerator<DataType>> &module_vector)
 {
-    int64_t max = -1;
+    int64_t max = 0;
     for (const auto &it : module_vector)
     {
         if ((int64_t)it.descriptors.size() > max)
@@ -175,7 +175,7 @@ template <typename DataType> int64_t get_max_program_size(const sc_vector<Addres
 
 template <typename DataType> int64_t get_max_program_size(const sc_vector<SAM<DataType>> &module_vector)
 {
-    int64_t max = -1;
+    int64_t max = 0;
     for (const auto &sam_it : module_vector)
     {
         auto max_sam_program_size = get_max_program_size(sam_it.generators);
@@ -189,7 +189,7 @@ template <typename DataType> int64_t get_max_program_size(const sc_vector<SAM<Da
 
 template <typename DataType> int64_t get_max_program_size(const sc_vector<PE<DataType>> &module_vector)
 {
-    int64_t max = -1;
+    int64_t max = 0;
     for (const auto &it : module_vector)
     {
         int64_t pe_program_size = it.program.size();
