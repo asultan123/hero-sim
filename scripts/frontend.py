@@ -60,7 +60,9 @@ VERIFY_MODE = VerifyMode.network
 
 def generate_test_cases_queue(count: int):
     test_cases_queue = queue.Queue(0)
-    expected_f_in = [2**i for i in range(config.LOG2_FILTER_LOWER, config.LOG2_FILTER_UPPER)]
+    expected_f_in = [
+        2**i for i in range(config.LOG2_FILTER_LOWER, config.LOG2_FILTER_UPPER)
+    ]
     expected_c_out = [3] + [
         2**i for i in range(config.LOG2_CHANNEL_LOWER, config.LOG2_CHANNEL_UPPER)
     ]
@@ -171,10 +173,10 @@ def spawn_simulation_process(worker_id: int, test_case: TestCase):
         reuse_chain=res.reuse_chain_accesses
         * test_case.groups
         * ifmap_reduction_factor,
-        max_psum_program = res.max_psum_program,
-        max_ifmap_program = res.max_ifmap_program,
-        max_ifmap_reuse_chain_program = res.max_ifmap_reuse_chain_program,
-        max_pe_program = res.max_pe_program,
+        max_psum_program=res.max_psum_program,
+        max_ifmap_program=res.max_ifmap_program,
+        max_ifmap_reuse_chain_program=res.max_ifmap_reuse_chain_program,
+        max_pe_program=res.max_pe_program,
     )
 
 
@@ -211,7 +213,9 @@ def test_case_worker(
 ):
     while True:
         test_case: TestCase = test_cases_queue.get()
-        config.logger.debug(f"worker {worker_id} spawning process with test case\n{test_case}")
+        config.logger.debug(
+            f"worker {worker_id} spawning process with test case\n{test_case}"
+        )
         sim_result = spawn_simulation_process(worker_id, test_case)
         results_queue.put((test_case, sim_result))
         test_cases_queue.task_done()
@@ -345,14 +349,15 @@ def get_layer_equivalents(
                 "lifting_ops": lifting_ops,
             }
         elif isinstance(layer, Conv2d):
-            
 
             if layer.dilation != (1, 1):
-                layer.kernel_size = tuple((layer.kernel_size[i]-1)*layer.dilation[i] + 1 for i in range(2))
-            
+                layer.kernel_size = tuple(
+                    (layer.kernel_size[i] - 1) * layer.dilation[i] + 1 for i in range(2)
+                )
+
             if layer.kernel_size[0] != layer.kernel_size[1]:
                 raise Exception("Asymmetric Kernels Unsupported")
-            
+
             new_dims = pad_ifmap_dims(ifmap_dims, layer.padding)
             in_channels = int(layer.in_channels / layer.groups)
             new_dims.channels = in_channels
@@ -452,7 +457,13 @@ def launch_workers_with_test_cases(
     threading.Thread(
         target=results_collection_worker,
         daemon=True,
-        args=[config.CORE_COUNT, queue_size, results_queue, done_queue, layer_name_tracker],
+        args=[
+            config.CORE_COUNT,
+            queue_size,
+            results_queue,
+            done_queue,
+            layer_name_tracker,
+        ],
     ).start()
 
     for _ in range(queue_size):
@@ -840,10 +851,14 @@ if __name__ == "__main__":
     models.append(
         (
             "mobilentv3_rw",
-            pickle.load(open("../data/processed_models/mobilenetv3_rw.model.pickle", "rb")),
+            pickle.load(
+                open("../data/processed_models/mobilenetv3_rw.model.pickle", "rb")
+            ),
         )
     )
 
     for model_name, model in models:
         config.RESULTS_CSV_PATH = f"../data/{model_name}.csv"
-        res_df = eval_network(model, config.arch_config, model_name=model_name, pre_processed_network=True)
+        res_df = eval_network(
+            model, config.arch_config, model_name=model_name, pre_processed_network=True
+        )
