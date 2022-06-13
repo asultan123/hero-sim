@@ -94,7 +94,7 @@ def calculate_ofmap_dims(
     return (ofmap_h, ofmap_w)
 
 
-def calculate_conv_macs(conv_layer: ConvLayer):
+def calculate_conv_macs(conv_layer: ConvLayer, allow_lowering=True):
 
     filters = (
         conv_layer.out_channels
@@ -108,7 +108,7 @@ def calculate_conv_macs(conv_layer: ConvLayer):
     )
     groups = conv_layer.groups
 
-    if lowering_lifting_is_required(conv_layer):
+    if allow_lowering and lowering_lifting_is_required(conv_layer):
         kernel_h = conv_layer.kernel_size[0]
         kernel_w = conv_layer.kernel_size[1]
         ifmap_w = conv_layer.width
@@ -131,14 +131,14 @@ def calculate_conv_macs(conv_layer: ConvLayer):
         return macs
 
 
-def calculate_conv_ifmap_mem_size(conv_layer: ConvLayer):
+def calculate_conv_ifmap_mem_size(conv_layer: ConvLayer, allow_lowering=True):
     channels = (
         conv_layer.in_channels
         if arch_config["groups_supported"]
         else conv_layer.in_channels / conv_layer.groups
     )
 
-    if lowering_lifting_is_required(conv_layer):
+    if allow_lowering and lowering_lifting_is_required(conv_layer):
         kernel_h = conv_layer.kernel_size[0]
         kernel_w = conv_layer.kernel_size[1]
         ifmap_w = conv_layer.width
@@ -147,7 +147,7 @@ def calculate_conv_ifmap_mem_size(conv_layer: ConvLayer):
 
         ofmap_h, ofmap_w = calculate_ofmap_dims(conv_layer, ignore_stride=True)
         assert ofmap_h == ofmap_w
-        return (ifmap_h * ofmap_h) * (channels * kernel_h)
+        return (ifmap_h * ofmap_h) * channels * kernel_h
 
     else:
         ifmap_w = conv_layer.width
@@ -155,7 +155,7 @@ def calculate_conv_ifmap_mem_size(conv_layer: ConvLayer):
         return ifmap_h * ifmap_w * channels
 
 
-def calculate_conv_mem_ofmap_mem_size(conv_layer: ConvLayer):
+def calculate_conv_mem_ofmap_mem_size(conv_layer: ConvLayer, allow_lowering=True):
     filters = (
         conv_layer.out_channels
         if arch_config["groups_supported"]
@@ -167,16 +167,16 @@ def calculate_conv_mem_ofmap_mem_size(conv_layer: ConvLayer):
         else conv_layer.in_channels / conv_layer.groups
     )
 
-    if lowering_lifting_is_required(conv_layer):
+    if allow_lowering and lowering_lifting_is_required(conv_layer):
         ofmap_h, ofmap_w = calculate_ofmap_dims(conv_layer, ignore_stride=True)
-
+        assert conv_layer.kernel_size[0] == conv_layer.kernel_size[1]
         lowered_ofmap_h, lowered_ofmap_w = calculate_ofmap_dims(
             ConvLayer(
                 width=1,
                 height=conv_layer.height * ofmap_h,
                 channels=channels * conv_layer.kernel_size[0],
                 in_channels=channels * conv_layer.kernel_size[0],
-                out_channels=conv_layer.out_channels,
+                out_channels=filters * conv_layer.kernel_size[0],
                 kernel_size=(1, 1),
                 stride=conv_layer.stride,
                 padding=conv_layer.padding,
@@ -326,6 +326,13 @@ if __name__ == "__main__":
                     "macs": calculate_conv_macs(layer),
                     "ifmap_mem_size": calculate_conv_ifmap_mem_size(layer),
                     "ofmap_mem_size": calculate_conv_mem_ofmap_mem_size(layer),
+                    "original_macs": calculate_conv_macs(layer, allow_lowering=False),
+                    "original_ifmap_mem_size": calculate_conv_ifmap_mem_size(
+                        layer, allow_lowering=False
+                    ),
+                    "original_ofmap_mem_size": calculate_conv_mem_ofmap_mem_size(
+                        layer, allow_lowering=False
+                    ),
                     "lowered/lifted": lowering_lifting_is_required(layer),
                 }
             elif isinstance(layer, LinearLayer):
