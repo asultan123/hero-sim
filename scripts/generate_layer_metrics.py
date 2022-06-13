@@ -10,6 +10,9 @@ from torch.nn.modules.linear import Linear
 from torch.nn.modules.conv import Conv2d
 import pandas as pd
 from pathlib import Path
+from frontend import lower_ifmap_and_convert_to_conv
+from config import arch_config
+from copy import copy
 
 
 @dataclass(frozen=True)
@@ -61,60 +64,137 @@ def layer_dims_generator():
         yield model_name, layer_dims
 
 
-def calculate_conv_macs(conv_layer: ConvLayer):
+def lowering_lifting_is_required(conv_layer: ConvLayer):
+    return conv_layer.kernel_size not in arch_config[
+        "directly_supported_kernels"
+    ] or conv_layer.stride != (1, 1)
+
+
+def calculate_ofmap_dims(
+    conv_layer, ignore_stride=False, ignore_dilation=False, ignore_padding=False
+):
     ifmap_w = conv_layer.width
     ifmap_h = conv_layer.height
-    channels = conv_layer.in_channels
-    filters = conv_layer.out_channels
-    padding_h = conv_layer.padding[0]
-    padding_w = conv_layer.padding[1]
+    padding_h = 0 if ignore_padding else conv_layer.padding[0]
+    padding_w = 0 if ignore_padding else conv_layer.padding[1]
     kernel_h = conv_layer.kernel_size[0]
     kernel_w = conv_layer.kernel_size[1]
-    dilation_h = conv_layer.dilation[0]
-    dilation_w = conv_layer.dilation[1]
-    groups = conv_layer.groups
-    stride_h = conv_layer.stride[0]
-    stride_w = conv_layer.stride[1]
+    dilation_h = 1 if ignore_dilation else conv_layer.dilation[0]
+    dilation_w = 1 if ignore_dilation else conv_layer.dilation[1]
+    stride_h = 1 if ignore_stride else conv_layer.stride[0]
+    stride_w = 1 if ignore_stride else conv_layer.stride[1]
 
     ofmap_h = (
-        ((ifmap_h - (kernel_h - 1) * dilation_h + 1 + 2 * padding_h)) / stride_h
+        ((ifmap_h - ((kernel_h - 1) * dilation_h + 1) + 2 * padding_h)) / stride_h
     ) + 1
     ofmap_w = (
-        ((ifmap_w - (kernel_w - 1) * dilation_w + 1 + 2 * padding_w)) / stride_w
+        ((ifmap_w - ((kernel_w - 1) * dilation_w + 1) + 2 * padding_w)) / stride_w
     ) + 1
-    macs = ofmap_h * ofmap_w * kernel_h * kernel_w * channels * filters / groups
 
-    return macs
+    return (ofmap_h, ofmap_w)
+
+
+def calculate_conv_macs(conv_layer: ConvLayer):
+
+    filters = (
+        conv_layer.out_channels
+        if arch_config["groups_supported"]
+        else conv_layer.out_channels / conv_layer.groups
+    )
+    channels = (
+        conv_layer.in_channels
+        if arch_config["groups_supported"]
+        else conv_layer.in_channels / conv_layer.groups
+    )
+    groups = conv_layer.groups
+
+    if lowering_lifting_is_required(conv_layer):
+        kernel_h = conv_layer.kernel_size[0]
+        kernel_w = conv_layer.kernel_size[1]
+        ifmap_w = conv_layer.width
+        ifmap_h = conv_layer.height
+        assert kernel_h == kernel_w
+
+        ofmap_h, ofmap_w = calculate_ofmap_dims(conv_layer, ignore_stride=True)
+        assert ofmap_h == ofmap_w
+        return (
+            (ifmap_h * ofmap_h) * (channels * kernel_h) * (filters * kernel_h) * groups
+        )
+
+    else:
+        kernel_h = conv_layer.kernel_size[0]
+        kernel_w = conv_layer.kernel_size[1]
+
+        ofmap_h, ofmap_w = calculate_ofmap_dims(conv_layer)
+        macs = ofmap_h * ofmap_w * kernel_h * kernel_w * channels * filters * groups
+
+        return macs
 
 
 def calculate_conv_ifmap_mem_size(conv_layer: ConvLayer):
-    ifmap_w = conv_layer.width
-    ifmap_h = conv_layer.height
-    channels = conv_layer.in_channels
-    return ifmap_h * ifmap_w * channels
+    channels = (
+        conv_layer.in_channels
+        if arch_config["groups_supported"]
+        else conv_layer.in_channels / conv_layer.groups
+    )
+
+    if lowering_lifting_is_required(conv_layer):
+        kernel_h = conv_layer.kernel_size[0]
+        kernel_w = conv_layer.kernel_size[1]
+        ifmap_w = conv_layer.width
+        ifmap_h = conv_layer.height
+        assert kernel_h == kernel_w
+
+        ofmap_h, ofmap_w = calculate_ofmap_dims(conv_layer, ignore_stride=True)
+        assert ofmap_h == ofmap_w
+        return (ifmap_h * ofmap_h) * (channels * kernel_h)
+
+    else:
+        ifmap_w = conv_layer.width
+        ifmap_h = conv_layer.height
+        return ifmap_h * ifmap_w * channels
 
 
 def calculate_conv_mem_ofmap_mem_size(conv_layer: ConvLayer):
-    ifmap_w = conv_layer.width
-    ifmap_h = conv_layer.height
-    filters = conv_layer.out_channels
-    padding_h = conv_layer.padding[0]
-    padding_w = conv_layer.padding[1]
-    kernel_h = conv_layer.kernel_size[0]
-    kernel_w = conv_layer.kernel_size[1]
-    dilation_h = conv_layer.dilation[0]
-    dilation_w = conv_layer.dilation[1]
-    stride_h = conv_layer.stride[0]
-    stride_w = conv_layer.stride[1]
+    filters = (
+        conv_layer.out_channels
+        if arch_config["groups_supported"]
+        else conv_layer.out_channels / conv_layer.groups
+    )
+    channels = (
+        conv_layer.in_channels
+        if arch_config["groups_supported"]
+        else conv_layer.in_channels / conv_layer.groups
+    )
 
-    ofmap_h = (
-        ((ifmap_h - (kernel_h - 1) * dilation_h + 1 + 2 * padding_h)) / stride_h
-    ) + 1
-    ofmap_w = (
-        ((ifmap_w - (kernel_w - 1) * dilation_w + 1 + 2 * padding_w)) / stride_w
-    ) + 1
+    if lowering_lifting_is_required(conv_layer):
+        ofmap_h, ofmap_w = calculate_ofmap_dims(conv_layer, ignore_stride=True)
 
-    return ofmap_h * ofmap_w * filters
+        lowered_ofmap_h, lowered_ofmap_w = calculate_ofmap_dims(
+            ConvLayer(
+                width=1,
+                height=conv_layer.height * ofmap_h,
+                channels=channels * conv_layer.kernel_size[0],
+                in_channels=channels * conv_layer.kernel_size[0],
+                out_channels=conv_layer.out_channels,
+                kernel_size=(1, 1),
+                stride=conv_layer.stride,
+                padding=conv_layer.padding,
+                dilation=conv_layer.dilation,
+                groups=conv_layer.groups,
+                padding_mode=conv_layer.padding_mode,
+                bias=conv_layer.bias,
+            ),
+            ignore_stride=True,
+            ignore_dilation=True,
+            ignore_padding=True,
+        )
+        return lowered_ofmap_h * lowered_ofmap_w * filters * conv_layer.kernel_size[0]
+
+    else:
+        ofmap_h, ofmap_w = calculate_ofmap_dims(conv_layer)
+
+        return ofmap_h * ofmap_w * filters
 
 
 def calculate_linear_macs(linear_layer: LinearLayer):
@@ -246,6 +326,7 @@ if __name__ == "__main__":
                     "macs": calculate_conv_macs(layer),
                     "ifmap_mem_size": calculate_conv_ifmap_mem_size(layer),
                     "ofmap_mem_size": calculate_conv_mem_ofmap_mem_size(layer),
+                    "lowered/lifted": lowering_lifting_is_required(layer),
                 }
             elif isinstance(layer, LinearLayer):
                 properties = {
@@ -257,7 +338,7 @@ if __name__ == "__main__":
                 raise Exception(f"Invalid layer type {type(layer)}")
 
             for layer_name in layer_names_list:
-                layer_property_dict[layer_name] = properties
+                layer_property_dict[layer_name] = copy(properties)
         for layer_name, properties in layer_property_dict.items():
             properties["cpu_time"] = aggregate_profiling_results[model][layer_name][
                 "Duration"

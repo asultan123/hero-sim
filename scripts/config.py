@@ -18,9 +18,14 @@ SUBPROCESS_OUTPUT_DIR = "../data/subprocess_output"
 
 energy_model = {
     # hack to overestimate MACS
-    'mac': lambda mac_count: mac_count * (5 * 10**-12) ** 2,
-    'sram': lambda access_count, sram_size, precision_bits: ((50+0.022*sqrt(precision_bits * sram_size)) * 10**-15) * access_count,
-    'dram': lambda access_count, precision_bits: (20*10**-12)*(precision_bits)*access_count
+    "mac": lambda mac_count: mac_count * (5 * 10**-12) ** 2,
+    "sram": lambda access_count, sram_size, precision_bits: (
+        (50 + 0.022 * sqrt(precision_bits * sram_size)) * 10**-15
+    )
+    * access_count,
+    "dram": lambda access_count, precision_bits: (20 * 10**-12)
+    * (precision_bits)
+    * access_count,
 }
 
 arch_config = {
@@ -32,7 +37,8 @@ arch_config = {
     "ofmap_mem_ub": 2**20,
     "allow_ofmap_distribution": True,
     "reuse_chain_bank_size": 512,
-    "weight_bank_size": 16
+    "weight_bank_size": 16,
+    "groups_supported": False,
 }
 
 
