@@ -1,4 +1,3 @@
-
 from functools import partial
 import matplotlib.ticker as mtick
 import pandas as pd
@@ -61,7 +60,7 @@ def aggregate_layers(model):
                     "max_ifmap_program",
                     "max_ifmap_reuse_chain_program",
                     "max_pe_program",
-                    "max_psum_program"
+                    "max_psum_program",
                 ],
             ]
             .sum(axis=0)
@@ -79,7 +78,6 @@ def collect_model_results(result_df, model_name):
     pd.DataFrame.from_dict(aggregated_layers, orient="index").to_csv(csv_path)
 
 
-
 def calculate_layer_bw(
     layer_dram_load, layer_dram_store, layer_latency, clk_freq_in_ghz
 ):
@@ -89,7 +87,7 @@ def calculate_layer_bw(
 
 
 def calculate_mac_energy(macs):
-    return energy_model['mac'](macs)
+    return energy_model["mac"](macs)
 
 
 def calculate_ifmap_access_energy(ifmap, arch_config):
@@ -125,14 +123,12 @@ def calculate_psum_access_energy(psum, arch_config):
 
 
 def calculate_weight_access_energy(weight, arch_config):
-    weight_bank_count = arch_config["filter_count"] * \
-        arch_config["channel_count"]
+    weight_bank_count = arch_config["filter_count"] * arch_config["channel_count"]
     weight_access_per_bank = weight / weight_bank_count
     weight_bank_size = arch_config["weight_bank_size"]
     weight_precision = 8
     weight_sram_energy = (
-        energy_model["sram"](weight_access_per_bank,
-                             weight_bank_size, weight_precision)
+        energy_model["sram"](weight_access_per_bank, weight_bank_size, weight_precision)
         * weight_bank_count
     )
     return weight_sram_energy
@@ -160,13 +156,14 @@ def calculate_dram_access_energy(dram_load, dram_store):
     return dram_energy
 
 
-def calculate_layer_energy(dram_load, dram_store, ifmap, psum, reuse_chain, weight, arch_config):
+def calculate_layer_energy(
+    dram_load, dram_store, ifmap, psum, reuse_chain, weight, arch_config
+):
 
     dram_energy = calculate_dram_access_energy(dram_load, dram_store)
     ifmap_sram_energy = calculate_ifmap_access_energy(ifmap, arch_config)
     psum_sram_energy = calculate_psum_access_energy(psum, arch_config)
-    reuse_chain_energy = calculate_reuse_chain_access_energy(
-        reuse_chain, arch_config)
+    reuse_chain_energy = calculate_reuse_chain_access_energy(reuse_chain, arch_config)
     weight_sram_energy = calculate_weight_access_energy(weight, arch_config)
 
     return (
@@ -192,60 +189,84 @@ def calculate_estimated_fps(layer_latency, clk_freq):
 def generate_metrics(arch_config):
     avg_model_metric = {}
     for model_name in tqdm(os.listdir(arch_results_basepath)):
-        sanitized_model_name = '.'.join(model_name.split('.')[:-1])
+        sanitized_model_name = ".".join(model_name.split(".")[:-1])
         model_path = os.path.join(arch_results_basepath, model_name)
         profile_path = os.path.join(cpu_profiling_basepath, model_name)
         arch_metrics = pd.read_csv(model_path, index_col=0)
-        cpu_profile_results = pd.read_csv(
-            profile_path, index_col=False).iloc[:, 1:]
-        cpu_profile_results = cpu_profile_results.set_index('Layer Name')
-        layers_simulated = arch_metrics.to_dict('index')
+        cpu_profile_results = pd.read_csv(profile_path, index_col=False).iloc[:, 1:]
+        cpu_profile_results = cpu_profile_results.set_index("Layer Name")
+        layers_simulated = arch_metrics.to_dict("index")
         avg_model_metric[sanitized_model_name] = {}
         for layer in layers_simulated.keys():
-            cpu_dur_ns = cpu_profile_results.loc[layer, 'Duration']*10**3
-            latency = arch_metrics.loc[layer, 'latency']
+            cpu_dur_ns = cpu_profile_results.loc[layer, "Duration"] * 10**3
+            latency = arch_metrics.loc[layer, "latency"]
             latency = calculate_layer_latency_in_ns(latency, clk_freq)
             speedup = cpu_dur_ns / latency
             avg_model_metric[sanitized_model_name][layer] = {}
-            avg_model_metric[sanitized_model_name][layer]['speedup'] = speedup
-            percent_of_compute = cpu_dur_ns / \
-                (cpu_profile_results.loc['forward', 'Duration']*10**3)
-            avg_model_metric[sanitized_model_name][layer]['percent_of_compute'] = percent_of_compute
-            dram_load = arch_metrics.loc[layer, 'dram_load']
-            dram_store = arch_metrics.loc[layer, 'dram_store']
-            ifmap = arch_metrics.loc[layer, 'ifmap']
-            weight = arch_metrics.loc[layer, 'weight']
-            psum = arch_metrics.loc[layer, 'psum']
-            reuse_chain = arch_metrics.loc[layer, 'reuse_chain']
-            pe_util = arch_metrics.loc[layer, 'pe_util']
-            dram_energy, ifmap_sram_energy, psum_sram_energy, reuse_chain_sram_energy, weight_sram_energy = calculate_layer_energy(
-                dram_load, dram_store, ifmap, psum, reuse_chain, weight, arch_config)
+            avg_model_metric[sanitized_model_name][layer]["speedup"] = speedup
+            percent_of_compute = cpu_dur_ns / (
+                cpu_profile_results.loc["forward", "Duration"] * 10**3
+            )
+            avg_model_metric[sanitized_model_name][layer][
+                "percent_of_compute"
+            ] = percent_of_compute
+            dram_load = arch_metrics.loc[layer, "dram_load"]
+            dram_store = arch_metrics.loc[layer, "dram_store"]
+            ifmap = arch_metrics.loc[layer, "ifmap"]
+            weight = arch_metrics.loc[layer, "weight"]
+            psum = arch_metrics.loc[layer, "psum"]
+            reuse_chain = arch_metrics.loc[layer, "reuse_chain"]
+            pe_util = arch_metrics.loc[layer, "pe_util"]
+            (
+                dram_energy,
+                ifmap_sram_energy,
+                psum_sram_energy,
+                reuse_chain_sram_energy,
+                weight_sram_energy,
+            ) = calculate_layer_energy(
+                dram_load, dram_store, ifmap, psum, reuse_chain, weight, arch_config
+            )
             mac_energy = calculate_mac_energy(weight)
             load_bw, store_bw = calculate_layer_bw(
-                dram_load, dram_store, latency, clk_freq)
-            
-            pe_prog = arch_metrics.loc[layer, 'max_pe_program']
-            ifmap_prog = arch_metrics.loc[layer, 'max_ifmap_program']
-            reuse_chain_program = arch_metrics.loc[layer, 'max_ifmap_reuse_chain_program']
-            max_psum_program = arch_metrics.loc[layer, 'max_psum_program']
-            
-            avg_model_metric[sanitized_model_name][layer]['pe_prog'] = pe_prog
-            avg_model_metric[sanitized_model_name][layer]['ifmap_prog'] = ifmap_prog
-            avg_model_metric[sanitized_model_name][layer]['reuse_chain_program'] = reuse_chain_program
-            avg_model_metric[sanitized_model_name][layer]['max_psum_program'] = max_psum_program
-            
-            
-            avg_model_metric[sanitized_model_name][layer]['latency'] = latency
-            avg_model_metric[sanitized_model_name][layer]['load_bw'] = load_bw
-            avg_model_metric[sanitized_model_name][layer]['store_bw'] = store_bw
-            avg_model_metric[sanitized_model_name][layer]['dram_energy'] = dram_energy
-            avg_model_metric[sanitized_model_name][layer]['ifmap_sram_energy'] = ifmap_sram_energy
-            avg_model_metric[sanitized_model_name][layer]['psum_sram_energy'] = psum_sram_energy
-            avg_model_metric[sanitized_model_name][layer]['reuse_chain_sram_energy'] = reuse_chain_sram_energy
-            avg_model_metric[sanitized_model_name][layer]['weight_sram_energy'] = weight_sram_energy
-            avg_model_metric[sanitized_model_name][layer]['mac_energy'] = mac_energy
-            avg_model_metric[sanitized_model_name][layer]['util'] = pe_util
+                dram_load, dram_store, latency, clk_freq
+            )
+
+            pe_prog = arch_metrics.loc[layer, "max_pe_program"]
+            ifmap_prog = arch_metrics.loc[layer, "max_ifmap_program"]
+            reuse_chain_program = arch_metrics.loc[
+                layer, "max_ifmap_reuse_chain_program"
+            ]
+            max_psum_program = arch_metrics.loc[layer, "max_psum_program"]
+
+            avg_model_metric[sanitized_model_name][layer]["pe_prog"] = pe_prog
+            avg_model_metric[sanitized_model_name][layer]["ifmap_prog"] = ifmap_prog
+            avg_model_metric[sanitized_model_name][layer][
+                "reuse_chain_program"
+            ] = reuse_chain_program
+            avg_model_metric[sanitized_model_name][layer][
+                "max_psum_program"
+            ] = max_psum_program
+
+            avg_model_metric[sanitized_model_name][layer]["latency"] = latency
+            avg_model_metric[sanitized_model_name][layer]["load_bw"] = load_bw
+            avg_model_metric[sanitized_model_name][layer]["store_bw"] = store_bw
+            avg_model_metric[sanitized_model_name][layer]["dram_energy"] = dram_energy
+            avg_model_metric[sanitized_model_name][layer][
+                "ifmap_sram_energy"
+            ] = ifmap_sram_energy
+            avg_model_metric[sanitized_model_name][layer][
+                "psum_sram_energy"
+            ] = psum_sram_energy
+            avg_model_metric[sanitized_model_name][layer][
+                "reuse_chain_sram_energy"
+            ] = reuse_chain_sram_energy
+            avg_model_metric[sanitized_model_name][layer][
+                "weight_sram_energy"
+            ] = weight_sram_energy
+            avg_model_metric[sanitized_model_name][layer]["mac_energy"] = mac_energy
+            avg_model_metric[sanitized_model_name][layer]["util"] = pe_util
     return avg_model_metric
+
 
 def get_per_network_arch_sim_results(result_df):
     if arch_results_basepath.exists() and arch_results_basepath.is_dir():
@@ -257,22 +278,24 @@ def get_per_network_arch_sim_results(result_df):
     model_name_list = result_df["model_name"].unique()
     with multiprocessing.Pool(len(os.sched_getaffinity(0))) as pool:
         for _ in tqdm(
-            pool.imap_unordered(partial(collect_model_results, result_df), model_name_list),
+            pool.imap_unordered(
+                partial(collect_model_results, result_df), model_name_list
+            ),
             total=len(model_name_list),
         ):
             pass
-    
+
 
 if __name__ == "__main__":
-    
+
     clk_freq = 1
-    cpu_profiling_basepath = Path('../data/profiling')
+    cpu_profiling_basepath = Path("../data/profiling")
     arch_results_basepath = Path("../data/arch_results_iofmap_1mb")
-    metrics_df_savepath = Path('../data/arch_metrics_iofmap_1mb.csv')
+    metrics_df_savepath = Path("../data/arch_metrics_iofmap_1mb.csv")
     timm_csv_path = Path("../data/timm_1mb.csv")
     arch_config["ifmap_mem_ub"] = 2**20
     arch_config["ofmap_mem_ub"] = 2**20
-    
+
     result_df = pd.read_csv(timm_csv_path)
 
     get_per_network_arch_sim_results(result_df)
@@ -284,5 +307,5 @@ if __name__ == "__main__":
         for layer_name, metric_dict in layer_dict.items():
             multiindex_arch_dict[(model_name, layer_name)] = metric_dict
 
-    arch_metrics_df = pd.DataFrame.from_dict(multiindex_arch_dict, orient='index')
+    arch_metrics_df = pd.DataFrame.from_dict(multiindex_arch_dict, orient="index")
     arch_metrics_df.to_csv(metrics_df_savepath)
