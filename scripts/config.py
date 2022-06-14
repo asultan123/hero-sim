@@ -16,6 +16,10 @@ LOG2_CHANNEL_UPPER = 10
 DIRECTLY_SUPPORTED_KERNELS = [(1, 1), (3, 3)]
 SUBPROCESS_OUTPUT_DIR = "../data/subprocess_output"
 
+area_model = {
+    
+}
+
 energy_model = {
     # hack to overestimate MACS
     "mac": lambda mac_count: mac_count * (5 * 10**-12) ** 2,
