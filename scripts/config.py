@@ -17,7 +17,11 @@ DIRECTLY_SUPPORTED_KERNELS = [(1, 1), (3, 3)]
 SUBPROCESS_OUTPUT_DIR = "../data/subprocess_output"
 
 area_model = {
-    
+    "mac": lambda pe_count: 16 * pe_count,
+    "sram": lambda size_per_bank, precision, bank_count: 0.013
+    * precision
+    * size_per_bank
+    * bank_count,
 }
 
 energy_model = {
