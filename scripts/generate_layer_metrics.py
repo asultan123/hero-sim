@@ -155,7 +155,7 @@ def calculate_conv_ifmap_mem_size(conv_layer: ConvLayer, allow_lowering=True):
         return ifmap_h * ifmap_w * channels
 
 
-def calculate_conv_mem_ofmap_mem_size(conv_layer: ConvLayer, allow_lowering=True):
+def calculate_conv_ofmap_mem_size(conv_layer: ConvLayer, allow_lowering=True):
     filters = (
         conv_layer.out_channels
         if arch_config["groups_supported"]
@@ -325,12 +325,12 @@ if __name__ == "__main__":
                 properties = {
                     "macs": calculate_conv_macs(layer),
                     "ifmap_mem_size": calculate_conv_ifmap_mem_size(layer),
-                    "ofmap_mem_size": calculate_conv_mem_ofmap_mem_size(layer),
+                    "ofmap_mem_size": calculate_conv_ofmap_mem_size(layer),
                     "original_macs": calculate_conv_macs(layer, allow_lowering=False),
                     "original_ifmap_mem_size": calculate_conv_ifmap_mem_size(
                         layer, allow_lowering=False
                     ),
-                    "original_ofmap_mem_size": calculate_conv_mem_ofmap_mem_size(
+                    "original_ofmap_mem_size": calculate_conv_ofmap_mem_size(
                         layer, allow_lowering=False
                     ),
                     "lowered/lifted": lowering_lifting_is_required(layer),
