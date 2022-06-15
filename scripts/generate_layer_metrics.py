@@ -128,31 +128,16 @@ def calculate_conv_macs(conv_layer: ConvLayer, allow_lowering=True):
 
 def calculate_conv_weight_mem_size(conv_layer: ConvLayer, allow_lowering=True):
     filters = (
-        conv_layer.out_channels
-        if arch_config["groups_supported"]
-        else conv_layer.out_channels / conv_layer.groups
+        conv_layer.out_channels / conv_layer.groups
     )
     channels = (
-        conv_layer.in_channels
-        if arch_config["groups_supported"]
-        else conv_layer.in_channels / conv_layer.groups
+        conv_layer.in_channels / conv_layer.groups
     )
     
-    if allow_lowering and lowering_lifting_is_required(conv_layer):
-        kernel_h = conv_layer.kernel_size[0]
-        kernel_w = conv_layer.kernel_size[1]
-        ifmap_w = conv_layer.width
-        ifmap_h = conv_layer.height
-        assert kernel_h == kernel_w
-
-        ofmap_h, ofmap_w = calculate_ofmap_dims(conv_layer, ignore_stride=True)
-        assert ofmap_h == ofmap_w
-        return (ifmap_h * ofmap_h) * channels * kernel_h
-
-    else:
-        ifmap_w = conv_layer.width
-        ifmap_h = conv_layer.height
-        return ifmap_h * ifmap_w * channels
+    kernel_h = conv_layer.kernel_size[0]
+    kernel_w = conv_layer.kernel_size[1]
+    assert kernel_h == kernel_w
+    return kernel_h * kernel_w * channels * filters * conv_layer.groups
 
 
 def calculate_conv_ifmap_mem_size(conv_layer: ConvLayer, allow_lowering=True):
@@ -328,6 +313,7 @@ if __name__ == "__main__":
                 properties["type"] = "conv"
             elif isinstance(layer, LinearLayer):
                 properties["type"] = "linear"
+                # properties["kernel_size"] = "(1, 1)"
             else:
                 raise Exception(f"Invalid layer type {type(layer)}")
             for layer_name in layer_names_list:
