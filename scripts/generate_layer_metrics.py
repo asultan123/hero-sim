@@ -313,7 +313,7 @@ if __name__ == "__main__":
                 properties["type"] = "conv"
             elif isinstance(layer, LinearLayer):
                 properties["type"] = "linear"
-                # properties["kernel_size"] = "(1, 1)"
+                properties["kernel_size"] = "(1, 1)"
             else:
                 raise Exception(f"Invalid layer type {type(layer)}")
             for layer_name in layer_names_list:
