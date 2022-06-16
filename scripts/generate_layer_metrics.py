@@ -14,6 +14,7 @@ from frontend import lower_ifmap_and_convert_to_conv
 from config import arch_config
 from copy import copy
 from dataclasses import asdict
+import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
 
 
@@ -196,17 +197,41 @@ def calculate_conv_ofmap_mem_size(conv_layer: ConvLayer, allow_lowering=True):
         return ofmap_h * ofmap_w * filters * conv_layer.groups
 
 
-def calculate_avg_ifmap_reuse(conv_layer: ConvLayer):
+def calculate_avg_conv_ifmap_reuse(conv_layer: ConvLayer, allow_lowering=False):
+
+    if allow_lowering:
+        raise Exception("Not Implemented")
+
+    filters = conv_layer.out_channels / conv_layer.groups
     ifmap_h = conv_layer.height + conv_layer.padding[0]
     ifmap_w = conv_layer.height + conv_layer.padding[1]
+    ifmap_dims = ifmap_h * ifmap_w
     stride_h = conv_layer.stride[0]
     stride_w = conv_layer.stride[1]
-    kernel_h = conv_layer.kernel_size[0]
-    kernel_w = conv_layer.kernel_size[1]
-    ifmap = np.arange(np.prod(ifmap_dims)).reshape(ifmap_dims)
-    ifmap_reuse = np.zeros(ifmap_dims)
+    ifmap = np.arange(np.prod(ifmap_h * ifmap_w)).reshape((ifmap_h, ifmap_w))
+    ifmap_reuse = np.zeros(ifmap_dims).reshape(ifmap_h, ifmap_w)
+    views = sliding_window_view(ifmap, conv_layer.kernel_size)[::stride_h, ::stride_w]
+    views = views.reshape(-1, *views.shape[-2:])
+    for view in views:
+        accessed_ifmaps = view.flatten()
+        hidxs = np.floor(accessed_ifmaps / ifmap_h).astype("int64")
+        widxs = np.floor(accessed_ifmaps % ifmap_w).astype("int64")
+        ifmap_reuse[hidxs, widxs] += 1
+    return np.average(ifmap_reuse) * filters
 
-    views = sliding_window_view(ifmap, layer.kernel_size)[::stride_x, ::stride_y]
+
+def calculate_avg_conv_weight_reuse(conv_layer: ConvLayer, allow_lowering=False):
+    if allow_lowering:
+        raise Exception("Not Implemented")
+
+    return np.prod(calculate_ofmap_dims(conv_layer))
+
+
+def calculate_avg_conv_ofmap_reuse(conv_layer: ConvLayer, allow_lowering=False):
+    if allow_lowering:
+        raise Exception("Not Implemented")
+
+    return conv_layer.in_channels / conv_layer.groups
 
 
 def calculate_linear_macs(linear_layer: LinearLayer):
@@ -242,6 +267,18 @@ def calculate_linear_weight_mem_size(linear_layer: LinearLayer):
     in_features = linear_layer.in_features
     out_features = linear_layer.out_features
     return in_features * out_features
+
+
+def calculate_avg_linear_ifmap_reuse(linear_layer: LinearLayer):
+    return linear_layer.out_features
+
+
+def calculate_avg_linear_weight_reuse(linear_layer: LinearLayer):
+    return linear_layer.height
+
+
+def calculate_avg_linear_ofmap_reuse(linear_layer: LinearLayer):
+    return linear_layer.in_features
 
 
 def aggregate_profiling_info(cpu_profiling_basepath, arch_results_basepath):
@@ -325,6 +362,10 @@ def generate_layer_properties_dict(model_unique_layers_tracker):
     return model_param_dict
 
 
+def get_model_metric_dict():
+    ...
+
+
 def generate_layer_metric_dict(model_unique_layers_tracker):
     model_metric_dict = {}
     for model, layer_dict in tqdm(model_unique_layers_tracker.items()):
@@ -345,6 +386,9 @@ def generate_layer_metric_dict(model_unique_layers_tracker):
                     ),
                     "original_weight_mem_size": calculate_conv_weight_mem_size(layer),
                     "lowered/lifted": lowering_lifting_is_required(layer),
+                    "avg_ifmap_reuse": calculate_avg_conv_ifmap_reuse(layer),
+                    "avg_weight_reuse": calculate_avg_conv_weight_reuse(layer),
+                    "avg_ofmap_reuse": calculate_avg_conv_ofmap_reuse(layer),
                 }
             elif isinstance(layer, LinearLayer):
                 properties = {
@@ -357,6 +401,9 @@ def generate_layer_metric_dict(model_unique_layers_tracker):
                     "original_ofmap_mem_size": calculate_linear_ofmap_mem_size(layer),
                     "original_weight_mem_size": calculate_linear_weight_mem_size(layer),
                     "lowered/lifted": False,
+                    "avg_ifmap_reuse": calculate_avg_linear_ifmap_reuse(layer),
+                    "avg_weight_reuse": calculate_avg_linear_weight_reuse(layer),
+                    "avg_ofmap_reuse": calculate_avg_linear_ofmap_reuse(layer),
                 }
             else:
                 raise Exception(f"Invalid layer type {type(layer)}")
