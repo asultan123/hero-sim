@@ -414,58 +414,6 @@ def parallel_generate_layer_metric_dict(
     return aggregate_model_dicts
 
 
-# def generate_layer_metric_dict(model_unique_layers_tracker):
-#     model_metric_dict = {}
-#     for model, layer_dict in tqdm(model_unique_layers_tracker.items()):
-#         layer_property_dict = {}
-#         for layer, layer_names_list in layer_dict.items():
-#             if isinstance(layer, ConvLayer):
-#                 properties = {
-#                     "macs": calculate_conv_macs(layer),
-#                     "ifmap_mem_size": calculate_conv_ifmap_mem_size(layer),
-#                     "ofmap_mem_size": calculate_conv_ofmap_mem_size(layer),
-#                     "weight_mem_size": calculate_conv_weight_mem_size(layer),
-#                     "original_macs": calculate_conv_macs(layer, allow_lowering=False),
-#                     "original_ifmap_mem_size": calculate_conv_ifmap_mem_size(
-#                         layer, allow_lowering=False
-#                     ),
-#                     "original_ofmap_mem_size": calculate_conv_ofmap_mem_size(
-#                         layer, allow_lowering=False
-#                     ),
-#                     "original_weight_mem_size": calculate_conv_weight_mem_size(layer),
-#                     "lowered/lifted": lowering_lifting_is_required(layer),
-#                     "avg_ifmap_reuse": calculate_avg_conv_ifmap_reuse(layer),
-#                     "avg_weight_reuse": calculate_avg_conv_weight_reuse(layer),
-#                     "avg_ofmap_reuse": calculate_avg_conv_ofmap_reuse(layer),
-#                 }
-#             elif isinstance(layer, LinearLayer):
-#                 properties = {
-#                     "macs": calculate_linear_macs(layer),
-#                     "ifmap_mem_size": calculate_linear_ifmap_mem_size(layer),
-#                     "weight_mem_size": calculate_linear_weight_mem_size(layer),
-#                     "ofmap_mem_size": calculate_linear_ofmap_mem_size(layer),
-#                     "original_macs": calculate_linear_macs(layer),
-#                     "original_ifmap_mem_size": calculate_linear_ifmap_mem_size(layer),
-#                     "original_ofmap_mem_size": calculate_linear_ofmap_mem_size(layer),
-#                     "original_weight_mem_size": calculate_linear_weight_mem_size(layer),
-#                     "lowered/lifted": False,
-#                     "avg_ifmap_reuse": calculate_avg_linear_ifmap_reuse(layer),
-#                     "avg_weight_reuse": calculate_avg_linear_weight_reuse(layer),
-#                     "avg_ofmap_reuse": calculate_avg_linear_ofmap_reuse(layer),
-#                 }
-#             else:
-#                 raise Exception(f"Invalid layer type {type(layer)}")
-
-#             for layer_name in layer_names_list:
-#                 layer_property_dict[layer_name] = copy(properties)
-#         for layer_name, properties in layer_property_dict.items():
-#             properties["cpu_time"] = aggregate_profiling_results[model][layer_name][
-#                 "Duration"
-#             ]
-#             model_metric_dict[(model, layer_name)] = properties
-#     return model_metric_dict
-
-
 def load_cpu_profiling_dict(aggregate_profiling_results_csv_path):
     profiling_dict = pd.read_csv(
         aggregate_profiling_results_csv_path, index_col=[0, 1]
