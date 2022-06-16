@@ -447,4 +447,4 @@ if __name__ == "__main__":
         model_unique_layers_tracker, aggregate_profiling_results_csv_path
     )
     layer_df = layer_df.join(pd.DataFrame.from_dict(model_metric_dict, orient="index"))
-    # layer_df.to_csv("../data/layer_metrics.csv")
+    layer_df.to_csv("../data/layer_metrics.csv")
