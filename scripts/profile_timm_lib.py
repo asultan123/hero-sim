@@ -23,6 +23,7 @@ from tqdm import tqdm
 from ModelAnalysis import ModelProfiler
 from torch.nn.modules.linear import Linear
 from torch.nn.modules.conv import Conv2d
+import pandas as pd
 
 # import torchvision
 import json
@@ -174,22 +175,46 @@ def append_layer_duration_to_processed_model(
     return modified_processed_model
 
 
+def aggregate_profiling_info(cpu_profiling_basepath):
+    aggregate_profiling_results = {}
+    for model_name in tqdm(os.listdir(cpu_profiling_basepath)):
+        profile_path = os.path.join(cpu_profiling_basepath, model_name)
+        profile_results = (
+            pd.read_csv(profile_path, index_col=False)
+            .iloc[:, 1:]
+            .set_index("Layer Name")
+            .to_dict(orient="index")
+        )
+        supported_layers_forward_duration = 0
+        sanitized_model_name = ".".join(model_name.split(".")[:-1])
+        for layer_name, result in profile_results.items():
+            if layer_name != "forward":
+                supported_layers_forward_duration += result["Duration"]
+            aggregate_profiling_results[(sanitized_model_name, layer_name)] = result
+        aggregate_profiling_results[(sanitized_model_name, "supported_forward")] = {
+            "Duration": supported_layers_forward_duration
+        }
+    pd.DataFrame.from_dict(aggregate_profiling_results, orient="index").to_csv(
+        "../data/cpu_model_profiling.csv"
+    )
+    return aggregate_profiling_results
+
+
 if __name__ == "__main__":
-    
+
     torch.set_num_threads(16)
-    
+
     processed_model_basepath = "../data/processed_models"
     processed_model_list = os.listdir(processed_model_basepath)
     ignore_list = pickle.load(open("../data/frontend_ignore_list.pickle", "rb"))
-    
-    
-    profiling_results_basepath = Path('../data/profiling')
+
+    profiling_results_basepath = Path("../data/profiling")
 
     if profiling_results_basepath.exists() and profiling_results_basepath.is_dir():
         shutil.rmtree(profiling_results_basepath, ignore_errors=True)
-    
+
     os.makedirs(profiling_results_basepath)
-    
+
     repeat = 20
 
     for model_name in tqdm(processed_model_list):
@@ -198,20 +223,36 @@ if __name__ == "__main__":
 
         if model_name in ignore_list:
             continue
-        
+
         model = load_model_from_timm(model_name)
 
         default_input = load_default_input_tensor_for_model(model)
 
         print(f"Profiling {model_name} ")
 
-        res = ModelProfiler.profile_layers(model, default_input, wait = 0, warmup = 0, repeat=repeat)
-        
-        all_layers = sum([duration for layer_durations in res.values() for duration in layer_durations.values()])
-        supported = sum([duration for duration in res['supported'].values()])
+        res = ModelProfiler.profile_layers(
+            model, default_input, wait=0, warmup=0, repeat=repeat
+        )
 
-        res['supported']['forward'] = all_layers
-        res = {'Layer Name' : list(res['supported'].keys()), "Duration": list(res['supported'].values())}
-        
+        all_layers = sum(
+            [
+                duration
+                for layer_durations in res.values()
+                for duration in layer_durations.values()
+            ]
+        )
+        supported = sum([duration for duration in res["supported"].values()])
+
+        res["supported"]["forward"] = all_layers
+        res = {
+            "Layer Name": list(res["supported"].keys()),
+            "Duration": list(res["supported"].values()),
+        }
+
         print(f"Percent of Compute {supported / all_layers *100 :.2f}")
-        DataFrame.from_dict(res).to_csv(os.path.join(profiling_results_basepath, f'{model_name}.csv'))
+        DataFrame.from_dict(res).to_csv(
+            os.path.join(profiling_results_basepath, f"{model_name}.csv")
+        )
+
+    cpu_profiling_basepath = Path("../data/profiling")
+    aggregate_profiling_results = aggregate_profiling_info(cpu_profiling_basepath)
