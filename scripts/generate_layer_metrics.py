@@ -110,6 +110,7 @@ def calculate_conv_macs(conv_layer: ConvLayer, allow_lowering=True):
         ifmap_w = conv_layer.width
         ifmap_h = conv_layer.height
         assert kernel_h == kernel_w
+        assert ifmap_w == ifmap_h
 
         ofmap_h, ofmap_w = calculate_ofmap_dims(conv_layer, ignore_stride=True)
         assert ofmap_h == ofmap_w
@@ -126,7 +127,7 @@ def calculate_conv_macs(conv_layer: ConvLayer, allow_lowering=True):
 
         return macs
 
-def calculate_conv_weight_mem_size(conv_layer: ConvLayer, allow_lowering=True):
+def calculate_conv_weight_mem_size(conv_layer: ConvLayer):
     filters = (
         conv_layer.out_channels / conv_layer.groups
     )
@@ -190,7 +191,7 @@ def calculate_conv_ofmap_mem_size(conv_layer: ConvLayer, allow_lowering=True):
             ),
             ignore_stride=True,
             ignore_dilation=True,
-            ignore_padding=True,
+            ignore_padding=False,
         )
         return lowered_ofmap_h * lowered_ofmap_w * filters * conv_layer.kernel_size[0] * conv_layer.groups
 
@@ -209,7 +210,6 @@ def calculate_linear_macs(linear_layer: LinearLayer):
     assert channels == in_features
     return (height * width) * in_features * out_features
 
-
 def calculate_linear_ifmap_mem_size(linear_layer: LinearLayer):
     in_features = linear_layer.in_features
     channels = linear_layer.channels
@@ -218,12 +218,18 @@ def calculate_linear_ifmap_mem_size(linear_layer: LinearLayer):
     assert channels == in_features
     return (height * width) * in_features
 
-
 def calculate_linear_ofmap_mem_size(linear_layer: LinearLayer):
+    height = linear_layer.height
+    width = linear_layer.width
     in_features = linear_layer.in_features
     out_features = linear_layer.out_features
     channels = linear_layer.channels
     assert channels == in_features
+    return height * width * out_features
+
+def calculate_linear_weight_mem_size(linear_layer: LinearLayer):
+    in_features = linear_layer.in_features
+    out_features = linear_layer.out_features
     return in_features * out_features
 
 
@@ -322,7 +328,7 @@ if __name__ == "__main__":
             model_param_dict[(model, layer_name)] = properties
 
     model_metric_dict = {}
-    for model, layer_dict in model_unique_layers_tracker.items():
+    for model, layer_dict in tqdm(model_unique_layers_tracker.items()):
         layer_property_dict = {}
         for layer, layer_names_list in layer_dict.items():
             if isinstance(layer, ConvLayer):
@@ -330,6 +336,7 @@ if __name__ == "__main__":
                     "macs": calculate_conv_macs(layer),
                     "ifmap_mem_size": calculate_conv_ifmap_mem_size(layer),
                     "ofmap_mem_size": calculate_conv_ofmap_mem_size(layer),
+                    "weight_mem_size": calculate_conv_weight_mem_size(layer),
                     "original_macs": calculate_conv_macs(layer, allow_lowering=False),
                     "original_ifmap_mem_size": calculate_conv_ifmap_mem_size(
                         layer, allow_lowering=False
@@ -337,13 +344,20 @@ if __name__ == "__main__":
                     "original_ofmap_mem_size": calculate_conv_ofmap_mem_size(
                         layer, allow_lowering=False
                     ),
+                    "original_weight_mem_size": calculate_conv_weight_mem_size(layer),
                     "lowered/lifted": lowering_lifting_is_required(layer),
                 }
             elif isinstance(layer, LinearLayer):
                 properties = {
                     "macs": calculate_linear_macs(layer),
                     "ifmap_mem_size": calculate_linear_ifmap_mem_size(layer),
+                    "weight_mem_size": calculate_linear_weight_mem_size(layer),
                     "ofmap_mem_size": calculate_linear_ofmap_mem_size(layer),
+                    "original_macs": calculate_linear_macs(layer),
+                    "original_ifmap_mem_size": calculate_linear_ifmap_mem_size(layer),
+                    "original_ofmap_mem_size": calculate_linear_ofmap_mem_size(layer),
+                    "original_weight_mem_size": calculate_linear_weight_mem_size(layer),
+                    "lowered/lifted": False,
                 }
             else:
                 raise Exception(f"Invalid layer type {type(layer)}")
