@@ -166,7 +166,7 @@ def spawn_simulation_process(worker_id: int, test_case: TestCase):
         weight=res.weight_access * test_case.groups,
         ifmap=res.ifmap_access * ifmap_reduction_factor * test_case.groups,
         psum=res.psum_access * ofmap_reduction_factor * test_case.groups,
-        pe_util=res.avg_util * ifmap_reduction_factor,  # prolly bs
+        pe_util=res.avg_util,
         latency=res.latency
         * test_case.groups,  # unaffected by ifmap reduction (delays would still be required)
         macs=res.macs * test_case.groups,
@@ -335,12 +335,13 @@ def get_layer_equivalents(
     for layer_name, (ifmap_dims, layer) in layer_dims.items():
         if isinstance(layer, Linear):
             layer_out_channels = layer.out_features
+            layer_in_channels = layer.in_features
             lowering_ops = lifting_ops = 0
             new_layer_dims[layer_name] = {
                 "groups": 1,
-                "dims": IfmapLayerDimensions(1, 1, layer_out_channels),
+                "dims": IfmapLayerDimensions(1, 1, layer_in_channels),
                 "conv_layer": Conv2d(
-                    new_dims.channels,
+                    layer_in_channels,
                     layer_out_channels,
                     kernel_size=(1, 1),
                     bias=layer.bias is not None,
@@ -822,6 +823,7 @@ def convert_collected_model_layers_to_testcases(
         test_cases_list, layer_name_tracker
     )
 
+    
     return test_cases_list, layer_name_tracker
 
 
@@ -850,9 +852,9 @@ if __name__ == "__main__":
     models = []
     models.append(
         (
-            "mobilentv3_rw",
+            "resnet50",
             pickle.load(
-                open("../data/processed_models/mobilenetv3_rw.model.pickle", "rb")
+                open("../data/processed_models/resnet50.model.pickle", "rb")
             ),
         )
     )
@@ -862,3 +864,4 @@ if __name__ == "__main__":
         res_df = eval_network(
             model, config.arch_config, model_name=model_name, pre_processed_network=True
         )
+    res_df.to_csv('../data/resnet50.csv')
