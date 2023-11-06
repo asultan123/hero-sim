@@ -1,0 +1,21 @@
+syntax = "proto2";
+
+package message;
+
+message Result {
+    optional string valid = 1;
+    optional uint64 dram_load_access = 2;
+    optional uint64 weight_access = 3;
+    optional uint64 ifmap_access = 4;
+    optional uint64 psum_access = 5;
+    optional float avg_util = 6;
+    optional uint64 latency = 7;
+    optional uint64 macs = 8;
+    optional uint64 sim_time = 9;
+    optional uint64 dram_store_access = 10;
+    optional uint64 reuse_chain_accesses = 11;
+    optional int64 max_psum_program = 12;
+    optional int64 max_ifmap_program = 13;
+    optional int64 max_ifmap_reuse_chain_program = 14;
+    optional int64 max_pe_program = 15;
+}
