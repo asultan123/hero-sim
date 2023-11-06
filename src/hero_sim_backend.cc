@@ -340,12 +340,12 @@ void sim_and_get_results(int ifmap_h, int ifmap_w, int k, int c_in, int f_out, i
         cout << std::left << std::setw(20) << "Avg. Pe Util" << std::setprecision(2) << avg_util << endl;
         cout << std::left << std::setw(20) << "Latency in cycles" << latency_in_cycles.value() / 1000 << endl;
         cout << std::left << std::setw(20) << "MACs Performed" << total_macs << endl;
-        cout << std::left << std::setw(20) << "Simulated in " << sim_time.count() << "ms\n";
-        cout << std::left << std::setw(20) << "Max psum_program " << max_psum_program << "ms\n";
-        cout << std::left << std::setw(20) << "Max ifmap_program " << max_ifmap_program << "ms\n";
+        cout << std::left << std::setw(20) << "Simulated in " << sim_time.count() << "Descriptors\n";
+        cout << std::left << std::setw(20) << "Max psum_program " << max_psum_program << "Descriptors\n";
+        cout << std::left << std::setw(20) << "Max ifmap_program " << max_ifmap_program << "Descriptors\n";
         cout << std::left << std::setw(20) << "Max ifmap_reuse_chain_program " << max_ifmap_reuse_chain_program
-             << "ms\n";
-        cout << std::left << std::setw(20) << "Max pe_program " << max_pe_program << "ms\n";
+             << "Descriptors\n";
+        cout << std::left << std::setw(20) << "Max pe_program " << max_pe_program << "Descriptors\n";
         cout << std::left << std::setw(20) << "ALL TESTS PASS\n";
 
         res.set_valid("PASS");
